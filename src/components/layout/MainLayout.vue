@@ -2,20 +2,27 @@
   <div class="app-container">
     <header class="app-header">
       <div class="logo">AI测试用例生成管理系统</div>
-      <div class="user-info">
-        <el-dropdown>
+      <div class="user-info" v-if="userStore.isAuthenticated">
+        <el-dropdown @command="handleCommand">
           <span class="user-dropdown">
-            用户名 <el-icon><arrow-down /></el-icon>
+            {{ userStore.currentUser?.username || '用户' }} <el-icon><arrow-down /></el-icon>
           </span>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item>个人设置</el-dropdown-item>
-              <el-dropdown-item>退出系统</el-dropdown-item>
+              <el-dropdown-item command="settings">个人设置</el-dropdown-item>
+              <el-dropdown-item command="logout">退出系统</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
       </div>
     </header>
+
+    <!-- 临时调试信息 -->
+    <div v-if="userStore.isAuthenticated" style="background-color: #f0f0f0; padding: 5px 20px; font-size: 12px;">
+      当前用户: {{ userStore.currentUser?.username }} | 
+      角色: {{ userStore.currentUser?.role }} | 
+      管理员: {{ userStore.isAdmin ? '是' : '否' }}
+    </div>
 
     <div class="main-container">
       <aside class="main-sidebar">
@@ -59,8 +66,10 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
-import { useRoute } from "vue-router";
+import { computed, onMounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { useUserStore } from "../../stores/user";
+import { ElMessage, ElMessageBox } from "element-plus";
 import {
   ArrowDown,
   Odometer,
@@ -73,7 +82,47 @@ import {
 } from "@element-plus/icons-vue";
 
 const route = useRoute();
+const router = useRouter();
+const userStore = useUserStore();
 const activeRoute = computed(() => route.path);
+
+onMounted(async () => {
+  // 如果已登录但没有用户信息，获取用户信息
+  if (userStore.isAuthenticated && !userStore.currentUser) {
+    try {
+      const result = await userStore.getUserProfile();
+      if (!result.success) {
+        console.error("获取用户信息失败:", result.message);
+      }
+    } catch (error) {
+      console.error("获取用户信息失败", error);
+    }
+  }
+});
+
+const handleCommand = (command) => {
+  if (command === 'settings') {
+    router.push('/settings');
+  } else if (command === 'logout') {
+    ElMessageBox.confirm(
+      '确定要退出系统吗?',
+      '退出确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+    .then(() => {
+      userStore.logout();
+      ElMessage.success('已成功退出系统');
+      router.push('/login');
+    })
+    .catch(() => {
+      // 取消退出
+    });
+  }
+};
 </script>
 
 <style scoped>
