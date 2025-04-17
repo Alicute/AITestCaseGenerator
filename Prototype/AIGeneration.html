@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI生成 - AI测试用例生成系统</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+        }
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 220px;
+            background-color: #304156;
+            color: white;
+            padding: 20px 0;
+        }
+        .header {
+            height: 60px;
+            background-color: #fff;
+            box-shadow: 0 1px 4px rgba(0,21,41,.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .page-content {
+            padding: 20px;
+            flex: 1;
+        }
+        .menu-item {
+            padding: 12px 24px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            color: #bfcbd9;
+        }
+        .menu-item.active {
+            background-color: #1f2d3d;
+            color: #409EFF;
+        }
+        .menu-item:hover {
+            background-color: #1f2d3d;
+        }
+        .card {
+            background-color: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #606266;
+        }
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #DCDFE6;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        select.form-control {
+            height: 40px;
+        }
+        .textarea {
+            min-height: 150px;
+            resize: vertical;
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+        .button {
+            padding: 10px 20px;
+            background-color: #409EFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .template-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .template-button {
+            padding: 8px 15px;
+            background-color: #ecf5ff;
+            color: #409EFF;
+            border: 1px solid #d9ecff;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .template-button.active {
+            background-color: #409EFF;
+            color: white;
+            border-color: #409EFF;
+        }
+        .result-container {
+            border: 1px solid #EBEEF5;
+            border-radius: 4px;
+            padding: 15px;
+            background-color: #fafafa;
+            min-height: 200px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            line-height: 1.5;
+        }
+        .setting-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .setting-label {
+            width: 100px;
+            flex-shrink: 0;
+        }
+        .setting-control {
+            flex: 1;
+        }
+        .slider {
+            width: 100%;
+        }
+        .advanced-link {
+            color: #409EFF;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        h1, h2, h3 {
+            color: #303133;
+            margin-top: 0;
+        }
+        .select-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .select-arrow {
+            color: #909399;
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <div class="sidebar">
+            <div style="padding: 20px; text-align: center; font-size: 20px; margin-bottom: 20px;">
+                AI测试用例系统
+            </div>
+            <div class="menu-item">仪表盘</div>
+            <div class="menu-item">项目管理</div>
+            <div class="menu-item">模块设计</div>
+            <div class="menu-item">测试用例</div>
+            <div class="menu-item active">AI生成</div>
+            <div class="menu-item">导入导出</div>
+            <div class="menu-item">设置</div>
+        </div>
+        <div class="main-content">
+            <div class="header">
+                <div>
+                    <span>AI生成</span> / <span>系统测试项目</span>
+                </div>
+                <div>
+                    <span>用户名 ▼</span>
+                </div>
+            </div>
+            <div class="page-content">
+                <h1>AI测试用例生成</h1>
+                
+                <div class="card">
+                    <h3>选择功能点</h3>
+                    <div class="form-group">
+                        <div class="select-group">
+                            <select class="form-control">
+                                <option>系统部署</option>
+                                <option>采集图像</option>
+                                <option>设备管理</option>
+                                <option>图像编辑</option>
+                                <option>查看图像</option>
+                            </select>
+                            <span class="select-arrow">></span>
+                            <select class="form-control">
+                                <option>配置</option>
+                                <option>安装</option>
+                                <option>升级</option>
+                                <option>维护</option>
+                            </select>
+                            <span class="select-arrow">></span>
+                            <select class="form-control">
+                                <option>初始化配置</option>
+                                <option>参数设置</option>
+                                <option>权限配置</option>
+                                <option>网络设置</option>
+                            </select>
+                            <button class="button">加载功能点描述</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>提示词模板</h3>
+                    <div class="template-buttons">
+                        <div class="template-button active">标准测试</div>
+                        <div class="template-button">功能测试</div>
+                        <div class="template-button">边界测试</div>
+                        <div class="template-button">异常测试</div>
+                        <div class="template-button">自定义...</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">编辑提示词:</label>
+                        <textarea class="form-control textarea">生成针对"系统部署-配置-初始化配置"的测试用例，包括正常情况和异常情况。测试用例应覆盖首次启动、参数设置和权限验证。每个测试用例应包括:
+1. 标题
+2. 前置条件
+3. 步骤
+4. 预期结果</textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <h3>AI设置</h3>
+                        <div class="setting-row">
+                            <div class="setting-label">接口:</div>
+                            <div class="setting-control">
+                                <select class="form-control">
+                                    <option>OpenAI API</option>
+                                    <option>Claude API</option>
+                                    <option>本地模型</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="setting-row">
+                            <div class="setting-label">模型:</div>
+                            <div class="setting-control">
+                                <select class="form-control">
+                                    <option>GPT-4</option>
+                                    <option>GPT-3.5-Turbo</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="setting-row">
+                            <div class="setting-label">温度:</div>
+                            <div class="setting-control">
+                                <input type="range" min="0" max="2" step="0.1" value="0.7" class="slider">
+                                <span>0.7</span>
+                                <span class="advanced-link">高级设置...</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="button">开始生成</button>
+                        <button class="button">保存提示词模板</button>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>生成结果</h3>
+                    <div class="result-container">
+## 测试用例1: 系统初始化正常流程
+
+**前置条件**: 新安装系统，所有组件就绪
+
+**步骤**:
+1. 以管理员身份登录系统
+2. 进入系统初始化界面
+3. 填写必要配置参数
+4. 点击"开始初始化"按钮
+
+**预期结果**: 系统成功初始化，显示成功消息，并进入主界面
+
+## 测试用例2: 参数验证 - 必填项为空
+
+**前置条件**: 新安装系统
+
+**步骤**:
+1. 以管理员身份登录系统
+2. 进入系统初始化界面
+3. 保留必填参数为空
+4. 点击"开始初始化"按钮
+
+**预期结果**: 系统显示错误提示，指出必填参数不能为空
+                    </div>
+                    
+                    <div class="button-group" style="margin-top: 15px;">
+                        <button class="button">保存到测试用例</button>
+                        <button class="button">编辑结果</button>
+                        <button class="button">重新生成</button>
+                        <button class="button">导出结果</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

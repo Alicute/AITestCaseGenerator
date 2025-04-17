@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>导入导出 - AI测试用例生成系统</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+        }
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 220px;
+            background-color: #304156;
+            color: white;
+            padding: 20px 0;
+        }
+        .header {
+            height: 60px;
+            background-color: #fff;
+            box-shadow: 0 1px 4px rgba(0,21,41,.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .page-content {
+            padding: 20px;
+            flex: 1;
+        }
+        .menu-item {
+            padding: 12px 24px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            color: #bfcbd9;
+        }
+        .menu-item.active {
+            background-color: #1f2d3d;
+            color: #409EFF;
+        }
+        .menu-item:hover {
+            background-color: #1f2d3d;
+        }
+        .card {
+            background-color: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #606266;
+        }
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #DCDFE6;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        select.form-control {
+            height: 40px;
+        }
+        .file-upload {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .file-input-container {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+        .file-input {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+        .button {
+            padding: 10px 20px;
+            background-color: #409EFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+        .radio-group {
+            display: flex;
+            gap: 20px;
+        }
+        .radio-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .checkbox-group {
+            display: flex;
+            gap: 20px;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .format-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .format-button {
+            padding: 8px 15px;
+            background-color: #ecf5ff;
+            color: #409EFF;
+            border: 1px solid #d9ecff;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .format-button.active {
+            background-color: #409EFF;
+            color: white;
+            border-color: #409EFF;
+        }
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .history-table th, .history-table td {
+            padding: 12px 8px;
+            text-align: left;
+            border-bottom: 1px solid #EBEEF5;
+        }
+        .history-table th {
+            background-color: #f5f7fa;
+            color: #606266;
+            font-weight: 500;
+        }
+        .file-name {
+            color: #606266;
+            margin-left: 10px;
+        }
+        h1, h2, h3 {
+            color: #303133;
+            margin-top: 0;
+        }
+        .tab-container {
+            display: flex;
+            border-bottom: 2px solid #E4E7ED;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            position: relative;
+        }
+        .tab.active {
+            color: #409EFF;
+        }
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-color: #409EFF;
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <div class="sidebar">
+            <div style="padding: 20px; text-align: center; font-size: 20px; margin-bottom: 20px;">
+                AI测试用例系统
+            </div>
+            <div class="menu-item">仪表盘</div>
+            <div class="menu-item">项目管理</div>
+            <div class="menu-item">模块设计</div>
+            <div class="menu-item">测试用例</div>
+            <div class="menu-item">AI生成</div>
+            <div class="menu-item active">导入导出</div>
+            <div class="menu-item">设置</div>
+        </div>
+        <div class="main-content">
+            <div class="header">
+                <div>
+                    <span>导入导出</span>
+                </div>
+                <div>
+                    <span>用户名 ▼</span>
+                </div>
+            </div>
+            <div class="page-content">
+                <h1>数据导入导出</h1>
+                
+                <div class="tab-container">
+                    <div class="tab active">导入</div>
+                    <div class="tab">导出</div>
+                    <div class="tab">历史记录</div>
+                </div>
+                
+                <!-- 导入面板 -->
+                <div class="card">
+                    <h3>导入数据</h3>
+                    
+                    <div class="form-group">
+                        <div class="file-upload">
+                            <div class="file-input-container">
+                                <button class="button">选择文件</button>
+                                <input type="file" class="file-input" multiple>
+                            </div>
+                            <span class="file-name">尚未选择文件</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">导入选项:</label>
+                        <div class="radio-group">
+                            <div class="radio-item">
+                                <input type="radio" name="importOption" id="overwrite" checked>
+                                <label for="overwrite">覆盖现有数据</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" name="importOption" id="merge">
+                                <label for="merge">合并数据</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" name="importOption" id="new">
+                                <label for="new">仅导入新项</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">导入范围:</label>
+                        <div class="radio-group">
+                            <div class="radio-item">
+                                <input type="radio" name="importScope" id="all" checked>
+                                <label for="all">整个项目</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" name="importScope" id="modules">
+                                <label for="modules">仅模块</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" name="importScope" id="cases">
+                                <label for="cases">仅测试用例</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="button">开始导入</button>
+                    </div>
+                </div>
+                
+                <!-- 导出面板 (隐藏) -->
+                <div class="card" style="display: none;">
+                    <h3>导出数据</h3>
+                    
+                    <div class="form-group">
+                        <label class="form-label">项目:</label>
+                        <select class="form-control">
+                            <option>系统测试项目</option>
+                            <option>网络模块测试</option>
+                            <option>安全测试项目</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">导出内容:</label>
+                        <div class="checkbox-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="modules_cb" checked>
+                                <label for="modules_cb">模块和功能点</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="cases_cb" checked>
+                                <label for="cases_cb">测试用例</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="relations_cb" checked>
+                                <label for="relations_cb">关联数据</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">格式:</label>
+                        <div class="format-buttons">
+                            <div class="format-button active">JSON</div>
+                            <div class="format-button">Excel</div>
+                            <div class="format-button">Markdown</div>
+                            <div class="format-button">HTML</div>
+                            <div class="format-button">Word</div>
+                        </div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="button">导出项目</button>
+                        <button class="button">仅导出选定模块</button>
+                    </div>
+                </div>
+                
+                <!-- 历史记录面板 (隐藏) -->
+                <div class="card" style="display: none;">
+                    <h3>导入导出历史</h3>
+                    
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>日期时间</th>
+                                <th>操作类型</th>
+                                <th>文件名</th>
+                                <th>项目</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>2023-07-21 10:15</td>
+                                <td>导出</td>
+                                <td>系统测试项目_20230721.json</td>
+                                <td>系统测试项目</td>
+                                <td>成功</td>
+                                <td>
+                                    <button class="button">下载</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>2023-07-20 15:30</td>
+                                <td>导入</td>
+                                <td>系统部署模块.json</td>
+                                <td>系统测试项目</td>
+                                <td>成功</td>
+                                <td>
+                                    <button class="button">查看详情</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>2023-07-19 14:20</td>
+                                <td>导出</td>
+                                <td>测试用例_20230719.xlsx</td>
+                                <td>网络模块测试</td>
+                                <td>成功</td>
+                                <td>
+                                    <button class="button">下载</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>2023-07-18 11:45</td>
+                                <td>导入</td>
+                                <td>测试数据.json</td>
+                                <td>安全测试项目</td>
+                                <td>失败</td>
+                                <td>
+                                    <button class="button">查看错误</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="card">
+                    <h3>批量导入/导出</h3>
+                    <div class="form-group">
+                        <div class="file-upload">
+                            <div class="file-input-container">
+                                <button class="button">上传批量文件</button>
+                                <input type="file" class="file-input">
+                            </div>
+                            <button class="button">下载模板</button>
+                        </div>
+                        <p>批量导入允许您使用模板文件一次性导入多个项目或模块。下载模板填写后再上传。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

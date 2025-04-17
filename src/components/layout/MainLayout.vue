@@ -1,0 +1,122 @@
+<template>
+  <div class="app-container">
+    <header class="app-header">
+      <div class="logo">AI测试用例生成管理系统</div>
+      <div class="user-info">
+        <el-dropdown>
+          <span class="user-dropdown">
+            用户名 <el-icon><arrow-down /></el-icon>
+          </span>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item>个人设置</el-dropdown-item>
+              <el-dropdown-item>退出系统</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
+    </header>
+
+    <div class="main-container">
+      <aside class="main-sidebar">
+        <el-menu router :default-active="activeRoute" class="main-menu">
+          <el-menu-item index="/">
+            <el-icon><odometer /></el-icon>
+            <span>仪表盘</span>
+          </el-menu-item>
+          <el-menu-item index="/projects">
+            <el-icon><folder /></el-icon>
+            <span>项目管理</span>
+          </el-menu-item>
+          <el-menu-item index="/modules">
+            <el-icon><connection /></el-icon>
+            <span>模块设计</span>
+          </el-menu-item>
+          <el-menu-item index="/testcases">
+            <el-icon><document /></el-icon>
+            <span>测试用例</span>
+          </el-menu-item>
+          <el-menu-item index="/ai-generate">
+            <el-icon><magic-stick /></el-icon>
+            <span>AI生成</span>
+          </el-menu-item>
+          <el-menu-item index="/import-export">
+            <el-icon><upload /></el-icon>
+            <span>导入导出</span>
+          </el-menu-item>
+          <el-menu-item index="/settings">
+            <el-icon><setting /></el-icon>
+            <span>设置</span>
+          </el-menu-item>
+        </el-menu>
+      </aside>
+
+      <main class="main-content">
+        <slot></slot>
+      </main>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { computed } from "vue";
+import { useRoute } from "vue-router";
+import {
+  ArrowDown,
+  Odometer,
+  Folder,
+  Connection,
+  Document,
+  MagicStick,
+  Upload,
+  Setting,
+} from "@element-plus/icons-vue";
+
+const route = useRoute();
+const activeRoute = computed(() => route.path);
+</script>
+
+<style scoped>
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app-header {
+  height: 60px;
+  background-color: #409eff;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+
+.main-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.main-sidebar {
+  width: 220px;
+  border-right: 1px solid #e6e6e6;
+  background-color: #f5f7fa;
+}
+
+.main-menu {
+  height: 100%;
+}
+
+.main-content {
+  flex: 1;
+  padding: 20px;
+  overflow: auto;
+}
+
+.user-dropdown {
+  color: white;
+  cursor: pointer;
+}
+</style>

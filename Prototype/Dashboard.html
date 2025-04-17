@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>仪表盘 - AI测试用例生成系统</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+        }
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 220px;
+            background-color: #304156;
+            color: white;
+            padding: 20px 0;
+        }
+        .header {
+            height: 60px;
+            background-color: #fff;
+            box-shadow: 0 1px 4px rgba(0,21,41,.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .page-content {
+            padding: 20px;
+            flex: 1;
+        }
+        .menu-item {
+            padding: 12px 24px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            color: #bfcbd9;
+        }
+        .menu-item.active {
+            background-color: #1f2d3d;
+            color: #409EFF;
+        }
+        .menu-item:hover {
+            background-color: #1f2d3d;
+        }
+        .card {
+            background-color: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+        .stats-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            flex: 1;
+            text-align: center;
+            padding: 20px;
+        }
+        .stat-number {
+            font-size: 36px;
+            color: #409EFF;
+            margin: 10px 0;
+        }
+        .stat-title {
+            color: #606266;
+        }
+        .activity-list {
+            border: 1px solid #EBEEF5;
+            border-radius: 4px;
+        }
+        .activity-item {
+            padding: 12px 20px;
+            border-bottom: 1px solid #EBEEF5;
+            display: flex;
+            align-items: center;
+        }
+        .activity-date {
+            color: #909399;
+            margin-right: 20px;
+            width: 150px;
+        }
+        .activity-type {
+            color: #409EFF;
+            margin-right: 20px;
+            width: 80px;
+        }
+        .activity-description {
+            flex: 1;
+        }
+        .quick-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .action-button {
+            padding: 10px;
+            background-color: #409EFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: center;
+        }
+        h1, h2 {
+            color: #303133;
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <div class="sidebar">
+            <div style="padding: 20px; text-align: center; font-size: 20px; margin-bottom: 20px;">
+                AI测试用例系统
+            </div>
+            <div class="menu-item active">仪表盘</div>
+            <div class="menu-item">项目管理</div>
+            <div class="menu-item">模块设计</div>
+            <div class="menu-item">测试用例</div>
+            <div class="menu-item">AI生成</div>
+            <div class="menu-item">导入导出</div>
+            <div class="menu-item">设置</div>
+        </div>
+        <div class="main-content">
+            <div class="header">
+                <div>
+                    <span>仪表盘</span>
+                </div>
+                <div>
+                    <span>用户名 ▼</span>
+                </div>
+            </div>
+            <div class="page-content">
+                <h1>系统概览</h1>
+                
+                <div class="stats-container">
+                    <div class="card stat-card">
+                        <div class="stat-title">项目总数</div>
+                        <div class="stat-number">5</div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-title">模块总数</div>
+                        <div class="stat-number">24</div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-title">测试用例总数</div>
+                        <div class="stat-number">186</div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h2>最近活动</h2>
+                    <div class="activity-list">
+                        <div class="activity-item">
+                            <div class="activity-date">2023-07-21 10:15</div>
+                            <div class="activity-type">导出数据</div>
+                            <div class="activity-description">导出了"系统部署"模块的测试用例</div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-date">2023-07-21 09:20</div>
+                            <div class="activity-type">生成用例</div>
+                            <div class="activity-description">为"系统初始化"生成了5个测试用例</div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-date">2023-07-20 15:45</div>
+                            <div class="activity-type">添加模块</div>
+                            <div class="activity-description">添加了模块"系统部署"</div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-date">2023-07-20 14:30</div>
+                            <div class="activity-type">创建项目</div>
+                            <div class="activity-description">创建了项目"系统测试项目"</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h2>快速操作</h2>
+                    <div class="quick-actions">
+                        <div class="action-button">新建项目</div>
+                        <div class="action-button">管理模块</div>
+                        <div class="action-button">生成测试用例</div>
+                        <div class="action-button">导入导出</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

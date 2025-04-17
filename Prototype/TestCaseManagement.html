@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试用例 - AI测试用例生成系统</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+        }
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 220px;
+            background-color: #304156;
+            color: white;
+            padding: 20px 0;
+        }
+        .header {
+            height: 60px;
+            background-color: #fff;
+            box-shadow: 0 1px 4px rgba(0,21,41,.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .page-content {
+            padding: 20px;
+            flex: 1;
+        }
+        .menu-item {
+            padding: 12px 24px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            color: #bfcbd9;
+        }
+        .menu-item.active {
+            background-color: #1f2d3d;
+            color: #409EFF;
+        }
+        .menu-item:hover {
+            background-color: #1f2d3d;
+        }
+        .card {
+            background-color: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .button {
+            padding: 10px 20px;
+            background-color: #409EFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+        .filter-bar {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+        .filter-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .filter-label {
+            font-weight: bold;
+            color: #606266;
+        }
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .table th, .table td {
+            padding: 12px 8px;
+            text-align: left;
+            border-bottom: 1px solid #EBEEF5;
+        }
+        .table th {
+            background-color: #f5f7fa;
+            color: #606266;
+            font-weight: 500;
+        }
+        .pagination {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 20px;
+            align-items: center;
+            gap: 10px;
+        }
+        .page-button {
+            padding: 6px 12px;
+            border: 1px solid #DCDFE6;
+            background-color: white;
+            color: #606266;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .page-button.active {
+            background-color: #409EFF;
+            color: white;
+            border-color: #409EFF;
+        }
+        .search-box {
+            display: flex;
+            width: 300px;
+        }
+        .search-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #DCDFE6;
+            border-radius: 4px 0 0 4px;
+            border-right: none;
+        }
+        .search-button {
+            padding: 8px 15px;
+            background-color: #409EFF;
+            color: white;
+            border: none;
+            border-radius: 0 4px 4px 0;
+            cursor: pointer;
+        }
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-right: 5px;
+        }
+        .tag-high {
+            background-color: #f56c6c;
+            color: white;
+        }
+        .tag-medium {
+            background-color: #e6a23c;
+            color: white;
+        }
+        .tag-low {
+            background-color: #67c23a;
+            color: white;
+        }
+        .tag-auto {
+            background-color: #409EFF;
+            color: white;
+        }
+        .tag-manual {
+            background-color: #909399;
+            color: white;
+        }
+        .action-button {
+            padding: 4px 8px;
+            background-color: #409EFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-right: 5px;
+        }
+        .checkbox {
+            width: 16px;
+            height: 16px;
+        }
+        h1, h2, h3 {
+            color: #303133;
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <div class="sidebar">
+            <div style="padding: 20px; text-align: center; font-size: 20px; margin-bottom: 20px;">
+                AI测试用例系统
+            </div>
+            <div class="menu-item">仪表盘</div>
+            <div class="menu-item">项目管理</div>
+            <div class="menu-item">模块设计</div>
+            <div class="menu-item active">测试用例</div>
+            <div class="menu-item">AI生成</div>
+            <div class="menu-item">导入导出</div>
+            <div class="menu-item">设置</div>
+        </div>
+        <div class="main-content">
+            <div class="header">
+                <div>
+                    <span>测试用例</span> / <span>系统测试项目</span>
+                </div>
+                <div>
+                    <span>用户名 ▼</span>
+                </div>
+            </div>
+            <div class="page-content">
+                <div class="page-header">
+                    <h1>测试用例管理</h1>
+                    <div class="button-group">
+                        <button class="button">新建测试用例</button>
+                        <button class="button">AI生成测试用例</button>
+                        <button class="button">导出</button>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="filter-bar">
+                        <div class="search-box">
+                            <input type="text" class="search-input" placeholder="搜索测试用例">
+                            <button class="search-button">搜索</button>
+                        </div>
+                        
+                        <div class="filter-item">
+                            <span class="filter-label">模块:</span>
+                            <select>
+                                <option>全部</option>
+                                <option>系统部署</option>
+                                <option>采集图像</option>
+                                <option>设备管理</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-item">
+                            <span class="filter-label">优先级:</span>
+                            <select>
+                                <option>全部</option>
+                                <option>高</option>
+                                <option>中</option>
+                                <option>低</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-item">
+                            <span class="filter-label">类型:</span>
+                            <select>
+                                <option>全部</option>
+                                <option>功能测试</option>
+                                <option>性能测试</option>
+                                <option>安全测试</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" class="checkbox"></th>
+                                <th>ID</th>
+                                <th>模块</th>
+                                <th>标题</th>
+                                <th>优先级</th>
+                                <th>类型</th>
+                                <th>测试方式</th>
+                                <th>创建方式</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><input type="checkbox" class="checkbox"></td>
+                                <td>TC001</td>
+                                <td>系统部署</td>
+                                <td>系统初始化正常流程</td>
+                                <td><span class="tag tag-high">高</span></td>
+                                <td>功能测试</td>
+                                <td><span class="tag tag-manual">手动</span></td>
+                                <td><span class="tag tag-auto">AI生成</span></td>
+                                <td>
+                                    <button class="action-button">查看</button>
+                                    <button class="action-button">编辑</button>
+                                    <button class="action-button">删除</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><input type="checkbox" class="checkbox"></td>
+                                <td>TC002</td>
+                                <td>系统部署</td>
+                                <td>参数验证 - 必填项为空</td>
+                                <td><span class="tag tag-high">高</span></td>
+                                <td>功能测试</td>
+                                <td><span class="tag tag-manual">手动</span></td>
+                                <td><span class="tag tag-auto">AI生成</span></td>
+                                <td>
+                                    <button class="action-button">查看</button>
+                                    <button class="action-button">编辑</button>
+                                    <button class="action-button">删除</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><input type="checkbox" class="checkbox"></td>
+                                <td>TC003</td>
+                                <td>系统部署</td>
+                                <td>权限验证 - 无权限用户</td>
+                                <td><span class="tag tag-medium">中</span></td>
+                                <td>安全测试</td>
+                                <td><span class="tag tag-manual">手动</span></td>
+                                <td><span class="tag tag-auto">AI生成</span></td>
+                                <td>
+                                    <button class="action-button">查看</button>
+                                    <button class="action-button">编辑</button>
+                                    <button class="action-button">删除</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><input type="checkbox" class="checkbox"></td>
+                                <td>TC004</td>
+                                <td>采集图像</td>
+                                <td>单张图像采集成功</td>
+                                <td><span class="tag tag-high">高</span></td>
+                                <td>功能测试</td>
+                                <td><span class="tag tag-auto">自动</span></td>
+                                <td><span class="tag tag-auto">AI生成</span></td>
+                                <td>
+                                    <button class="action-button">查看</button>
+                                    <button class="action-button">编辑</button>
+                                    <button class="action-button">删除</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><input type="checkbox" class="checkbox"></td>
+                                <td>TC005</td>
+                                <td>采集图像</td>
+                                <td>批量图像采集限制</td>
+                                <td><span class="tag tag-medium">中</span></td>
+                                <td>性能测试</td>
+                                <td><span class="tag tag-manual">手动</span></td>
+                                <td><span class="tag tag-auto">AI生成</span></td>
+                                <td>
+                                    <button class="action-button">查看</button>
+                                    <button class="action-button">编辑</button>
+                                    <button class="action-button">删除</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <div class="pagination">
+                        <span>共 42 条记录</span>
+                        <button class="page-button">上一页</button>
+                        <button class="page-button active">1</button>
+                        <button class="page-button">2</button>
+                        <button class="page-button">3</button>
+                        <button class="page-button">...</button>
+                        <button class="page-button">9</button>
+                        <button class="page-button">下一页</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

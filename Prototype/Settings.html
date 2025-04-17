@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>设置 - AI测试用例生成系统</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+        }
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 220px;
+            background-color: #304156;
+            color: white;
+            padding: 20px 0;
+        }
+        .header {
+            height: 60px;
+            background-color: #fff;
+            box-shadow: 0 1px 4px rgba(0,21,41,.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .page-content {
+            padding: 20px;
+            flex: 1;
+            display: flex;
+            gap: 20px;
+        }
+        .menu-item {
+            padding: 12px 24px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            color: #bfcbd9;
+        }
+        .menu-item.active {
+            background-color: #1f2d3d;
+            color: #409EFF;
+        }
+        .menu-item:hover {
+            background-color: #1f2d3d;
+        }
+        .card {
+            background-color: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+        .settings-sidebar {
+            width: 200px;
+            flex-shrink: 0;
+        }
+        .settings-content {
+            flex: 1;
+        }
+        .setting-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .setting-menu-item {
+            padding: 12px 15px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+            margin-bottom: 2px;
+        }
+        .setting-menu-item.active {
+            background-color: #ecf5ff;
+            color: #409EFF;
+        }
+        .setting-menu-item:hover {
+            background-color: #f5f7fa;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #606266;
+        }
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #DCDFE6;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        select.form-control {
+            height: 40px;
+        }
+        .button {
+            padding: 10px 20px;
+            background-color: #409EFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 30px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #409EFF;
+        }
+        input:checked + .slider:before {
+            transform: translateX(30px);
+        }
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #EBEEF5;
+        }
+        .setting-label {
+            font-weight: bold;
+            color: #303133;
+        }
+        .setting-description {
+            color: #909399;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        h1, h2, h3 {
+            color: #303133;
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <div class="sidebar">
+            <div style="padding: 20px; text-align: center; font-size: 20px; margin-bottom: 20px;">
+                AI测试用例系统
+            </div>
+            <div class="menu-item">仪表盘</div>
+            <div class="menu-item">项目管理</div>
+            <div class="menu-item">模块设计</div>
+            <div class="menu-item">测试用例</div>
+            <div class="menu-item">AI生成</div>
+            <div class="menu-item">导入导出</div>
+            <div class="menu-item active">设置</div>
+        </div>
+        <div class="main-content">
+            <div class="header">
+                <div>
+                    <span>设置</span>
+                </div>
+                <div>
+                    <span>用户名 ▼</span>
+                </div>
+            </div>
+            <div class="page-content">
+                <!-- 设置侧边栏 -->
+                <div class="card settings-sidebar">
+                    <ul class="setting-menu">
+                        <li class="setting-menu-item active">通用设置</li>
+                        <li class="setting-menu-item">AI设置</li>
+                        <li class="setting-menu-item">用户管理</li>
+                        <li class="setting-menu-item">表单配置</li>
+                        <li class="setting-menu-item">模板管理</li>
+                        <li class="setting-menu-item">数据存储</li>
+                        <li class="setting-menu-item">高级</li>
+                    </ul>
+                </div>
+                
+                <!-- 设置内容 -->
+                <div class="card settings-content">
+                    <h2>通用设置</h2>
+                    
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">夜间模式</div>
+                            <div class="setting-description">切换浅色/深色主题显示</div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">自动保存</div>
+                            <div class="setting-description">自动保存编辑内容，避免意外丢失</div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">默认视图</div>
+                            <div class="setting-description">设置模块设计的默认视图模式</div>
+                        </div>
+                        <select class="form-control" style="width: 200px;">
+                            <option>表格视图</option>
+                            <option>脑图视图</option>
+                            <option>JSON视图</option>
+                        </select>
+                    </div>
+                    
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">表格每页显示行数</div>
+                            <div class="setting-description">设置测试用例表格每页显示的行数</div>
+                        </div>
+                        <select class="form-control" style="width: 200px;">
+                            <option>10</option>
+                            <option>20</option>
+                            <option>50</option>
+                            <option>100</option>
+                        </select>
+                    </div>
+                    
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">语言设置</div>
+                            <div class="setting-description">选择系统显示语言</div>
+                        </div>
+                        <select class="form-control" style="width: 200px;">
+                            <option>简体中文</option>
+                            <option>English</option>
+                            <option>日本語</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <button class="button">保存设置</button>
+                        <button class="button" style="background-color: #909399;">恢复默认</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
