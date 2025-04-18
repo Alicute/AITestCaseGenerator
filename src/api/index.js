@@ -160,11 +160,18 @@ export const userAPI = {
     return api.get('/users/profile')
   }
 }
-
+// 统计数据相关API
+export const statAPI = {
+  // 获取仪表盘统计数据
+  getDashboardStats() {
+    return api.get('/stats')
+  }
+}
 export default {
   project: projectAPI,
   module: moduleAPI,
   function: functionAPI,
   testCase: testCaseAPI,
-  user: userAPI
+  user: userAPI,
+  stat: statAPI
 } 

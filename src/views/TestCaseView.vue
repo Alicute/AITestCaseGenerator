@@ -11,109 +11,173 @@
       </div>
 
       <el-card class="filter-card">
-        <div class="filter-bar">
-          <div class="search-box">
+        <div class="filter-container">
+          <!-- 搜索栏 -->
+          <div class="search-section">
             <el-input
               v-model="searchQuery"
               placeholder="搜索测试用例"
-              prefix-icon="el-icon-search"
               clearable
               @clear="handleSearchClear"
               @input="handleSearchInput"
+              class="search-input"
             >
+              <template #prefix>
+                <el-icon><search /></el-icon>
+              </template>
               <template #append>
                 <el-button @click="searchTestCases">搜索</el-button>
               </template>
             </el-input>
           </div>
           
-          <div class="filter-group">
-            <div class="filter-item">
-              <span class="filter-label">模块:</span>
-              <el-select v-model="filters.module" placeholder="全部" clearable @change="applyFilters">
-                <el-option label="全部" value="" />
-                <el-option v-for="item in moduleOptions" :key="item" :label="item" :value="item" />
-              </el-select>
-            </div>
-            
-            <div class="filter-item">
-              <span class="filter-label">优先级:</span>
-              <el-select v-model="filters.priority" placeholder="全部" clearable @change="applyFilters">
-                <el-option label="全部" value="" />
-                <el-option label="高" value="high" />
-                <el-option label="中" value="medium" />
-                <el-option label="低" value="low" />
-              </el-select>
-            </div>
-            
-            <div class="filter-item">
-              <span class="filter-label">类型:</span>
-              <el-select v-model="filters.type" placeholder="全部" clearable @change="applyFilters">
-                <el-option label="全部" value="" />
-                <el-option label="功能测试" value="functional" />
-                <el-option label="性能测试" value="performance" />
-                <el-option label="安全测试" value="security" />
-              </el-select>
+          <!-- 过滤器区域 -->
+          <div class="filter-section">
+            <div class="filter-row">
+              <div class="filter-item">
+                <span class="filter-label">模块：</span>
+                <el-select 
+                  v-model="filters.moduleId" 
+                  placeholder="全部" 
+                  clearable 
+                  @change="applyFilters"
+                  style="width: 180px;"
+                >
+                  <el-option label="全部" value="" />
+                  <el-option 
+                    v-for="item in moduleOptions" 
+                    :key="item.id" 
+                    :label="item.name" 
+                    :value="item.id" 
+                  />
+                </el-select>
+              </div>
+              
+              <div class="filter-item">
+                <span class="filter-label">优先级：</span>
+                <el-select 
+                  v-model="filters.priority" 
+                  placeholder="全部" 
+                  clearable 
+                  @change="applyFilters"
+                  style="width: 120px;"
+                >
+                  <el-option label="全部" value="" />
+                  <el-option label="高" value="high" />
+                  <el-option label="中" value="medium" />
+                  <el-option label="低" value="low" />
+                </el-select>
+              </div>
+              
+              <div class="filter-item">
+                <span class="filter-label">类型：</span>
+                <el-select 
+                  v-model="filters.type" 
+                  placeholder="全部" 
+                  clearable 
+                  @change="applyFilters"
+                  style="width: 150px;"
+                >
+                  <el-option label="全部" value="" />
+                  <el-option label="功能测试" value="functional" />
+                  <el-option label="性能测试" value="performance" />
+                  <el-option label="安全测试" value="security" />
+                </el-select>
+              </div>
+              
+              <div class="filter-item">
+                <span class="filter-label">状态：</span>
+                <el-select 
+                  v-model="filters.status" 
+                  placeholder="全部" 
+                  clearable 
+                  @change="applyFilters"
+                  style="width: 120px;"
+                >
+                  <el-option label="全部" value="" />
+                  <el-option label="通过" value="passed" />
+                  <el-option label="失败" value="failed" />
+                  <el-option label="未执行" value="waiting" />
+                </el-select>
+              </div>
             </div>
           </div>
         </div>
       </el-card>
 
-      <el-table
-        :data="filteredTestCases"
-        style="width: 100%"
-        border
-        stripe
-        @selection-change="handleSelectionChange"
-      >
-        <el-table-column type="selection" width="55" />
-        <el-table-column prop="id" label="ID" width="70" sortable />
-        <el-table-column prop="title" label="测试用例标题" min-width="200" />
-        <el-table-column prop="module" label="模块" width="120" />
-        <el-table-column prop="priority" label="优先级" width="100">
-          <template #default="scope">
-            <el-tag v-if="scope.row.priority === 'high'" type="danger">高</el-tag>
-            <el-tag v-else-if="scope.row.priority === 'medium'" type="warning">中</el-tag>
-            <el-tag v-else-if="scope.row.priority === 'low'" type="success">低</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="type" label="类型" width="120">
-          <template #default="scope">
-            <el-tag v-if="scope.row.type === 'functional'" type="primary">功能测试</el-tag>
-            <el-tag v-else-if="scope.row.type === 'performance'" type="warning">性能测试</el-tag>
-            <el-tag v-else-if="scope.row.type === 'security'" type="danger">安全测试</el-tag>
-            <el-tag v-else type="info">其他</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="scope">
-            <el-tag v-if="scope.row.status === 'passed'" type="success">通过</el-tag>
-            <el-tag v-else-if="scope.row.status === 'failed'" type="danger">失败</el-tag>
-            <el-tag v-else type="info">未执行</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="creator" label="创建人" width="120" />
-        <el-table-column prop="createTime" label="创建时间" width="180" sortable />
-        <el-table-column label="操作" width="200" fixed="right">
-          <template #default="scope">
-            <el-button size="small" @click="viewTestCase(scope.row)">查看</el-button>
-            <el-button size="small" type="primary" @click="editTestCase(scope.row)">编辑</el-button>
-            <el-button size="small" type="danger" @click="deleteTestCase(scope.row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <div class="pagination-container">
-        <el-pagination
-          :current-page="currentPage"
-          :page-sizes="[10, 20, 50, 100]"
-          :page-size="pageSize"
-          layout="total, sizes, prev, pager, next, jumper"
-          :total="filteredTestCases.length"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
+      <div v-if="loading" class="loading-container">
+        <el-skeleton :rows="10" animated />
       </div>
+
+      <template v-else>
+        <el-empty v-if="filteredTestCases.length === 0" description="暂无测试用例数据" />
+        
+        <template v-else>
+          <el-table
+            :data="filteredTestCases"
+            style="width: 100%"
+            border
+            stripe
+            @selection-change="handleSelectionChange"
+          >
+            <el-table-column type="selection" width="55" />
+            <el-table-column prop="id" label="ID" width="70" sortable />
+            <el-table-column prop="title" label="测试用例标题" min-width="200" />
+            <el-table-column label="模块" width="120">
+              <template #default="scope">
+                {{ getModuleName(scope.row.moduleId) }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="priority" label="优先级" width="100">
+              <template #default="scope">
+                <el-tag v-if="scope.row.priority === 'high'" type="danger">高</el-tag>
+                <el-tag v-else-if="scope.row.priority === 'medium'" type="warning">中</el-tag>
+                <el-tag v-else-if="scope.row.priority === 'low'" type="success">低</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="type" label="类型" width="120">
+              <template #default="scope">
+                <el-tag v-if="scope.row.type === 'functional'" type="primary">功能测试</el-tag>
+                <el-tag v-else-if="scope.row.type === 'performance'" type="warning">性能测试</el-tag>
+                <el-tag v-else-if="scope.row.type === 'security'" type="danger">安全测试</el-tag>
+                <el-tag v-else type="info">其他</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="status" label="状态" width="100">
+              <template #default="scope">
+                <el-tag v-if="scope.row.status === 'passed'" type="success">通过</el-tag>
+                <el-tag v-else-if="scope.row.status === 'failed'" type="danger">失败</el-tag>
+                <el-tag v-else type="info">未执行</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="creatorId" label="创建人" width="120" />
+            <el-table-column label="创建时间" width="180" sortable>
+              <template #default="scope">
+                {{ formatDate(scope.row.createdAt) }}
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="200" fixed="right">
+              <template #default="scope">
+                <el-button size="small" @click="viewTestCase(scope.row)">查看</el-button>
+                <el-button size="small" type="primary" @click="editTestCase(scope.row)">编辑</el-button>
+                <el-button size="small" type="danger" @click="deleteTestCase(scope.row)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+
+          <div class="pagination-container">
+            <el-pagination
+              :current-page="pagination.current"
+              :page-sizes="[10, 20, 50, 100]"
+              :page-size="pagination.pageSize"
+              layout="total, sizes, prev, pager, next, jumper"
+              :total="pagination.total"
+              @size-change="handleSizeChange"
+              @current-change="handleCurrentChange"
+            />
+          </div>
+        </template>
+      </template>
 
       <!-- 测试用例详情对话框 -->
       <el-dialog v-model="testCaseDialogVisible" :title="dialogTitle" width="800px">
@@ -121,8 +185,8 @@
           <div class="detail-header">
             <h3>{{ currentTestCase.title }}</h3>
             <div class="detail-meta">
-              <span>创建人: {{ currentTestCase.creator }}</span>
-              <span>创建时间: {{ currentTestCase.createTime }}</span>
+              <span>创建人: {{ currentTestCase.creatorId || '未知' }}</span>
+              <span>创建时间: {{ formatDate(currentTestCase.createdAt) }}</span>
               <span>
                 优先级: 
                 <el-tag v-if="currentTestCase.priority === 'high'" type="danger">高</el-tag>
@@ -141,7 +205,7 @@
             <div class="section-title">测试步骤:</div>
             <div class="section-content">
               <ol>
-                <li v-for="(step, index) in currentTestCase.steps" :key="index">{{ step }}</li>
+                <li v-for="(step, index) in testSteps" :key="index">{{ step }}</li>
               </ol>
             </div>
           </div>
@@ -157,160 +221,119 @@
 </template>
 
 <script setup>
-import { ref, computed, } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import MainLayout from '@/components/layout/MainLayout.vue'
+import api from '@/api'
 
 const router = useRouter()
+const route = useRoute()
 
-// 测试用例数据
-const testCases = ref([
-  {
-    id: 1,
-    title: '验证初始配置参数有效性',
-    module: '系统部署',
-    priority: 'high',
-    type: 'functional',
-    status: 'passed',
-    creator: '张三',
-    createTime: '2023-07-15 10:30',
-    precondition: '系统已完成安装，用户具有管理员权限，系统处于配置状态',
-    steps: [
-      '以管理员身份登录系统',
-      '进入"系统配置"模块',
-      '在初始化配置页面，填写所有必填参数',
-      '包括：服务器IP、端口、用户名、密码、数据库连接等',
-      '点击"保存配置"按钮'
-    ],
-    expectedResult: '系统验证参数有效性，所有配置参数成功保存，系统显示配置成功消息，日志记录配置操作'
-  },
-  {
-    id: 2,
-    title: '缺少必填参数的异常处理',
-    module: '系统部署',
-    priority: 'medium',
-    type: 'functional',
-    status: 'failed',
-    creator: '李四',
-    createTime: '2023-07-16 14:15',
-    precondition: '系统已完成安装，用户具有管理员权限，系统处于配置状态',
-    steps: [
-      '以管理员身份登录系统',
-      '进入"系统配置"模块',
-      '在初始化配置页面，故意不填写服务器IP地址等必填字段',
-      '点击"保存配置"按钮'
-    ],
-    expectedResult: '系统验证失败，不允许保存配置，系统提示错误消息:"服务器IP地址为必填项"，焦点自动定位到缺失的必填字段'
-  },
-  {
-    id: 3,
-    title: '权限控制验证',
-    module: '系统部署',
-    priority: 'high',
-    type: 'security',
-    status: 'waiting',
-    creator: '王五',
-    createTime: '2023-07-17 09:45',
-    precondition: '系统已完成安装，用户具有普通用户权限（非管理员），系统处于配置状态',
-    steps: [
-      '以普通用户身份登录系统',
-      '尝试进入"系统配置"模块',
-      '尝试修改初始化配置'
-    ],
-    expectedResult: '系统阻止普通用户访问配置模块，显示权限不足的提示信息，记录未授权访问尝试'
-  },
-  {
-    id: 4,
-    title: '批量图像采集性能测试',
-    module: '采集图像',
-    priority: 'high',
-    type: 'performance',
-    status: 'waiting',
-    creator: '赵六',
-    createTime: '2023-07-18 16:20',
-    precondition: '系统已连接摄像设备，存储空间充足',
-    steps: [
-      '登录系统',
-      '进入批量采集模块',
-      '设置采集参数：100张图像，分辨率2048x1536',
-      '开始批量采集',
-      '监控系统资源占用和响应时间'
-    ],
-    expectedResult: '系统能够连续采集100张图像，每张图像间隔不超过2秒，CPU占用率不超过80%，内存占用率不超过1GB'
-  },
-  {
-    id: 5,
-    title: '图像编辑功能验证',
-    module: '图像编辑',
-    priority: 'medium',
-    type: 'functional',
-    status: 'passed',
-    creator: '张三',
-    createTime: '2023-07-19 11:10',
-    precondition: '系统中已存在可编辑的图像文件',
-    steps: [
-      '登录系统',
-      '进入图像编辑模块',
-      '选择一张已有图像',
-      '应用旋转、裁剪、滤镜等编辑功能',
-      '保存编辑后的图像'
-    ],
-    expectedResult: '图像成功应用所有编辑效果，保存成功，编辑后的图像质量无明显降低'
-  }
-])
+// 状态变量
+const loading = ref(true)
+const testCases = ref([])
+const modules = ref([])
+const pagination = ref({
+  current: 1,
+  pageSize: 10,
+  total: 0
+})
 
-// 过滤和分页
+// 过滤和搜索
 const filters = ref({
-  module: '',
+  moduleId: '',
   priority: '',
   type: ''
 })
+
 const searchQuery = ref('')
-const currentPage = ref(1)
-const pageSize = ref(10)
 const selectedRows = ref([])
 
 // 下拉选项
 const moduleOptions = computed(() => {
-  // 从测试用例中提取所有不重复的模块名称
-  const modules = new Set(testCases.value.map(tc => tc.module))
-  return Array.from(modules)
+  return modules.value
 })
 
-// 过滤后的测试用例
+// 获取模块名称的辅助函数
+const getModuleName = (moduleId) => {
+  if (!moduleId) return '未分配'
+  const module = modules.value.find(m => m.id === moduleId)
+  return module ? module.name : '未知模块'
+}
+
+// 获取模块列表
+const fetchModules = async () => {
+  try {
+    const response = await api.module.getModules()
+    if (response.success) {
+      modules.value = response.data
+    } else {
+      ElMessage.error(response.message || '获取模块列表失败')
+    }
+  } catch (error) {
+    console.error('获取模块列表错误:', error)
+    ElMessage.error('获取模块列表时发生错误')
+  }
+}
+
+// 获取测试用例列表
+const fetchTestCases = async () => {
+  loading.value = true
+  try {
+    // 构建查询参数
+    const params = {
+      page: pagination.value.current,
+      limit: pagination.value.pageSize,
+      ...filters.value
+    }
+    
+    // 如果有搜索关键字，添加到查询参数
+    if (searchQuery.value) {
+      params.search = searchQuery.value
+    }
+    
+    // 如果路由中有moduleId参数，优先使用它
+    const routeModuleId = route.query.moduleId
+    if (routeModuleId && !filters.value.moduleId) {
+      params.moduleId = routeModuleId
+      filters.value.moduleId = routeModuleId
+    }
+    
+    const response = await api.testCase.getTestCases(params)
+    
+    if (response.success) {
+      testCases.value = response.data
+      pagination.value.total = response.total || response.data.length
+    } else {
+      ElMessage.error(response.message || '获取测试用例失败')
+    }
+  } catch (error) {
+    console.error('获取测试用例错误:', error)
+    ElMessage.error('获取测试用例时发生错误')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 计算筛选后的测试用例列表
 const filteredTestCases = computed(() => {
-  let result = testCases.value
-
-  // 应用搜索
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    result = result.filter(tc => 
-      tc.title.toLowerCase().includes(query) || 
-      tc.module.toLowerCase().includes(query) ||
-      (tc.precondition && tc.precondition.toLowerCase().includes(query)) ||
-      (tc.expectedResult && tc.expectedResult.toLowerCase().includes(query))
-    )
-  }
-
-  // 应用过滤器
-  if (filters.value.module) {
-    result = result.filter(tc => tc.module === filters.value.module)
-  }
-  if (filters.value.priority) {
-    result = result.filter(tc => tc.priority === filters.value.priority)
-  }
-  if (filters.value.type) {
-    result = result.filter(tc => tc.type === filters.value.type)
-  }
-
-  return result
+  return testCases.value
 })
 
 // 对话框相关
 const testCaseDialogVisible = ref(false)
 const dialogMode = ref('view') // 'view', 'edit', 'create'
 const currentTestCase = ref(null)
+const testSteps = computed(() => {
+  if (!currentTestCase.value || !currentTestCase.value.steps) return []
+  // 处理步骤，可能是字符串或数组
+  if (typeof currentTestCase.value.steps === 'string') {
+    return currentTestCase.value.steps.split('\n').filter(step => step.trim())
+  }
+  return currentTestCase.value.steps
+})
+
 const dialogTitle = computed(() => {
   if (dialogMode.value === 'view') return '测试用例详情'
   if (dialogMode.value === 'edit') return '编辑测试用例'
@@ -320,7 +343,8 @@ const dialogTitle = computed(() => {
 
 // 处理方法
 const applyFilters = () => {
-  currentPage.value = 1 // 重置到第一页
+  pagination.value.current = 1 // 重置到第一页
+  fetchTestCases()
 }
 
 const handleSearchInput = () => {
@@ -335,15 +359,18 @@ const handleSearchClear = () => {
 }
 
 const searchTestCases = () => {
-  currentPage.value = 1 // 重置到第一页
+  pagination.value.current = 1 // 重置到第一页
+  fetchTestCases()
 }
 
 const handleSizeChange = (size) => {
-  pageSize.value = size
+  pagination.value.pageSize = size
+  fetchTestCases()
 }
 
 const handleCurrentChange = (page) => {
-  currentPage.value = page
+  pagination.value.current = page
+  fetchTestCases()
 }
 
 const handleSelectionChange = (rows) => {
@@ -351,14 +378,25 @@ const handleSelectionChange = (rows) => {
 }
 
 // 测试用例操作
-const viewTestCase = (testCase) => {
-  currentTestCase.value = testCase
-  dialogMode.value = 'view'
-  testCaseDialogVisible.value = true
+const viewTestCase = async (testCase) => {
+  try {
+    // 可以添加额外的API调用来获取完整的测试用例详情
+    const response = await api.testCase.getTestCase(testCase.id)
+    if (response.success) {
+      currentTestCase.value = response.data
+      dialogMode.value = 'view'
+      testCaseDialogVisible.value = true
+    } else {
+      ElMessage.error(response.message || '获取测试用例详情失败')
+    }
+  } catch (error) {
+    console.error('获取测试用例详情错误:', error)
+    ElMessage.error('获取测试用例详情时发生错误')
+  }
 }
 
 const editTestCase = (testCase) => {
-  ElMessage.info(`编辑测试用例: ${testCase.title}`)
+  router.push(`/testcases/${testCase.id}/edit`)
 }
 
 const deleteTestCase = (testCase) => {
@@ -371,12 +409,18 @@ const deleteTestCase = (testCase) => {
       type: 'warning',
     }
   )
-    .then(() => {
-      // 模拟删除操作
-      const index = testCases.value.findIndex(tc => tc.id === testCase.id)
-      if (index !== -1) {
-        testCases.value.splice(index, 1)
-        ElMessage.success('测试用例删除成功')
+    .then(async () => {
+      try {
+        const response = await api.testCase.deleteTestCase(testCase.id)
+        if (response.success) {
+          ElMessage.success('测试用例删除成功')
+          fetchTestCases() // 重新加载列表
+        } else {
+          ElMessage.error(response.message || '删除测试用例失败')
+        }
+      } catch (error) {
+        console.error('删除测试用例错误:', error)
+        ElMessage.error('删除测试用例时发生错误')
       }
     })
     .catch(() => {
@@ -385,18 +429,30 @@ const deleteTestCase = (testCase) => {
 }
 
 const createNewTestCase = () => {
-  ElMessage.info('创建新测试用例功能待实现')
+  router.push('/testcases/create')
 }
 
 const exportTestCases = () => {
-  ElMessage.success('测试用例导出成功')
+  ElMessage.info('导出功能正在开发中')
 }
 
 const goToAIGenerate = () => {
   router.push('/ai-generate')
 }
-</script>
 
+// 日期格式化函数
+const formatDate = (dateString) => {
+  if (!dateString) return '-'
+  const date = new Date(dateString)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+// 组件挂载时加载数据
+onMounted(() => {
+  fetchModules()
+  fetchTestCases()
+})
+</script>
 <style scoped>
 .test-case-management {
   width: 100%;
@@ -418,32 +474,51 @@ const goToAIGenerate = () => {
   margin-bottom: 20px;
 }
 
-.filter-bar {
+.filter-container {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 15px;
-  margin-bottom: 5px;
 }
 
-.search-box {
-  width: 300px;
+.search-section {
+  width: 100%;
 }
 
-.filter-group {
+.search-input {
+  width: 100%;
+  max-width: 500px;
+}
+
+.filter-section {
+  width: 100%;
+}
+
+.filter-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 15px;
+  gap: 20px;
+  align-items: center;
 }
 
 .filter-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  margin-bottom: 10px;
 }
 
 .filter-label {
   font-weight: bold;
   color: #606266;
+  width: 70px;
+  text-align: right;
+  margin-right: 8px;
+}
+
+.loading-container {
+  min-height: 400px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .pagination-container {
@@ -483,5 +558,25 @@ const goToAIGenerate = () => {
 .section-content {
   line-height: 1.6;
   color: #606266;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .filter-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .filter-item {
+    width: 100%;
+  }
+  
+  .filter-label {
+    width: 60px;
+  }
+  
+  .el-select {
+    width: 100% !important;
+  }
 }
 </style>
