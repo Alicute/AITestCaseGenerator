@@ -16,6 +16,38 @@
         <!-- 左侧模块树 -->
         <div class="module-tree-container">
           <el-card class="module-tree">
+            <div v-if="!projectId" class="no-project-warning">
+              <el-alert
+                title="未选择项目"
+                type="warning"
+                :closable="false"
+                description=""
+                show-icon
+              />
+              <div class="project-selector">
+                <el-select 
+                  v-model="selectedProjectId" 
+                  placeholder="选择项目" 
+                  style="width: 100%; margin-top: 10px;"
+                  @change="handleProjectChange"
+                >
+                  <el-option
+                    v-for="project in projectsList"
+                    :key="project.id"
+                    :label="project.name"
+                    :value="project.id"
+                  />
+                </el-select>
+                <el-button 
+                  type="primary" 
+                  size="small" 
+                  style="margin-top: 10px; width: 100%;"
+                  @click="goToCreateProject"
+                >
+                  创建新项目
+                </el-button>
+              </div>
+            </div>
             <div class="tree-header">
               <div class="primary-action">
                 <el-button size="small" type="primary" @click="showAddRootModuleDialog">
@@ -180,9 +212,26 @@
       <!-- 添加模块对话框 -->
       <el-dialog v-model="addModuleDialogVisible" :title="editingModule ? '编辑模块' : '添加模块'" width="500px">
         <el-form :model="newModule" label-width="120px">
-          <el-form-item label="模块名称">
+          <el-form-item label="模块名称" required>
             <el-input v-model="newModule.name" placeholder="请输入模块名称" />
           </el-form-item>
+          
+          <el-form-item v-if="!projectId && !editingModule" label="所属项目" required>
+            <el-select 
+              v-model="newModule.projectId" 
+              placeholder="请选择项目" 
+              filterable
+            >
+              <el-option
+                v-for="project in projectsList"
+                :key="project.id"
+                :label="project.name"
+                :value="project.id"
+              />
+            </el-select>
+            <div class="form-tip">选择一个项目来保存此模块</div>
+          </el-form-item>
+          
           <el-form-item label="模块描述">
             <el-input v-model="newModule.description" type="textarea" placeholder="请输入模块描述" />
           </el-form-item>
@@ -267,6 +316,8 @@ import api from '@/api'
 const router = useRouter()
 const route = useRoute()
 const projectId = computed(() => route.query.projectId || null)
+const projectsList = ref([])
+const selectedProjectId = ref(null)
 
 // 加载状态
 const loading = ref(false)
@@ -312,6 +363,33 @@ const fetchProjectInfo = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// 获取项目列表
+const fetchProjects = async () => {
+  try {
+    const response = await api.project.getProjects()
+    if (response.success) {
+      projectsList.value = response.data
+    } else {
+      ElMessage.error(response.message || '获取项目列表失败')
+    }
+  } catch (error) {
+    console.error('获取项目列表错误:', error)
+    ElMessage.error('获取项目列表时发生错误')
+  }
+}
+
+// 处理项目选择变化
+const handleProjectChange = (projectId) => {
+  if (projectId) {
+    router.push(`/modules?projectId=${projectId}`)
+  }
+}
+
+// 跳转到创建项目页面
+const goToCreateProject = () => {
+  router.push('/projects')
 }
 
 // 获取模块树数据
@@ -463,13 +541,30 @@ const addModule = async () => {
     return
   }
 
+  // 检查是否选择了项目
+  if (!projectId.value && !newModule.value.projectId) {
+    ElMessage.warning('请选择一个项目')
+    return
+  }
+
   submitting.value = true
   try {
+    // 确保有项目ID
+    if (!newModule.value.projectId && projectId.value) {
+      newModule.value.projectId = projectId.value
+    }
+    
     const response = await api.module.createModule(newModule.value)
     
     if (response.success) {
       addModuleDialogVisible.value = false
       ElMessage.success('模块添加成功')
+      
+      // 如果是在无项目模式下添加的模块，并且选择了项目，则重定向到该项目
+      if (!projectId.value && newModule.value.projectId) {
+        router.push(`/modules?projectId=${newModule.value.projectId}`)
+        return
+      }
       
       // 刷新模块树
       fetchModuleTree()
@@ -952,6 +1047,7 @@ const formatDate = (dateString) => {
 onMounted(() => {
   fetchProjectInfo()
   fetchModuleTree()
+  fetchProjects()
 })
 </script>
 
@@ -1079,5 +1175,20 @@ onMounted(() => {
 /* 确保对话框内的表单项有合适的间距 */
 .el-form-item {
   margin-bottom: 20px;
+}
+
+.no-project-warning {
+  margin-bottom: 20px;
+}
+
+.project-selector {
+  margin-top: 15px;
+  margin-bottom: 15px;
+}
+
+.form-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 5px;
 }
 </style>

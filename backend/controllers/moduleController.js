@@ -287,10 +287,13 @@ exports.getModuleTree = async (req, res) => {
   try {
     const { projectId } = req.query;
     
+    // 如果没有提供projectId，返回空数组而不是错误
     if (!projectId) {
-      return res.status(400).json({
-        success: false,
-        message: '缺少项目ID参数'
+      return res.json({
+        success: true,
+        count: 0,
+        data: [],
+        message: '没有选择项目，显示空模块列表'
       });
     }
     
