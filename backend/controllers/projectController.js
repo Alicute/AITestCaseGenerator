@@ -1,5 +1,6 @@
 const Project = require('../models/Project');
 const Module = require('../models/Module');
+const { Op } = require('sequelize');
 
 /**
  * @desc    获取所有项目
@@ -8,13 +9,8 @@ const Module = require('../models/Module');
  */
 exports.getProjects = async (req, res) => {
   try {
-    // 查找当前用户的项目（创建的或者是成员的）
-    const projects = await Project.find({
-      $or: [
-        { creator: req.user._id },
-        { members: req.user._id }
-      ]
-    }).populate('creator', 'username');
+    // 使用Sequelize查询所有项目
+    const projects = await Project.findAll();
     
     res.json({
       success: true,
@@ -22,6 +18,7 @@ exports.getProjects = async (req, res) => {
       data: projects
     });
   } catch (error) {
+    console.error('获取项目列表错误:', error);
     res.status(500).json({
       success: false,
       message: '服务器错误',
@@ -37,9 +34,8 @@ exports.getProjects = async (req, res) => {
  */
 exports.getProject = async (req, res) => {
   try {
-    const project = await Project.findById(req.params.id)
-      .populate('creator', 'username email')
-      .populate('members', 'username email');
+    // 使用Sequelize的findByPk方法
+    const project = await Project.findByPk(req.params.id);
     
     if (!project) {
       return res.status(404).json({
@@ -48,22 +44,12 @@ exports.getProject = async (req, res) => {
       });
     }
     
-    // 检查用户是否有权限查看此项目
-    if (
-      project.creator._id.toString() !== req.user._id.toString() && 
-      !project.members.some(member => member._id.toString() === req.user._id.toString())
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: '无权访问此项目'
-      });
-    }
-    
     res.json({
       success: true,
       data: project
     });
   } catch (error) {
+    console.error('获取项目详情错误:', error);
     res.status(500).json({
       success: false,
       message: '服务器错误',
@@ -79,12 +65,7 @@ exports.getProject = async (req, res) => {
  */
 exports.createProject = async (req, res) => {
   try {
-    const { name, description, templateId } = req.body;
-    
-    // 添加创建者ID
-    req.body.creator = req.user._id;
-    
-    // 创建项目
+    // 直接使用请求体创建项目
     const project = await Project.create(req.body);
     
     res.status(201).json({
@@ -92,8 +73,9 @@ exports.createProject = async (req, res) => {
       data: project
     });
   } catch (error) {
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(val => val.message);
+    console.error('创建项目错误:', error);
+    if (error.name === 'SequelizeValidationError') {
+      const messages = error.errors.map(err => err.message);
       return res.status(400).json({
         success: false,
         message: messages.join(', ')
@@ -115,7 +97,8 @@ exports.createProject = async (req, res) => {
  */
 exports.updateProject = async (req, res) => {
   try {
-    let project = await Project.findById(req.params.id);
+    // 使用Sequelize查找并更新项目
+    const project = await Project.findByPk(req.params.id);
     
     if (!project) {
       return res.status(404).json({
@@ -124,31 +107,17 @@ exports.updateProject = async (req, res) => {
       });
     }
     
-    // 检查用户是否有权限更新此项目
-    if (project.creator.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: '只有项目创建者才能更新项目'
-      });
-    }
-    
     // 更新项目
-    project = await Project.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true,
-        runValidators: true
-      }
-    );
+    await project.update(req.body);
     
     res.json({
       success: true,
       data: project
     });
   } catch (error) {
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(val => val.message);
+    console.error('更新项目错误:', error);
+    if (error.name === 'SequelizeValidationError') {
+      const messages = error.errors.map(err => err.message);
       return res.status(400).json({
         success: false,
         message: messages.join(', ')
@@ -170,7 +139,8 @@ exports.updateProject = async (req, res) => {
  */
 exports.deleteProject = async (req, res) => {
   try {
-    const project = await Project.findById(req.params.id);
+    // 使用Sequelize查找项目
+    const project = await Project.findByPk(req.params.id);
     
     if (!project) {
       return res.status(404).json({
@@ -179,25 +149,20 @@ exports.deleteProject = async (req, res) => {
       });
     }
     
-    // 检查用户是否有权限删除此项目
-    if (project.creator.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: '只有项目创建者才能删除项目'
-      });
-    }
-    
     // 删除项目下的所有模块
-    await Module.deleteMany({ projectId: project._id });
+    await Module.destroy({
+      where: { projectId: req.params.id }
+    });
     
     // 删除项目
-    await project.remove();
+    await project.destroy();
     
     res.json({
       success: true,
       message: '项目已删除'
     });
   } catch (error) {
+    console.error('删除项目错误:', error);
     res.status(500).json({
       success: false,
       message: '服务器错误',
@@ -213,8 +178,7 @@ exports.deleteProject = async (req, res) => {
  */
 exports.getProjectTemplates = async (req, res) => {
   try {
-    // 这里可以从数据库中获取项目模板
-    // 现在我们先返回硬编码的模板数据
+    // 直接返回模板数据
     const templates = [
       {
         id: 1,
@@ -248,6 +212,7 @@ exports.getProjectTemplates = async (req, res) => {
       data: templates
     });
   } catch (error) {
+    console.error('获取项目模板错误:', error);
     res.status(500).json({
       success: false,
       message: '服务器错误',

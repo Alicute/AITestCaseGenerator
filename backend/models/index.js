@@ -2,6 +2,7 @@ const User = require('./User');
 const Project = require('./Project');
 const Module = require('./Module');
 const TestCase = require('./TestCase');
+const Function = require('./Function');
 const { sequelize } = require('../config/database');
 
 // 项目和用户的关系
@@ -25,6 +26,10 @@ Module.belongsTo(Module, { foreignKey: 'parentId', as: 'parent' });
 User.hasMany(Module, { foreignKey: 'createdById', as: 'createdModules' });
 Module.belongsTo(User, { foreignKey: 'createdById', as: 'createdBy' });
 
+// 模块和功能点的关系
+Module.hasMany(Function, { foreignKey: 'moduleId', as: 'functions' });
+Function.belongsTo(Module, { foreignKey: 'moduleId' });
+
 // 模块和测试用例的关系
 Module.hasMany(TestCase, { foreignKey: 'moduleId', as: 'testCases' });
 TestCase.belongsTo(Module, { foreignKey: 'moduleId' });
@@ -45,5 +50,6 @@ module.exports = {
   Project,
   Module,
   TestCase,
+  Function,
   ProjectMember
 };

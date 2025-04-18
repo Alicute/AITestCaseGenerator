@@ -7,19 +7,29 @@
       </div>
 
       <el-card>
-        <el-table :data="projects" style="width: 100%">
-          <el-table-column prop="name" label="项目名称" />
-          <el-table-column prop="createDate" label="创建日期" width="180" />
-          <el-table-column prop="moduleCount" label="模块数量" width="120" align="center" />
-          <el-table-column prop="testCaseCount" label="测试用例数" width="120" align="center" />
-          <el-table-column label="操作" width="220">
-            <template #default="scope">
-              <el-button size="small" @click="openProject(scope.row)">打开</el-button>
-              <el-button size="small" type="warning" @click="editProject(scope.row)">编辑</el-button>
-              <el-button size="small" type="danger" @click="confirmDeleteProject(scope.row)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+        <div v-if="loading" class="loading-container">
+          <el-skeleton :rows="3" animated />
+        </div>
+        <div v-else>
+          <el-empty v-if="projects.length === 0" description="暂无项目数据" />
+          <el-table v-else :data="projects" style="width: 100%">
+            <el-table-column prop="name" label="项目名称" />
+            <el-table-column label="创建日期" width="180">
+              <template #default="scope">
+                {{ formatDate(scope.row.createdAt) }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="moduleCount" label="模块数量" width="120" align="center" />
+            <el-table-column prop="testCaseCount" label="测试用例数" width="120" align="center" />
+            <el-table-column label="操作" width="220">
+              <template #default="scope">
+                <el-button size="small" @click="openProject(scope.row)">打开</el-button>
+                <el-button size="small" type="warning" @click="editProject(scope.row)">编辑</el-button>
+                <el-button size="small" type="danger" @click="confirmDeleteProject(scope.row)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
       </el-card>
 
       <h2 class="template-title">项目模板</h2>
@@ -49,7 +59,7 @@
         <template #footer>
           <span class="dialog-footer">
             <el-button @click="createProjectDialogVisible = false">取消</el-button>
-            <el-button type="primary" @click="createProject">创建</el-button>
+            <el-button type="primary" @click="createProject" :loading="submitting">创建</el-button>
           </span>
         </template>
       </el-dialog>
@@ -67,7 +77,7 @@
         <template #footer>
           <span class="dialog-footer">
             <el-button @click="editProjectDialogVisible = false">取消</el-button>
-            <el-button type="primary" @click="saveProjectEdit">保存</el-button>
+            <el-button type="primary" @click="saveProjectEdit" :loading="submitting">保存</el-button>
           </span>
         </template>
       </el-dialog>
@@ -76,40 +86,20 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import MainLayout from '@/components/layout/MainLayout.vue'
+import axios from 'axios'
 
 const router = useRouter()
 
+// 加载状态
+const loading = ref(false)
+const submitting = ref(false)
+
 // 项目列表数据
-const projects = ref([
-  {
-    id: 1,
-    name: '系统测试项目',
-    createDate: '2023-07-15',
-    moduleCount: 5,
-    testCaseCount: 24,
-    description: '系统主要测试项目'
-  },
-  {
-    id: 2,
-    name: '网络模块测试',
-    createDate: '2023-07-20',
-    moduleCount: 3,
-    testCaseCount: 12,
-    description: '网络功能测试项目'
-  },
-  {
-    id: 3,
-    name: '安全测试项目',
-    createDate: '2023-08-03',
-    moduleCount: 4,
-    testCaseCount: 18,
-    description: '安全功能测试项目'
-  }
-])
+const projects = ref([])
 
 // 项目模板
 const projectTemplates = ref([
@@ -150,7 +140,31 @@ const newProject = ref({
 // 编辑项目相关
 const editProjectDialogVisible = ref(false)
 const editingProject = ref({})
-const editingIndex = ref(-1)
+
+// 获取项目列表
+const fetchProjects = async () => {
+  loading.value = true
+  try {
+    const response = await axios.get('/api/v1/projects')
+    if (response.data.success) {
+      projects.value = response.data.data
+    } else {
+      ElMessage.error(response.data.message || '获取项目列表失败')
+    }
+  } catch (error) {
+    console.error('获取项目列表错误:', error)
+    ElMessage.error('获取项目列表时发生错误')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 格式化日期
+const formatDate = (dateString) => {
+  if (!dateString) return '-'
+  const date = new Date(dateString)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
 
 // 显示创建项目对话框
 const showCreateProjectDialog = () => {
@@ -163,57 +177,72 @@ const showCreateProjectDialog = () => {
 }
 
 // 创建项目
-const createProject = () => {
+const createProject = async () => {
   if (!newProject.value.name) {
     ElMessage.warning('请输入项目名称')
     return
   }
 
-  // 模拟添加项目到列表
-  const now = new Date()
-  const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-  
-  const newId = projects.value.length > 0 ? Math.max(...projects.value.map(p => p.id)) + 1 : 1
-  
-  projects.value.push({
-    id: newId,
-    name: newProject.value.name,
-    description: newProject.value.description,
-    createDate: dateStr,
-    moduleCount: 0,
-    testCaseCount: 0
-  })
-  
-  createProjectDialogVisible.value = false
-  ElMessage.success('项目创建成功')
+  submitting.value = true
+  try {
+    const response = await axios.post('/api/v1/projects', {
+      name: newProject.value.name,
+      description: newProject.value.description,
+      templateId: newProject.value.templateId || null
+    })
+    
+    if (response.data.success) {
+      createProjectDialogVisible.value = false
+      ElMessage.success('项目创建成功')
+      fetchProjects() // 刷新项目列表
+    } else {
+      ElMessage.error(response.data.message || '创建项目失败')
+    }
+  } catch (error) {
+    console.error('创建项目错误:', error)
+    ElMessage.error('创建项目时发生错误')
+  } finally {
+    submitting.value = false
+  }
 }
 
 // 打开项目
 const openProject = (project) => {
-  // 在实际应用中，这里可能会跳转到项目详情页
-  ElMessage.info(`打开项目: ${project.name}`)
-  // 为了简化演示，这里直接跳转到模块设计页面
-  router.push('/modules')
+  router.push(`/modules?projectId=${project.id}`)
 }
 
 // 编辑项目
 const editProject = (project) => {
   editingProject.value = { ...project }
-  editingIndex.value = projects.value.findIndex(p => p.id === project.id)
   editProjectDialogVisible.value = true
 }
 
 // 保存项目编辑
-const saveProjectEdit = () => {
+const saveProjectEdit = async () => {
   if (!editingProject.value.name) {
     ElMessage.warning('请输入项目名称')
     return
   }
 
-  if (editingIndex.value !== -1) {
-    projects.value[editingIndex.value] = { ...editingProject.value }
-    ElMessage.success('项目更新成功')
-    editProjectDialogVisible.value = false
+  submitting.value = true
+  try {
+    const response = await axios.put(`/api/v1/projects/${editingProject.value.id}`, {
+      name: editingProject.value.name,
+      description: editingProject.value.description
+    })
+    
+    if (response.data.success) {
+      editProjectDialogVisible.value = false
+      ElMessage.success('项目更新成功')
+      fetchProjects() // 刷新项目列表
+    } else {
+      ElMessage.error(response.data.message || '更新项目失败')
+    }
+  } catch (error) {
+    console.error('更新项目错误:', error)
+    ElMessage.error('更新项目时发生错误')
+  } finally {
+    submitting.value = false
   }
 }
 
@@ -228,12 +257,19 @@ const confirmDeleteProject = (project) => {
       type: 'warning',
     }
   )
-    .then(() => {
-      // 从列表中移除项目
-      const index = projects.value.findIndex(p => p.id === project.id)
-      if (index !== -1) {
-        projects.value.splice(index, 1)
-        ElMessage.success('项目删除成功')
+    .then(async () => {
+      try {
+        const response = await axios.delete(`/api/v1/projects/${project.id}`)
+        
+        if (response.data.success) {
+          ElMessage.success('项目删除成功')
+          fetchProjects() // 刷新项目列表
+        } else {
+          ElMessage.error(response.data.message || '删除项目失败')
+        }
+      } catch (error) {
+        console.error('删除项目错误:', error)
+        ElMessage.error('删除项目时发生错误')
       }
     })
     .catch(() => {
@@ -250,6 +286,11 @@ const useProjectTemplate = (template) => {
   }
   createProjectDialogVisible.value = true
 }
+
+// 组件挂载时获取项目列表
+onMounted(() => {
+  fetchProjects()
+})
 </script>
 
 <style scoped>
@@ -264,34 +305,39 @@ const useProjectTemplate = (template) => {
   margin-bottom: 20px;
 }
 
+.page-header h1 {
+  margin: 0;
+  font-size: 24px;
+}
+
 .template-title {
   margin-top: 30px;
-  margin-bottom: 20px;
+  font-size: 20px;
 }
 
 .template-container {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 20px;
-  flex-wrap: wrap;
+  margin-top: 16px;
 }
 
 .template-card {
-  width: 180px;
-  height: 150px;
   border: 1px solid #e6e6e6;
-  border-radius: 4px;
+  border-radius: 8px;
   padding: 20px;
-  text-align: center;
   cursor: pointer;
   transition: all 0.3s;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  align-items: center;
+  text-align: center;
 }
 
 .template-card:hover {
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  transform: translateY(-5px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+  border-color: #409eff;
 }
 
 .template-icon {
@@ -301,11 +347,15 @@ const useProjectTemplate = (template) => {
 
 .template-name {
   font-weight: bold;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .template-desc {
-  font-size: 12px;
-  color: #909399;
+  color: #888;
+  font-size: 14px;
+}
+
+.loading-container {
+  padding: 20px;
 }
 </style>

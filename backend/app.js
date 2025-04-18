@@ -27,6 +27,7 @@ app.use('/api/v1/users', require('./routes/users'));
 app.use('/api/v1/ai', require('./routes/ai'));
 app.use('/api/v1/settings', require('./routes/settings'));
 app.use('/api/v1/import-export', require('./routes/importExport'));
+app.use('/api/v1/functions', require('./routes/functions'));
 
 // 根路由
 app.get('/', (req, res) => {
@@ -34,17 +35,19 @@ app.get('/', (req, res) => {
 });
 
 // 错误处理中间件
-app.use((err, req, res, _) => {  // 使用_代替next，表示故意不使用此参数
+app.use((err, req, res, next) => {  // express需要4个参数，即使next不使用
   console.error(err.stack);
   res.status(500).json({
     success: false,
     message: '服务器内部错误',
     error: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
+  // 添加一个空操作以使用next参数
+  next;
 });
 
 // 同步数据库模型
-sequelize.sync({ force: true }) // force: true 会强制删除并重建表
+sequelize.sync({ force: false }) // 改为false，避免删除表
   .then(() => {
     console.log('数据库表同步完成');
     

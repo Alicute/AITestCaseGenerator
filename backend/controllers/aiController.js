@@ -2,6 +2,8 @@ const axios = require('axios');
 const Project = require('../models/Project');
 const Module = require('../models/Module');
 const TestCase = require('../models/TestCase');
+const { sequelize } = require('../config/database');
+const { Op } = require('sequelize');
 
 /**
  * @desc    生成测试用例
@@ -21,7 +23,7 @@ exports.generateTestCases = async (req, res) => {
     }
 
     // 验证模块是否存在
-    const module = await Module.findById(moduleId);
+    const module = await Module.findByPk(moduleId);
     if (!module) {
       return res.status(404).json({
         success: false,
@@ -30,10 +32,10 @@ exports.generateTestCases = async (req, res) => {
     }
 
     // 检查用户是否有权限为此模块生成测试用例
-    const project = await Project.findById(module.projectId);
+    const project = await Project.findByPk(module.projectId);
     if (
-      project.creator.toString() !== req.user._id.toString() && 
-      !project.members.some(member => member.toString() === req.user._id.toString())
+      project.creatorId !== req.user.id && 
+      !(await project.hasMembers(req.user.id))
     ) {
       return res.status(403).json({
         success: false,
@@ -101,7 +103,7 @@ exports.saveGeneratedTestCases = async (req, res) => {
     }
 
     // 验证模块是否存在
-    const module = await Module.findById(moduleId);
+    const module = await Module.findByPk(moduleId);
     if (!module) {
       return res.status(404).json({
         success: false,
@@ -110,10 +112,10 @@ exports.saveGeneratedTestCases = async (req, res) => {
     }
 
     // 检查用户是否有权限为此模块保存测试用例
-    const project = await Project.findById(module.projectId);
+    const project = await Project.findByPk(module.projectId);
     if (
-      project.creator.toString() !== req.user._id.toString() && 
-      !project.members.some(member => member.toString() === req.user._id.toString())
+      project.creatorId !== req.user.id && 
+      !(await project.hasMembers(req.user.id))
     ) {
       return res.status(403).json({
         success: false,
@@ -126,7 +128,7 @@ exports.saveGeneratedTestCases = async (req, res) => {
       testCases.map(async (tc) => {
         return await TestCase.create({
           title: tc.title,
-          module: moduleId,
+          moduleId: moduleId,
           projectId,
           priority: tc.priority || 'medium',
           type: tc.type || 'functional',
@@ -135,19 +137,21 @@ exports.saveGeneratedTestCases = async (req, res) => {
           expectedResult: tc.expectedResult,
           isGenerated: true,
           aiProvider: aiProvider || 'openai',
-          creator: req.user._id
+          creatorId: req.user.id
         });
       })
     );
 
     // 更新项目和模块的测试用例计数
-    await Project.findByIdAndUpdate(projectId, {
-      $inc: { testCaseCount: createdTestCases.length }
-    });
+    await Project.update(
+      { testCaseCount: sequelize.literal('testCaseCount + ' + createdTestCases.length) },
+      { where: { id: projectId } }
+    );
 
-    await Module.findByIdAndUpdate(moduleId, {
-      $inc: { testCaseCount: createdTestCases.length }
-    });
+    await Module.update(
+      { testCaseCount: sequelize.literal('testCaseCount + ' + createdTestCases.length) },
+      { where: { id: moduleId } }
+    );
 
     res.status(201).json({
       success: true,
@@ -155,8 +159,8 @@ exports.saveGeneratedTestCases = async (req, res) => {
       data: createdTestCases
     });
   } catch (error) {
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(val => val.message);
+    if (error.name === 'SequelizeValidationError') {
+      const messages = error.errors.map(val => val.message);
       return res.status(400).json({
         success: false,
         message: messages.join(', ')

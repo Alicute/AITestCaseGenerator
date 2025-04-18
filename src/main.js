@@ -17,7 +17,14 @@ if (token) {
 
 const app = createApp(App);
 const pinia = createPinia();
-
+// 抑制 ResizeObserver 循环错误警告
+const originalConsoleError = window.console.error;
+window.console.error = (...args) => {
+  if (args[0] && args[0].includes && args[0].includes('ResizeObserver loop')) {
+    return;
+  }
+  originalConsoleError(...args);
+};
 app.use(ElementPlus);
 app.use(pinia);
 app.use(router);
