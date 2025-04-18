@@ -40,7 +40,7 @@
             <span>模块设计</span>
           </el-menu-item>
           <el-menu-item index="/testcases">
-            <el-icon><document /></el-icon>
+            <el-icon><Document /></el-icon>
             <span>测试用例</span>
           </el-menu-item>
           <el-menu-item index="/ai-generate">

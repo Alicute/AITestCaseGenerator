@@ -288,7 +288,7 @@
             </template>
             <template #tip>
               <div class="el-upload__tip">
-                只能上传Markdown文件（.md/.markdown），支持标准Markdown格式的模块定义
+                只能上传Markdown文件（.md/.markdown）
               </div>
             </template>
           </el-upload>
