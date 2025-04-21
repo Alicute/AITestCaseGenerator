@@ -1237,17 +1237,22 @@ watch(() => route.query.projectId, (newProjectId, oldProjectId) => {
 
 .info-item {
   display: flex;
+  align-items: flex-start;
   margin-bottom: 15px;
 }
 
 .item-label {
-  width: 120px;
+  display: inline-block;
+  width: auto;
+  white-space: nowrap;
+  margin-right: 5px;
   font-weight: bold;
   color: #606266;
 }
 
 .item-value {
-  flex: 1;
+  flex: 0 auto;
+  display: inline-block;
 }
 
 .function-list,
