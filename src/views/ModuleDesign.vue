@@ -70,9 +70,13 @@
               :data="moduleTree"
               :props="defaultProps"
               @node-click="handleNodeClick"
+              @node-expand="handleNodeExpand"
+              @node-collapse="handleNodeCollapse"
               node-key="id"
               :expand-on-click-node="false"
               highlight-current
+              :default-expanded-keys="expandedKeys"
+              :current-node-key="currentModule?.id"
             >
               <template #default="{ node, data }">
                 <div class="custom-tree-node">
@@ -371,6 +375,8 @@ const defaultProps = {
   children: 'children',
   label: 'name'
 }
+// 记录展开的节点
+const expandedKeys = ref([])
 
 // 功能点数据
 const moduleFunctions = ref([])
@@ -446,6 +452,11 @@ const fetchModuleTree = async () => {
         currentModule.value = moduleTree.value[0]
         fetchModuleFunctions(currentModule.value.id)
         fetchModuleTestCases(currentModule.value.id)
+        
+        // 如果之前没有展开的节点，默认展开第一个根节点
+        if (expandedKeys.value.length === 0) {
+          expandedKeys.value.push(currentModule.value.id)
+        }
       }
     } else {
       ElMessage.error(response.message || '获取模块树失败')
@@ -541,6 +552,19 @@ const handleNodeClick = (data) => {
   fetchModuleTestCases(data.id)
 }
 
+// 节点展开事件处理
+const handleNodeExpand = (data) => {
+  expandedKeys.value.push(data.id)
+}
+
+// 节点折叠事件处理
+const handleNodeCollapse = (data) => {
+  const index = expandedKeys.value.indexOf(data.id)
+  if (index !== -1) {
+    expandedKeys.value.splice(index, 1)
+  }
+}
+
 // 添加模块相关
 const addModuleDialogVisible = ref(false)
 const newModule = ref({
@@ -570,6 +594,10 @@ const appendNode = (data) => {
     description: '',
     parentId: data.id,
     projectId: projectId.value
+  }
+  // 确保父节点展开
+  if (!expandedKeys.value.includes(data.id)) {
+    expandedKeys.value.push(data.id)
   }
   addModuleDialogVisible.value = true
 }
@@ -606,8 +634,40 @@ const addModule = async () => {
         return
       }
 
+      // 保存新创建的模块ID，以便在刷新树后高亮显示
+      const newModuleId = response.data.id
+      const parentId = newModule.value.parentId
+
       // 刷新模块树
-      fetchModuleTree()
+      await fetchModuleTree()
+
+      // 找到新创建的模块，并设置为当前选中
+      if (newModuleId) {
+        // 如果是子模块，确保父节点展开
+        if (parentId && !expandedKeys.value.includes(parentId)) {
+          expandedKeys.value.push(parentId)
+        }
+        
+        // 查找并选中新模块
+        const findAndSelectModule = (modules) => {
+          for (const module of modules) {
+            if (module.id === newModuleId) {
+              currentModule.value = module
+              fetchModuleFunctions(module.id)
+              fetchModuleTestCases(module.id)
+              return true
+            }
+            if (module.children && module.children.length > 0) {
+              if (findAndSelectModule(module.children)) {
+                return true
+              }
+            }
+          }
+          return false
+        }
+        
+        findAndSelectModule(moduleTree.value)
+      }
     } else {
       ElMessage.error(response.message || '添加模块失败')
     }
