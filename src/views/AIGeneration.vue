@@ -346,8 +346,9 @@ const fetchProjects = async () => {
       // 如果路由中有项目ID，自动选择
       const routeProjectId = route.query.projectId
       if (routeProjectId) {
-        selectedProjectId.value = routeProjectId
-        handleProjectChange(routeProjectId)
+        // 确保项目ID是数值类型
+        selectedProjectId.value = typeof routeProjectId === 'string' ? parseInt(routeProjectId) : routeProjectId
+        handleProjectChange(selectedProjectId.value)
       }
     } else {
       ElMessage.error(response.message || '获取项目列表失败')
@@ -373,7 +374,10 @@ const fetchModuleTree = async (projectId) => {
       // 如果路由中有模块ID，自动选择
       const routeModuleId = route.query.moduleId
       if (routeModuleId) {
-        selectedModuleId.value = parseInt(routeModuleId)
+        const moduleId = parseInt(routeModuleId)
+        selectedModuleId.value = moduleId
+        // 同时设置级联选择器的值，确保UI显示正确
+        selectedModulePath.value = moduleId
         loadModuleDescription()
       }
     } else {
@@ -431,6 +435,8 @@ const handleProjectChange = (projectId) => {
 const handleModuleChange = (moduleId) => {
   if (moduleId) {
     selectedModuleId.value = moduleId
+    // 确保两个值保持同步
+    selectedModulePath.value = moduleId
     currentModuleDescription.value = ''
     moduleFunctions.value = []
     selectedFunctions.value = []

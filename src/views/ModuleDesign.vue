@@ -1121,7 +1121,8 @@ const exportModules = async () => {
 // 导航
 const goToAIGenerate = () => {
   const moduleId = currentModule.value?.id
-  router.push(`/ai-generate?moduleId=${moduleId}`)
+  // 同时传递项目ID和模块ID
+  router.push(`/ai-generate?projectId=${projectId.value}&moduleId=${moduleId}`)
 }
 
 const goToTestCases = () => {
