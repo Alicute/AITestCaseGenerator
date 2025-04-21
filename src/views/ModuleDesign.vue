@@ -25,10 +25,10 @@
                 show-icon
               />
               <div class="project-selector">
-                <el-select 
-                  v-model="selectedProjectId" 
-                  placeholder="选择项目" 
-                  style="width: 100%; margin-top: 10px;"
+                <el-select
+                  v-model="selectedProjectId"
+                  placeholder="选择项目"
+                  style="width: 100%; margin-top: 10px"
                   @change="handleProjectChange"
                 >
                   <el-option
@@ -38,10 +38,10 @@
                     :value="project.id"
                   />
                 </el-select>
-                <el-button 
-                  type="primary" 
-                  size="small" 
-                  style="margin-top: 10px; width: 100%;"
+                <el-button
+                  type="primary"
+                  size="small"
+                  style="margin-top: 10px; width: 100%"
                   @click="goToCreateProject"
                 >
                   创建新项目
@@ -141,7 +141,7 @@
                     <el-empty description="暂无功能点数据" />
                     <el-button type="primary" @click="showAddFunctionDialog">添加功能点</el-button>
                   </div>
-                  
+
                   <template v-else>
                     <el-table :data="moduleFunctions" style="width: 100%">
                       <el-table-column prop="name" label="功能点名称" />
@@ -149,20 +149,28 @@
                       <el-table-column prop="priority" label="优先级" width="120">
                         <template #default="scope">
                           <el-tag v-if="scope.row.priority === 'high'" type="danger">高</el-tag>
-                          <el-tag v-else-if="scope.row.priority === 'medium'" type="warning">中</el-tag>
-                          <el-tag v-else-if="scope.row.priority === 'low'" type="success">低</el-tag>
+                          <el-tag v-else-if="scope.row.priority === 'medium'" type="warning"
+                            >中</el-tag
+                          >
+                          <el-tag v-else-if="scope.row.priority === 'low'" type="success"
+                            >低</el-tag
+                          >
                         </template>
                       </el-table-column>
                       <el-table-column label="操作" width="180">
                         <template #default="scope">
                           <el-button size="small" @click="editFunction(scope.row)">编辑</el-button>
-                          <el-button size="small" type="danger" @click="deleteFunction(scope.row)">删除</el-button>
+                          <el-button size="small" type="danger" @click="deleteFunction(scope.row)"
+                            >删除</el-button
+                          >
                         </template>
                       </el-table-column>
                     </el-table>
 
                     <div class="function-actions">
-                      <el-button type="primary" @click="showAddFunctionDialog">添加功能点</el-button>
+                      <el-button type="primary" @click="showAddFunctionDialog"
+                        >添加功能点</el-button
+                      >
                     </div>
                   </template>
                 </div>
@@ -170,28 +178,39 @@
 
               <el-tab-pane label="测试用例" name="testcases">
                 <div class="testcase-list">
-                  <el-empty v-if="moduleTestCases.length === 0" description="暂无测试用例，请先添加或生成测试用例"></el-empty>
+                  <el-empty
+                    v-if="moduleTestCases.length === 0"
+                    description="暂无测试用例，请先添加或生成测试用例"
+                  ></el-empty>
                   <el-table v-else :data="moduleTestCases" style="width: 100%">
                     <el-table-column prop="title" label="测试用例名称" />
                     <el-table-column prop="priority" label="优先级" width="120">
                       <template #default="scope">
                         <el-tag v-if="scope.row.priority === 'high'" type="danger">高</el-tag>
-                        <el-tag v-else-if="scope.row.priority === 'medium'" type="warning">中</el-tag>
+                        <el-tag v-else-if="scope.row.priority === 'medium'" type="warning"
+                          >中</el-tag
+                        >
                         <el-tag v-else-if="scope.row.priority === 'low'" type="success">低</el-tag>
                       </template>
                     </el-table-column>
                     <el-table-column prop="status" label="状态" width="120">
                       <template #default="scope">
                         <el-tag v-if="scope.row.status === 'passed'" type="success">通过</el-tag>
-                        <el-tag v-else-if="scope.row.status === 'failed'" type="danger">失败</el-tag>
+                        <el-tag v-else-if="scope.row.status === 'failed'" type="danger"
+                          >失败</el-tag
+                        >
                         <el-tag v-else type="info">未执行</el-tag>
                       </template>
                     </el-table-column>
                     <el-table-column label="操作" width="220">
                       <template #default="scope">
                         <el-button size="small" @click="viewTestCase(scope.row)">查看</el-button>
-                        <el-button size="small" type="primary" @click="editTestCase(scope.row)">编辑</el-button>
-                        <el-button size="small" type="danger" @click="deleteTestCase(scope.row)">删除</el-button>
+                        <el-button size="small" type="primary" @click="editTestCase(scope.row)"
+                          >编辑</el-button
+                        >
+                        <el-button size="small" type="danger" @click="deleteTestCase(scope.row)"
+                          >删除</el-button
+                        >
                       </template>
                     </el-table-column>
                   </el-table>
@@ -210,18 +229,18 @@
       </div>
 
       <!-- 添加模块对话框 -->
-      <el-dialog v-model="addModuleDialogVisible" :title="editingModule ? '编辑模块' : '添加模块'" width="500px">
+      <el-dialog
+        v-model="addModuleDialogVisible"
+        :title="editingModule ? '编辑模块' : '添加模块'"
+        width="500px"
+      >
         <el-form :model="newModule" label-width="120px">
           <el-form-item label="模块名称" required>
             <el-input v-model="newModule.name" placeholder="请输入模块名称" />
           </el-form-item>
-          
+
           <el-form-item v-if="!projectId && !editingModule" label="所属项目" required>
-            <el-select 
-              v-model="newModule.projectId" 
-              placeholder="请选择项目" 
-              filterable
-            >
+            <el-select v-model="newModule.projectId" placeholder="请选择项目" filterable>
               <el-option
                 v-for="project in projectsList"
                 :key="project.id"
@@ -231,15 +250,23 @@
             </el-select>
             <div class="form-tip">选择一个项目来保存此模块</div>
           </el-form-item>
-          
+
           <el-form-item label="模块描述">
-            <el-input v-model="newModule.description" type="textarea" placeholder="请输入模块描述" />
+            <el-input
+              v-model="newModule.description"
+              type="textarea"
+              placeholder="请输入模块描述"
+            />
           </el-form-item>
         </el-form>
         <template #footer>
           <span class="dialog-footer">
             <el-button @click="addModuleDialogVisible = false">取消</el-button>
-            <el-button type="primary" @click="editingModule ? saveModule() : addModule()" :loading="submitting">
+            <el-button
+              type="primary"
+              @click="editingModule ? saveModule() : addModule()"
+              :loading="submitting"
+            >
               {{ editingModule ? '保存' : '确定' }}
             </el-button>
           </span>
@@ -247,13 +274,21 @@
       </el-dialog>
 
       <!-- 添加功能点对话框 -->
-      <el-dialog v-model="addFunctionDialogVisible" :title="editingFunction ? '编辑功能点' : '添加功能点'" width="500px">
+      <el-dialog
+        v-model="addFunctionDialogVisible"
+        :title="editingFunction ? '编辑功能点' : '添加功能点'"
+        width="500px"
+      >
         <el-form :model="newFunction" label-width="120px">
           <el-form-item label="功能点名称">
             <el-input v-model="newFunction.name" placeholder="请输入功能点名称" />
           </el-form-item>
           <el-form-item label="功能描述">
-            <el-input v-model="newFunction.description" type="textarea" placeholder="请输入功能描述" />
+            <el-input
+              v-model="newFunction.description"
+              type="textarea"
+              placeholder="请输入功能描述"
+            />
           </el-form-item>
           <el-form-item label="优先级">
             <el-select v-model="newFunction.priority" placeholder="请选择优先级">
@@ -287,16 +322,16 @@
               <el-button type="primary">选择文件</el-button>
             </template>
             <template #tip>
-              <div class="el-upload__tip">
-                只能上传Markdown文件（.md/.markdown）
-              </div>
+              <div class="el-upload__tip">只能上传Markdown文件（.md/.markdown）</div>
             </template>
           </el-upload>
         </div>
         <template #footer>
           <span class="dialog-footer">
             <el-button @click="importDialogVisible = false">取消</el-button>
-            <el-button type="primary" @click="importModules" :loading="importLoading">导入</el-button>
+            <el-button type="primary" @click="importModules" :loading="importLoading"
+              >导入</el-button
+            >
           </span>
         </template>
       </el-dialog>
@@ -305,7 +340,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
@@ -334,7 +369,7 @@ const activeTab = ref('info')
 const moduleTree = ref([])
 const defaultProps = {
   children: 'children',
-  label: 'name',
+  label: 'name'
 }
 
 // 功能点数据
@@ -347,11 +382,11 @@ const moduleTestCases = ref([])
 const projectInfo = ref({})
 const fetchProjectInfo = async () => {
   if (!projectId.value) return
-  
+
   try {
     loading.value = true
     const response = await api.project.getProject(projectId.value)
-    
+
     if (response.success) {
       projectInfo.value = response.data
     } else {
@@ -383,7 +418,12 @@ const fetchProjects = async () => {
 // 处理项目选择变化
 const handleProjectChange = (projectId) => {
   if (projectId) {
+    selectedProjectId.value = projectId
     router.push(`/modules?projectId=${projectId}`)
+    // 重新获取项目信息和模块树
+    console.log('projectId', projectId)
+    fetchProjectInfo()
+    fetchModuleTree()
   }
 }
 
@@ -398,7 +438,7 @@ const fetchModuleTree = async () => {
   try {
     // 使用API方法获取模块树
     const response = await api.module.getModuleTree(projectId.value)
-    
+
     if (response.success) {
       moduleTree.value = buildModuleTree(response.data)
       // 如果有模块，默认选中第一个
@@ -424,7 +464,7 @@ const buildModuleTree = (modules) => {
   const rootModules = []
 
   // 先创建一个以id为键的映射
-  modules.forEach(module => {
+  modules.forEach((module) => {
     moduleMap[module.id] = {
       ...module,
       children: []
@@ -432,7 +472,7 @@ const buildModuleTree = (modules) => {
   })
 
   // 然后建立父子关系
-  modules.forEach(module => {
+  modules.forEach((module) => {
     if (module.parentId) {
       // 有父模块
       if (moduleMap[module.parentId]) {
@@ -453,11 +493,11 @@ const buildModuleTree = (modules) => {
 // 获取模块的功能点列表
 const fetchModuleFunctions = async (moduleId) => {
   if (!moduleId) return
-  
+
   loading.value = true
   try {
     const response = await api.module.getModuleFunctions(moduleId)
-    
+
     if (response.success) {
       moduleFunctions.value = response.data || []
     } else {
@@ -475,11 +515,11 @@ const fetchModuleFunctions = async (moduleId) => {
 // 获取模块的测试用例列表
 const fetchModuleTestCases = async (moduleId) => {
   if (!moduleId) return
-  
+
   loading.value = true
   try {
     const response = await api.testCase.getTestCases({ moduleId })
-    
+
     if (response.success) {
       moduleTestCases.value = response.data || []
     } else {
@@ -553,19 +593,19 @@ const addModule = async () => {
     if (!newModule.value.projectId && projectId.value) {
       newModule.value.projectId = projectId.value
     }
-    
+
     const response = await api.module.createModule(newModule.value)
-    
+
     if (response.success) {
       addModuleDialogVisible.value = false
       ElMessage.success('模块添加成功')
-      
+
       // 如果是在无项目模式下添加的模块，并且选择了项目，则重定向到该项目
       if (!projectId.value && newModule.value.projectId) {
         router.push(`/modules?projectId=${newModule.value.projectId}`)
         return
       }
-      
+
       // 刷新模块树
       fetchModuleTree()
     } else {
@@ -587,23 +627,23 @@ const removeNode = (node, data) => {
     {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
-      type: 'warning',
+      type: 'warning'
     }
   )
     .then(async () => {
       try {
         const response = await api.module.deleteModule(data.id)
-        
+
         if (response.success) {
           ElMessage.success('模块删除成功')
-          
+
           // 如果当前选中的是被删除的模块，清空选择
           if (currentModule.value && currentModule.value.id === data.id) {
             currentModule.value = null
             moduleFunctions.value = []
             moduleTestCases.value = []
           }
-          
+
           // 刷新模块树
           fetchModuleTree()
         } else {
@@ -622,7 +662,7 @@ const removeNode = (node, data) => {
 // 编辑模块
 const editModule = () => {
   if (!currentModule.value) return
-  
+
   editingModule.value = currentModule.value
   newModule.value = {
     id: currentModule.value.id,
@@ -631,7 +671,7 @@ const editModule = () => {
     parentId: currentModule.value.parentId,
     projectId: projectId.value
   }
-  
+
   addModuleDialogVisible.value = true
 }
 
@@ -649,11 +689,11 @@ const saveModule = async () => {
       description: newModule.value.description
     }
     const response = await api.module.updateModule(newModule.value.id, updateData)
-    
+
     if (response.success) {
       addModuleDialogVisible.value = false
       ElMessage.success('模块更新成功')
-      
+
       // 刷新模块树
       fetchModuleTree()
     } else {
@@ -702,15 +742,14 @@ const addFunction = async () => {
     /*
     let response
     
-    if (editingFunction.value) {
-      // 更新功能点
+    if (editingFunction.value) {      // 更新功能点
       response = await api.function.updateFunction(editingFunction.value.id, newFunction.value)
     } else {
       // 添加新功能点
       response = await api.function.createFunction(newFunction.value)
     }
     */
-    
+
     // 模拟成功响应
     const response = {
       success: true,
@@ -719,26 +758,28 @@ const addFunction = async () => {
         id: Date.now().toString() // 生成临时ID
       }
     }
-    
+
     if (response.success) {
       addFunctionDialogVisible.value = false
       ElMessage.success(editingFunction.value ? '功能点更新成功' : '功能点添加成功')
-      
+
       // 临时添加到列表
       if (!editingFunction.value) {
         moduleFunctions.value.push(response.data)
       } else {
         // 更新列表中的项
-        const index = moduleFunctions.value.findIndex(f => f.id === editingFunction.value.id)
+        const index = moduleFunctions.value.findIndex((f) => f.id === editingFunction.value.id)
         if (index !== -1) {
-          moduleFunctions.value[index] = {...moduleFunctions.value[index], ...newFunction.value}
+          moduleFunctions.value[index] = { ...moduleFunctions.value[index], ...newFunction.value }
         }
       }
-      
+
       // 注释掉刷新功能点列表的API调用
       // fetchModuleFunctions(currentModule.value.id)
     } else {
-      ElMessage.error(response.message || (editingFunction.value ? '更新功能点失败' : '添加功能点失败'))
+      ElMessage.error(
+        response.message || (editingFunction.value ? '更新功能点失败' : '添加功能点失败')
+      )
     }
   } catch (error) {
     console.error(editingFunction.value ? '更新功能点错误:' : '添加功能点错误:', error)
@@ -760,33 +801,29 @@ const editFunction = (row) => {
 
 // 删除功能点
 const deleteFunction = (row) => {
-  ElMessageBox.confirm(
-    `确定要删除功能点 "${row.name}" 吗？`,
-    '警告',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    }
-  )
+  ElMessageBox.confirm(`确定要删除功能点 "${row.name}" 吗？`, '警告', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  })
     .then(async () => {
       try {
         // 临时模拟API调用，直到后端实现功能点API
         // 注释掉真实的API调用
         // const response = await api.function.deleteFunction(row.id)
-        
+
         // 模拟成功响应
         const response = { success: true }
-        
+
         if (response.success) {
           ElMessage.success('功能点删除成功')
-          
+
           // 从列表中移除
-          const index = moduleFunctions.value.findIndex(f => f.id === row.id)
+          const index = moduleFunctions.value.findIndex((f) => f.id === row.id)
           if (index !== -1) {
             moduleFunctions.value.splice(index, 1)
           }
-          
+
           // 注释掉刷新功能点列表的API调用
           // fetchModuleFunctions(currentModule.value.id)
         } else {
@@ -812,22 +849,18 @@ const editTestCase = (testCase) => {
 }
 
 const deleteTestCase = (testCase) => {
-  ElMessageBox.confirm(
-    `确定要删除测试用例 "${testCase.title}" 吗？`,
-    '警告',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    }
-  )
+  ElMessageBox.confirm(`确定要删除测试用例 "${testCase.title}" 吗？`, '警告', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  })
     .then(async () => {
       try {
         const response = await api.testCase.deleteTestCase(testCase.id)
-        
+
         if (response.success) {
           ElMessage.success('测试用例删除成功')
-          
+
           // 刷新测试用例列表
           fetchModuleTestCases(currentModule.value.id)
         } else {
@@ -864,7 +897,7 @@ const parseMarkdownModules = (markdownText) => {
 
   for (let line of lines) {
     line = line.trim()
-    
+
     // 检测标题级别
     if (line.startsWith('# ')) {
       // 顶级标题，不作为模块处理
@@ -920,28 +953,28 @@ const importModuleTree = async (modules, parentId = null) => {
   for (const module of modules) {
     // 设置父模块ID
     module.parentId = parentId
-    
+
     // 保存功能点列表
     const functions = module.functions || []
     delete module.functions // 移除functions字段，因为API不接受这个字段
-    
+
     // 保存子模块
     const children = module.children || []
     delete module.children // 移除children字段，因为API不接受这个字段
-    
+
     try {
       // 创建模块
       const response = await api.module.createModule(module)
-      
+
       if (response.success) {
         const newModuleId = response.data.id
-        
+
         // 为该模块创建功能点
         for (const func of functions) {
           func.moduleId = newModuleId
           await api.function.createFunction(func)
         }
-        
+
         // 递归处理子模块
         if (children.length > 0) {
           await importModuleTree(children, newModuleId)
@@ -970,26 +1003,26 @@ const importModules = async () => {
       ElMessage.error('无法读取文件')
       return
     }
-    
+
     // 使用FileReader读取Markdown文件内容
     const reader = new FileReader()
     reader.onload = async (e) => {
       try {
         const markdownContent = e.target.result
         const moduleTree = parseMarkdownModules(markdownContent)
-        
+
         if (moduleTree.length === 0) {
           ElMessage.warning('未从Markdown中解析到有效的模块结构')
           importLoading.value = false
           return
         }
-        
+
         // 开始导入
         await importModuleTree(moduleTree)
-        
+
         ElMessage.success('模块导入成功')
         importDialogVisible.value = false
-        
+
         // 刷新模块树
         fetchModuleTree()
       } catch (error) {
@@ -999,12 +1032,12 @@ const importModules = async () => {
         importLoading.value = false
       }
     }
-    
+
     reader.onerror = () => {
       ElMessage.error('读取文件时发生错误')
       importLoading.value = false
     }
-    
+
     reader.readAsText(file)
   } catch (error) {
     console.error('导入模块错误:', error)
@@ -1048,6 +1081,15 @@ onMounted(() => {
   fetchProjectInfo()
   fetchModuleTree()
   fetchProjects()
+})
+
+// 监听路由参数变化，当URL中的projectId变化时重新加载数据
+watch(() => route.query.projectId, (newProjectId, oldProjectId) => {
+  if (newProjectId !== oldProjectId) {
+    console.log('路由projectId变化:', newProjectId)
+    fetchProjectInfo()
+    fetchModuleTree()
+  }
 })
 </script>
 
@@ -1148,11 +1190,13 @@ onMounted(() => {
   flex: 1;
 }
 
-.function-list, .testcase-list {
+.function-list,
+.testcase-list {
   margin-top: 10px;
 }
 
-.function-actions, .testcase-actions {
+.function-actions,
+.testcase-actions {
   margin-top: 20px;
   display: flex;
   gap: 10px;
@@ -1163,7 +1207,8 @@ onMounted(() => {
   padding: 20px;
 }
 
-.empty-tree, .empty-functions {
+.empty-tree,
+.empty-functions {
   text-align: center;
   padding: 20px 0;
 }
