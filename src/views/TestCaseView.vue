@@ -1,134 +1,153 @@
 <template>
   <main-layout>
     <div class="test-case-management">
-      <div class="page-header">
-        <h1>测试用例管理</h1>
-        <div class="header-actions">
-          <el-button type="primary" @click="createNewTestCase">新建测试用例</el-button>
-          <el-button type="success" @click="goToAIGenerate">AI生成测试用例</el-button>
-          <el-button @click="exportTestCases">导出</el-button>
+      <!-- 优化项目选择区域 -->
+      <div class="project-selection-container">
+        <div class="project-selection-card">
+          <h2>选择项目</h2>
+          <div class="project-selector">
+            <el-select
+              v-model="selectedProjectId"
+              placeholder="请选择一个项目"
+              style="width: 300px"
+              @change="handleProjectChange"
+            >
+              <el-option
+                v-for="project in projectsList"
+                :key="project.id"
+                :label="project.name"
+                :value="project.id"
+              />
+            </el-select>
+            <el-button
+              type="primary"
+              size="default"
+              style="margin-left: 10px"
+              @click="goToCreateProject"
+            >
+              创建新项目
+            </el-button>
+          </div>
         </div>
       </div>
 
-      <el-card class="filter-card">
-        <div class="filter-container">
-          <!-- 搜索栏 -->
-          <div class="search-section">
-            <el-input
-              v-model="searchQuery"
-              placeholder="搜索测试用例"
-              clearable
-              @clear="handleSearchClear"
-              @input="handleSearchInput"
-              class="search-input"
-            >
-              <template #prefix>
-                <el-icon><search /></el-icon>
-              </template>
-              <template #append>
-                <el-button @click="searchTestCases">搜索</el-button>
-              </template>
-            </el-input>
+      <!-- 优化加载状态显示 -->
+      <div v-if="loading && !selectedProjectId" class="loading-container">
+        <el-skeleton :rows="5" animated />
+      </div>
+
+      <!-- 优化无项目选择时的显示 -->
+      <div v-else-if="!selectedProjectId" class="no-project-selected">
+        <el-empty description="请选择一个项目查看测试用例">
+          <el-button type="primary" @click="goToCreateProject">创建新项目</el-button>
+        </el-empty>
+      </div>
+
+      <!-- 优化选择项目后的内容区域 -->
+      <div v-else class="testcase-content">
+        <div class="content-header">
+          <h2>{{ projectInfo.name || '项目' }} 的测试用例</h2>
+          <div class="header-actions">
+            <el-button type="primary" @click="createTestCase">新建测试用例</el-button>
+            <el-button type="success" @click="goToAIGenerate">AI生成测试用例</el-button>
+            <el-button @click="exportTestCases">导出</el-button>
+            <el-button @click="goToModuleDesign">查看模块设计</el-button>
           </div>
-          
-          <!-- 过滤器区域 -->
-          <div class="filter-section">
-            <div class="filter-row">
-              <div class="filter-item">
-                <span class="filter-label">模块：</span>
-                <el-select 
-                  v-model="filters.moduleId" 
-                  placeholder="全部" 
-                  clearable 
-                  @change="applyFilters"
-                  style="width: 180px;"
-                >
-                  <el-option label="全部" value="" />
-                  <el-option 
-                    v-for="item in moduleOptions" 
-                    :key="item.id" 
-                    :label="item.name" 
-                    :value="item.id" 
-                  />
-                </el-select>
-              </div>
-              
-              <div class="filter-item">
-                <span class="filter-label">优先级：</span>
-                <el-select 
-                  v-model="filters.priority" 
-                  placeholder="全部" 
-                  clearable 
-                  @change="applyFilters"
-                  style="width: 120px;"
-                >
-                  <el-option label="全部" value="" />
-                  <el-option label="高" value="high" />
-                  <el-option label="中" value="medium" />
-                  <el-option label="低" value="low" />
-                </el-select>
-              </div>
-              
-              <div class="filter-item">
-                <span class="filter-label">类型：</span>
-                <el-select 
-                  v-model="filters.type" 
-                  placeholder="全部" 
-                  clearable 
-                  @change="applyFilters"
-                  style="width: 150px;"
-                >
-                  <el-option label="全部" value="" />
-                  <el-option label="功能测试" value="functional" />
-                  <el-option label="性能测试" value="performance" />
-                  <el-option label="安全测试" value="security" />
-                </el-select>
-              </div>
-              
-              <div class="filter-item">
-                <span class="filter-label">状态：</span>
-                <el-select 
-                  v-model="filters.status" 
-                  placeholder="全部" 
-                  clearable 
-                  @change="applyFilters"
-                  style="width: 120px;"
-                >
-                  <el-option label="全部" value="" />
-                  <el-option label="通过" value="passed" />
-                  <el-option label="失败" value="failed" />
-                  <el-option label="未执行" value="waiting" />
-                </el-select>
-              </div>
+        </div>
+
+        <!-- 优化过滤器卡片 -->
+        <el-card class="filter-card">
+          <div class="filter-container">
+            <!-- 搜索栏 -->
+            <div class="search-section">
+              <el-input
+                v-model="searchQuery"
+                placeholder="搜索测试用例"
+                clearable
+                @clear="handleSearchClear"
+                @input="handleSearchInput"
+                class="search-input"
+              >
+                <template #prefix>
+                  <el-icon><search /></el-icon>
+                </template>
+                <template #append>
+                  <el-button @click="searchTestCases">搜索</el-button>
+                </template>
+              </el-input>
+            </div>
+            
+            <!-- 过滤器区域 -->
+            <div class="filter-section">
+              <el-form :model="filters" label-width="80px" class="filter-form">
+                <el-row :gutter="20">
+                  <el-col :span="8">
+                    <el-form-item label="模块:">
+                      <el-select v-model="filters.moduleId" placeholder="选择模块" clearable @change="applyFilters">
+                        <el-option
+                          v-for="module in modules"
+                          :key="module.id"
+                          :label="module.name"
+                          :value="module.id"
+                        />
+                      </el-select>
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="8">
+                    <el-form-item label="优先级:">
+                      <el-select v-model="filters.priority" placeholder="选择优先级" clearable @change="applyFilters">
+                        <el-option label="高" value="high" />
+                        <el-option label="中" value="medium" />
+                        <el-option label="低" value="low" />
+                      </el-select>
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="8">
+                    <el-form-item label="类型:">
+                      <el-select v-model="filters.type" placeholder="选择类型" clearable @change="applyFilters">
+                        <el-option label="功能测试" value="functional" />
+                        <el-option label="性能测试" value="performance" />
+                        <el-option label="安全测试" value="security" />
+                        <el-option label="其他" value="other" />
+                      </el-select>
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+                <el-row :gutter="20">
+                  <el-col :span="8">
+                    <el-form-item label="状态:">
+                      <el-select v-model="filters.status" placeholder="选择状态" clearable @change="applyFilters">
+                        <el-option label="未执行" value="waiting" />
+                        <el-option label="通过" value="passed" />
+                        <el-option label="失败" value="failed" />
+                      </el-select>
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+              </el-form>
             </div>
           </div>
-        </div>
-      </el-card>
+        </el-card>
 
-      <div v-if="loading" class="loading-container">
-        <el-skeleton :rows="10" animated />
-      </div>
-
-      <template v-else>
-        <el-empty v-if="filteredTestCases.length === 0" description="暂无测试用例数据" />
-        
-        <template v-else>
+        <!-- 测试用例表格 -->
+        <el-card class="table-card">
           <el-table
+            v-loading="loading"
             :data="filteredTestCases"
             style="width: 100%"
-            border
-            stripe
             @selection-change="handleSelectionChange"
+            :max-height="500"
+            :row-key="row => row.id"
+            :default-sort="{ prop: 'priority', order: 'ascending' }"
+            :resize-observer="false"
+            :height="400"
+            :scrollbar-always-on="true"
           >
             <el-table-column type="selection" width="55" />
-            <el-table-column prop="id" label="ID" width="70" sortable />
-            <el-table-column prop="title" label="测试用例标题" min-width="200" />
-            <el-table-column label="模块" width="120">
-              <template #default="scope">
-                {{ getModuleName(scope.row.moduleId) }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="priority" label="优先级" width="100">
+            <el-table-column prop="id" label="ID" width="80" />
+            <el-table-column prop="moduleName" label="模块" min-width="120" />
+            <el-table-column prop="title" label="标题" min-width="200" />
+            <el-table-column prop="priority" label="优先级" width="100" sortable>
               <template #default="scope">
                 <el-tag v-if="scope.row.priority === 'high'" type="danger">高</el-tag>
                 <el-tag v-else-if="scope.row.priority === 'medium'" type="warning">中</el-tag>
@@ -150,13 +169,7 @@
                 <el-tag v-else type="info">未执行</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="creatorId" label="创建人" width="120" />
-            <el-table-column label="创建时间" width="180" sortable>
-              <template #default="scope">
-                {{ formatDate(scope.row.createdAt) }}
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="200" fixed="right">
+            <el-table-column label="操作" width="220" fixed="right">
               <template #default="scope">
                 <el-button size="small" @click="viewTestCase(scope.row)">查看</el-button>
                 <el-button size="small" type="primary" @click="editTestCase(scope.row)">编辑</el-button>
@@ -165,19 +178,20 @@
             </el-table-column>
           </el-table>
 
+          <!-- 分页 -->
           <div class="pagination-container">
             <el-pagination
-              :current-page="pagination.current"
+              v-model:current-page="pagination.current"
+              v-model:page-size="pagination.pageSize"
               :page-sizes="[10, 20, 50, 100]"
-              :page-size="pagination.pageSize"
               layout="total, sizes, prev, pager, next, jumper"
               :total="pagination.total"
               @size-change="handleSizeChange"
               @current-change="handleCurrentChange"
             />
           </div>
-        </template>
-      </template>
+        </el-card>
+      </div>
 
       <!-- 测试用例详情对话框 -->
       <el-dialog v-model="testCaseDialogVisible" :title="dialogTitle" width="800px">
@@ -221,70 +235,144 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search } from '@element-plus/icons-vue'
 import MainLayout from '@/components/layout/MainLayout.vue'
 import api from '@/api'
 
 const router = useRouter()
 const route = useRoute()
 
+// 项目选择相关
+const selectedProjectId = ref(null)
+const projectsList = ref([])
+const projectInfo = ref({})
+
 // 状态变量
 const loading = ref(true)
 const testCases = ref([])
 const modules = ref([])
+const searchQuery = ref('')
+const selectedRows = ref([])
+
+// 分页相关
 const pagination = ref({
   current: 1,
   pageSize: 10,
   total: 0
 })
 
-// 过滤和搜索
+// 过滤器
 const filters = ref({
   moduleId: '',
   priority: '',
-  type: ''
+  type: '',
+  status: ''
 })
 
-const searchQuery = ref('')
-const selectedRows = ref([])
+// 获取项目列表
+const fetchProjects = async () => {
+  try {
+    const response = await api.project.getProjects()
+    if (response.success) {
+      projectsList.value = response.data
+    } else {
+      ElMessage.error(response.message || '获取项目列表失败')
+    }
+  } catch (error) {
+    console.error('获取项目列表错误:', error)
+    ElMessage.error('获取项目列表时发生错误')
+  }
+}
 
-// 下拉选项
-const moduleOptions = computed(() => {
-  return modules.value
-})
+// 获取项目信息
+const fetchProjectInfo = async () => {
+  if (!selectedProjectId.value) return
 
-// 获取模块名称的辅助函数
-const getModuleName = (moduleId) => {
-  if (!moduleId) return '未分配'
-  const module = modules.value.find(m => m.id === moduleId)
-  return module ? module.name : '未知模块'
+  try {
+    loading.value = true
+    const response = await api.project.getProject(selectedProjectId.value)
+
+    if (response.success) {
+      projectInfo.value = response.data
+    } else {
+      ElMessage.error(response.message || '获取项目信息失败')
+    }
+  } catch (error) {
+    console.error('获取项目信息错误:', error)
+    ElMessage.error('获取项目信息时发生错误')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 处理项目选择变化
+const handleProjectChange = (projectId) => {
+  if (projectId) {
+    selectedProjectId.value = projectId
+    fetchProjectInfo()
+    fetchModules()
+    fetchTestCases()
+  }
+}
+
+// 跳转到创建项目页面
+const goToCreateProject = () => {
+  router.push('/projects')
 }
 
 // 获取模块列表
 const fetchModules = async () => {
+  if (!selectedProjectId.value) return
+  
+  loading.value = true
   try {
-    const response = await api.module.getModules()
+    const response = await api.module.getModuleTree(selectedProjectId.value)
+    
     if (response.success) {
-      modules.value = response.data
+      // 将树形结构扁平化，以便在过滤器中显示
+      modules.value = flattenModules(response.data)
     } else {
       ElMessage.error(response.message || '获取模块列表失败')
     }
   } catch (error) {
     console.error('获取模块列表错误:', error)
     ElMessage.error('获取模块列表时发生错误')
+  } finally {
+    loading.value = false
   }
+}
+
+// 将树形模块结构扁平化
+const flattenModules = (moduleTree, result = []) => {
+  moduleTree.forEach(module => {
+    result.push({
+      id: module.id,
+      name: module.name,
+      parentId: module.parentId
+    })
+    
+    if (module.children && module.children.length > 0) {
+      flattenModules(module.children, result)
+    }
+  })
+  
+  return result
 }
 
 // 获取测试用例列表
 const fetchTestCases = async () => {
+  if (!selectedProjectId.value) return
+  
   loading.value = true
   try {
     // 构建查询参数
     const params = {
       page: pagination.value.current,
       limit: pagination.value.pageSize,
+      projectId: selectedProjectId.value,
       ...filters.value
     }
     
@@ -428,8 +516,8 @@ const deleteTestCase = (testCase) => {
     })
 }
 
-const createNewTestCase = () => {
-  router.push('/testcases/create')
+const createTestCase = () => {
+  router.push(`/testcases/create?projectId=${selectedProjectId.value}`)
 }
 
 const exportTestCases = () => {
@@ -437,7 +525,11 @@ const exportTestCases = () => {
 }
 
 const goToAIGenerate = () => {
-  router.push('/ai-generate')
+  router.push(`/ai-generate?projectId=${selectedProjectId.value}`)
+}
+
+const goToModuleDesign = () => {
+  router.push(`/modules?projectId=${selectedProjectId.value}`)
 }
 
 // 日期格式化函数
@@ -449,25 +541,88 @@ const formatDate = (dateString) => {
 
 // 组件挂载时加载数据
 onMounted(() => {
-  fetchModules()
-  fetchTestCases()
+  fetchProjects()
 })
+
+// 监听路由参数变化，当URL中的projectId变化时重新加载数据
+watch(
+  () => route.query.projectId,
+  (newProjectId) => {
+    if (newProjectId) {
+      selectedProjectId.value = newProjectId
+      fetchProjectInfo()
+      fetchModules()
+      fetchTestCases()
+    }
+  },
+  { immediate: true }
+)
 </script>
+
 <style scoped>
 .test-case-management {
   width: 100%;
 }
 
-.page-header {
+.project-selection-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.project-selection-card {
+  background-color: #fff;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 15px;
+  width: 100%;
+  max-width: 500px;
+  text-align: center;
+}
+
+.project-selection-card h2 {
+  margin-bottom: 15px;
+  color: #303133;
+}
+
+.project-selector {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.loading-container {
+  width: 100%;
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.no-project-selected {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300px;
+}
+
+.testcase-content {
+  margin-top: 20px;
+}
+
+.content-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
 }
 
-.header-actions {
-  display: flex;
-  gap: 10px;
+.content-header h2 {
+  margin: 0;
 }
 
 .filter-card {
@@ -477,11 +632,13 @@ onMounted(() => {
 .filter-container {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 10px;
 }
 
 .search-section {
   width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
 .search-input {
@@ -493,32 +650,14 @@ onMounted(() => {
   width: 100%;
 }
 
-.filter-row {
+.filter-form {
   display: flex;
   flex-wrap: wrap;
-  gap: 20px;
-  align-items: center;
+  gap: 10px;
 }
 
-.filter-item {
-  display: flex;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.filter-label {
-  font-weight: bold;
-  color: #606266;
-  width: 70px;
-  text-align: right;
-  margin-right: 8px;
-}
-
-.loading-container {
-  min-height: 400px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+.table-card {
+  margin-bottom: 20px;
 }
 
 .pagination-container {
@@ -527,22 +666,26 @@ onMounted(() => {
   justify-content: flex-end;
 }
 
+/* 测试用例详情样式 */
 .test-case-detail {
   padding: 10px;
 }
 
 .detail-header {
   margin-bottom: 20px;
-  border-bottom: 1px solid #ebeef5;
   padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.detail-header h3 {
+  margin: 0 0 10px 0;
 }
 
 .detail-meta {
   display: flex;
-  gap: 15px;
-  color: #606266;
-  font-size: 0.9em;
-  margin-top: 10px;
+  gap: 20px;
+  color: #666;
+  font-size: 14px;
 }
 
 .detail-section {
@@ -551,32 +694,32 @@ onMounted(() => {
 
 .section-title {
   font-weight: bold;
-  margin-bottom: 8px;
-  color: #303133;
+  margin-bottom: 5px;
+  color: #333;
 }
 
 .section-content {
-  line-height: 1.6;
-  color: #606266;
+  padding: 10px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+  min-height: 50px;
+}
+</style>
+
+<style>
+/* 全局样式，防止 ResizeObserver 警告显示 */
+.el-overlay-dialog {
+  z-index: 2000;
 }
 
-/* 响应式调整 */
-@media (max-width: 768px) {
-  .filter-row {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  
-  .filter-item {
-    width: 100%;
-  }
-  
-  .filter-label {
-    width: 60px;
-  }
-  
-  .el-select {
-    width: 100% !important;
-  }
+/* 隐藏 ResizeObserver 警告 */
+.el-message-box__wrapper {
+  z-index: 2001;
+}
+
+/* 确保表格内容不会导致页面抖动 */
+.el-table__body-wrapper {
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 </style>
