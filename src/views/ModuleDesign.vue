@@ -607,10 +607,6 @@ const handleNodeCollapse = (data) => {
 // 添加一个ref
 // 添加树组件的ref
 const moduleTreeRef = ref(null)
-// 添加一个锁定标志
-const expandLocked = ref(false);
-
-
 // 展开/折叠所有节点
 const toggleExpandAll = () => {
   console.log('当前状态:', isAllExpanded.value);
