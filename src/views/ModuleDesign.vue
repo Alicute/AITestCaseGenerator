@@ -155,7 +155,16 @@
                   </div>
 
                   <template v-else>
-                    <el-table :data="moduleFunctions" style="width: 100%">
+                    <el-table 
+                      :data="moduleFunctions" 
+                      style="width: 100%"
+                      :max-height="500"
+                      :row-key="row => row.id"
+                      :default-sort="{ prop: 'priority', order: 'ascending' }"
+                      :resize-observer="false"
+                      :height="400"
+                      :scrollbar-always-on="true"
+                    >
                       <el-table-column prop="name" label="功能点名称" />
                       <el-table-column prop="description" label="描述" />
                       <el-table-column prop="priority" label="优先级" width="120">
@@ -1076,7 +1085,8 @@ const parseMarkdownModules = (markdownText) => {
         description: '',
         parentId: null,
         projectId: projectId.value,
-        children: []
+        children: [],
+        functions: [] // 初始化功能点数组
       }
       moduleTree.push(currentModule)
       currentLevel = 2
@@ -1089,13 +1099,14 @@ const parseMarkdownModules = (markdownText) => {
           description: '',
           parentId: null, // 临时设置为null，导入时会根据层级关系设置实际parentId
           projectId: projectId.value,
-          children: []
+          children: [],
+          functions: [] // 初始化功能点数组
         }
         currentModule.children.push(childModule)
       }
       currentLevel = 3
     } else if (line.startsWith('- ') && currentModule) {
-      // 列表项作为功能点
+      // 列表项作为功能点，可以属于任何级别的模块
       const functionName = line.substring(2).trim()
       if (functionName) {
         if (!currentModule.functions) {
@@ -1115,44 +1126,96 @@ const parseMarkdownModules = (markdownText) => {
 
 // 递归导入模块树
 const importModuleTree = async (modules, parentId = null) => {
+  // 检查是否是一级标题（项目名称）
+  if (modules.length === 1 && modules[0].name && modules[0].name.startsWith('# ')) {
+    // 提取项目名称（去掉 # 前缀）
+    const importedProjectName = modules[0].name.substring(2).trim();
+    
+    // 如果导入的项目名称与当前项目名称不一致，则使用当前项目名称
+    if (importedProjectName !== projectInfo.value.name) {
+      console.log(`导入的项目名称 "${importedProjectName}" 与当前项目名称 "${projectInfo.value.name}" 不一致，使用当前项目名称`);
+    }
+    
+    // 处理子模块
+    if (modules[0].children && modules[0].children.length > 0) {
+      await processModules(modules[0].children, parentId);
+    }
+    return;
+  }
+  
+  // 处理模块列表
+  await processModules(modules, parentId);
+};
+
+// 处理模块列表
+const processModules = async (modules, parentId = null) => {
   for (const module of modules) {
+    // 检查模块级别
+    if (module.name && module.name.startsWith('## ')) {
+      // 一级模块
+      module.name = module.name.substring(3).trim();
+      module.level = 1;
+    } else if (module.name && module.name.startsWith('### ')) {
+      // 三级模块
+      module.name = module.name.substring(4).trim();
+      module.level = 3;
+    } else {
+      // 默认为二级模块
+      module.level = 2;
+    }
+    
     // 设置父模块ID
-    module.parentId = parentId
-
+    module.parentId = parentId;
+    
     // 保存功能点列表
-    const functions = module.functions || []
-    delete module.functions // 移除functions字段，因为API不接受这个字段
-
+    const functions = module.functions || [];
+    delete module.functions; // 移除functions字段，因为API不接受这个字段
+    
     // 保存子模块
-    const children = module.children || []
-    delete module.children // 移除children字段，因为API不接受这个字段
-
+    const children = module.children || [];
+    delete module.children; // 移除children字段，因为API不接受这个字段
+    
     try {
       // 创建模块
-      const response = await api.module.createModule(module)
-
+      const response = await api.module.createModule({
+        ...module,
+        projectId: projectInfo.value.id
+      });
+      
       if (response.success) {
-        const newModuleId = response.data.id
-
+        const newModuleId = response.data.id;
+        
         // 为该模块创建功能点
         for (const func of functions) {
-          func.moduleId = newModuleId
-          await api.function.createFunction(func)
+          // 检查功能点格式
+          if (typeof func === 'string' && func.startsWith('- ')) {
+            // 将功能点字符串转换为对象
+            const functionName = func.substring(2).trim();
+            await api.function.createFunction({
+              name: functionName,
+              moduleId: newModuleId,
+              priority: 'medium'
+            });
+          } else if (typeof func === 'object') {
+            // 直接使用功能点对象
+            func.moduleId = newModuleId;
+            await api.function.createFunction(func);
+          }
         }
-
+        
         // 递归处理子模块
         if (children.length > 0) {
-          await importModuleTree(children, newModuleId)
+          await processModules(children, newModuleId);
         }
       } else {
-        ElMessage.error(`导入模块 "${module.name}" 失败: ${response.message}`)
+        ElMessage.error(`导入模块 "${module.name}" 失败: ${response.message}`);
       }
     } catch (error) {
-      console.error('导入模块错误:', error)
-      ElMessage.error(`导入模块 "${module.name}" 时发生错误`)
+      console.error('导入模块错误:', error);
+      ElMessage.error(`导入模块 "${module.name}" 时发生错误`);
     }
   }
-}
+};
 
 // 导入模块
 const importModules = async () => {
@@ -1261,6 +1324,24 @@ watch(
   }
 )
 </script>
+
+<style>
+/* 全局样式，防止 ResizeObserver 警告显示 */
+.el-overlay-dialog {
+  z-index: 2000;
+}
+
+/* 隐藏 ResizeObserver 警告 */
+.el-message-box__wrapper {
+  z-index: 2001;
+}
+
+/* 确保表格内容不会导致页面抖动 */
+.el-table__body-wrapper {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+</style>
 
 <style scoped>
 .module-design {

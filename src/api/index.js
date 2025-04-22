@@ -99,16 +99,21 @@ export const moduleAPI = {
 
 // 功能点相关API
 export const functionAPI = {
+  // 获取模块的功能点列表
+  getModuleFunctions(moduleId) {
+    return api.get(`/functions/module/${moduleId}`)
+  },
+
   // 创建功能点
   createFunction(data) {
     return api.post('/functions', data)
   },
-  
+
   // 更新功能点
   updateFunction(id, data) {
     return api.put(`/functions/${id}`, data)
   },
-  
+
   // 删除功能点
   deleteFunction(id) {
     return api.delete(`/functions/${id}`)
@@ -160,6 +165,7 @@ export const userAPI = {
     return api.get('/users/profile')
   }
 }
+
 // 统计数据相关API
 export const statAPI = {
   // 获取仪表盘统计数据
@@ -167,6 +173,7 @@ export const statAPI = {
     return api.get('/stats')
   }
 }
+
 export default {
   project: projectAPI,
   module: moduleAPI,

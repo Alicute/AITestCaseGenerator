@@ -12,10 +12,11 @@ exports.getProjects = async (req, res) => {
     // 使用Sequelize查询所有项目
     const projects = await Project.findAll();
     
+    // 即使没有数据也返回空数组
     res.json({
       success: true,
       count: projects.length,
-      data: projects
+      data: projects || []
     });
   } catch (error) {
     console.error('获取项目列表错误:', error);

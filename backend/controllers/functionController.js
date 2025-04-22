@@ -1,57 +1,60 @@
 const asyncHandler = require('express-async-handler')
 const db = require('../models')
-const { checkPermission } = require('../middlewares/auth')  // 修改这里
+const { Function, Module, Project } = require('../models')
 
 // @desc    创建功能点
 // @route   POST /api/v1/functions
 // @access  Private
-const createFunction = asyncHandler(async (req, res) => {
-  const { name, description, priority, moduleId } = req.body
-
-  if (!name || !moduleId) {
-    res.status(400)
-    throw new Error('请提供功能点名称和所属模块ID')
-  }
-
+const createFunction = async (req, res) => {
   try {
-    // 检查模块是否存在
-    const module = await db.Module.findByPk(moduleId)
-    if (!module) {
-      res.status(404)
-      throw new Error('所属模块不存在')
+    const { name, description, priority, moduleId } = req.body
+
+    // 验证必填字段
+    if (!name || !moduleId) {
+      return res.status(400).json({
+        success: false,
+        message: '功能点名称和模块ID为必填项'
+      })
     }
 
-    // 获取模块所属的项目ID
-    const projectId = module.projectId
+    // 检查模块是否存在
+    const module = await Module.findByPk(moduleId, {
+      include: [
+        {
+          model: Project,
+          attributes: ['id', 'name']
+        }
+      ]
+    })
 
-    // 检查用户是否有权限操作此项目
-    await checkPermission(req.user.id, projectId)
+    if (!module) {
+      return res.status(404).json({
+        success: false,
+        message: '模块不存在'
+      })
+    }
 
     // 创建功能点
-    const functionData = await db.Function.create({
+    const functionItem = await Function.create({
       name,
       description: description || '',
       priority: priority || 'medium',
       moduleId
     })
 
-    // 更新模块的功能点数量（可选）
-    await module.increment('functionCount', { by: 1 })
-
     res.status(201).json({
       success: true,
-      data: functionData
+      data: functionItem
     })
   } catch (error) {
-    if (error.name === 'PermissionError') {
-      res.status(403)
-      throw new Error('无权操作此项目的模块')
-    }
-
-    res.status(500)
-    throw new Error(`创建功能点失败: ${error.message}`)
+    console.error('创建功能点失败:', error)
+    res.status(500).json({
+      success: false,
+      message: '创建功能点失败',
+      error: error.message
+    })
   }
-})
+}
 
 // @desc    更新功能点
 // @route   PUT /api/v1/functions/:id
@@ -80,10 +83,7 @@ const updateFunction = asyncHandler(async (req, res) => {
       throw new Error('所属模块不存在')
     }
 
-    // 检查用户是否有权限操作此项目
-    await checkPermission(req.user.id, module.projectId)
-
-    // 如果更改了所属模块，需要检查新模块是否存在并且用户有权限
+    // 如果更改了所属模块，需要检查新模块是否存在
     let newModuleId = functionData.moduleId
     if (moduleId && moduleId !== functionData.moduleId) {
       const newModule = await db.Module.findByPk(moduleId)
@@ -91,9 +91,6 @@ const updateFunction = asyncHandler(async (req, res) => {
         res.status(404)
         throw new Error('新的所属模块不存在')
       }
-
-      // 检查用户是否有权限操作新模块所属的项目
-      await checkPermission(req.user.id, newModule.projectId)
       
       // 更新原来模块和新模块的功能点数量（可选）
       await module.decrement('functionCount', { by: 1 })
@@ -115,11 +112,6 @@ const updateFunction = asyncHandler(async (req, res) => {
       data: functionData
     })
   } catch (error) {
-    if (error.name === 'PermissionError') {
-      res.status(403)
-      throw new Error('无权操作此功能点')
-    }
-
     res.status(500)
     throw new Error(`更新功能点失败: ${error.message}`)
   }
@@ -146,9 +138,6 @@ const deleteFunction = asyncHandler(async (req, res) => {
       throw new Error('所属模块不存在')
     }
 
-    // 检查用户是否有权限操作此项目
-    await checkPermission(req.user.id, module.projectId)
-
     // 删除功能点
     await functionData.destroy()
 
@@ -160,18 +149,129 @@ const deleteFunction = asyncHandler(async (req, res) => {
       data: { id }
     })
   } catch (error) {
-    if (error.name === 'PermissionError') {
-      res.status(403)
-      throw new Error('无权操作此功能点')
-    }
-
     res.status(500)
     throw new Error(`删除功能点失败: ${error.message}`)
   }
 })
 
+// 获取功能点列表
+const getFunctions = async (req, res) => {
+  try {
+    const functions = await Function.findAll({
+      include: [
+        {
+          model: Module,
+          include: [
+            {
+              model: Project,
+              attributes: ['id', 'name']
+            }
+          ]
+        }
+      ],
+      order: [['priority', 'ASC']]
+    })
+
+    res.json({
+      success: true,
+      data: functions
+    })
+  } catch (error) {
+    console.error('获取功能点列表失败:', error)
+    res.status(500).json({
+      success: false,
+      message: '获取功能点列表失败',
+      error: error.message
+    })
+  }
+}
+
+// 获取单个功能点详情
+const getFunction = async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const functionItem = await Function.findByPk(id, {
+      include: [
+        {
+          model: Module,
+          include: [
+            {
+              model: Project,
+              attributes: ['id', 'name']
+            }
+          ]
+        }
+      ]
+    })
+
+    if (!functionItem) {
+      return res.status(404).json({
+        success: false,
+        message: '功能点不存在'
+      })
+    }
+
+    res.json({
+      success: true,
+      data: functionItem
+    })
+  } catch (error) {
+    console.error('获取功能点详情失败:', error)
+    res.status(500).json({
+      success: false,
+      message: '获取功能点详情失败',
+      error: error.message
+    })
+  }
+}
+
+// 获取模块下的功能点列表
+const getModuleFunctions = async (req, res) => {
+  try {
+    const { moduleId } = req.params
+
+    // 检查模块是否存在
+    const module = await Module.findByPk(moduleId, {
+      include: [
+        {
+          model: Project,
+          attributes: ['id', 'name']
+        }
+      ]
+    })
+
+    if (!module) {
+      return res.status(404).json({
+        success: false,
+        message: '模块不存在'
+      })
+    }
+
+    const functions = await Function.findAll({
+      where: { moduleId },
+      order: [['priority', 'ASC']]
+    })
+
+    res.json({
+      success: true,
+      data: functions
+    })
+  } catch (error) {
+    console.error('获取模块功能点列表失败:', error)
+    res.status(500).json({
+      success: false,
+      message: '获取模块功能点列表失败',
+      error: error.message
+    })
+  }
+}
+
 module.exports = {
   createFunction,
   updateFunction,
-  deleteFunction
+  deleteFunction,
+  getFunctions,
+  getFunction,
+  getModuleFunctions
 } 

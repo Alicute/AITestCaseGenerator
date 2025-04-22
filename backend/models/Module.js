@@ -44,12 +44,15 @@ const Module = sequelize.define('Module', {
   parentId: {
     type: DataTypes.INTEGER,
     allowNull: true
+  },
+  createdById: {
+    type: DataTypes.INTEGER,
+    allowNull: true
   }
 }, {
   timestamps: true // 自动添加createdAt和updatedAt字段
 });
 
-// 添加模型关联
 // 添加模型关联
 Module.associate = function(models) {
   // 模块与项目的关联
@@ -57,6 +60,12 @@ Module.associate = function(models) {
     foreignKey: 'projectId',
     as: 'project',
     onDelete: 'CASCADE'
+  });
+
+  // 模块与创建者的关联
+  Module.belongsTo(models.User, {
+    foreignKey: 'createdById',
+    as: 'creator'
   });
 
   // 模块与子模块的自关联

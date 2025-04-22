@@ -20,10 +20,11 @@ exports.getModules = async (req, res) => {
       order: [['name', 'ASC']]
     });
     
+    // 即使没有数据也返回空数组
     res.json({
       success: true,
       count: modules.length,
-      data: modules
+      data: modules || []
     });
   } catch (error) {
     console.error('获取模块列表错误:', error);

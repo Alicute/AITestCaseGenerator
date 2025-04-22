@@ -504,7 +504,7 @@ const updatePromptContent = () => {
 3. 步骤
 4. 预期结果
 
-请生成至少3个测试用例，确保覆盖主要功能和关键场景。`
+请每个功能点生成至少3个测试用例，确保覆盖主要功能和关键场景。`
   } else if (selectedTemplate.value === 'functional') {
     promptContent.value = `生成针对"${selectedModuleName.value}"的功能测试用例。${functionDescriptions ? `主要功能点包括：${functionDescriptions}。` : ''}${moduleDesc ? `模块描述：${moduleDesc}` : ''}
 
@@ -515,7 +515,7 @@ const updatePromptContent = () => {
 4. 步骤
 5. 预期结果
 
-请生成至少3个功能测试用例，确保覆盖所有关键功能点。`
+请每个功能点生成至少3个功能测试用例，确保覆盖所有关键功能点。`
   } else if (selectedTemplate.value === 'boundary') {
     promptContent.value = `生成针对"${selectedModuleName.value}"的边界测试用例。${functionDescriptions ? `主要功能点包括：${functionDescriptions}。` : ''}${moduleDesc ? `模块描述：${moduleDesc}` : ''}
 
@@ -526,7 +526,7 @@ const updatePromptContent = () => {
 4. 步骤
 5. 预期结果
 
-请生成至少3个边界测试用例，包括最小值、最大值和特殊输入场景。`
+请每个功能点生成至少3个边界测试用例，包括最小值、最大值和特殊输入场景。`
   } else if (selectedTemplate.value === 'exception') {
     promptContent.value = `生成针对"${selectedModuleName.value}"的异常测试用例。${functionDescriptions ? `主要功能点包括：${functionDescriptions}。` : ''}${moduleDesc ? `模块描述：${moduleDesc}` : ''}
 
@@ -537,7 +537,7 @@ const updatePromptContent = () => {
 4. 步骤
 5. 预期结果
 
-请生成至少3个异常测试用例，测试系统对各种错误和意外情况的处理能力。`
+请每个功能点生成至少3个异常测试用例，测试系统对各种错误和意外情况的处理能力。`
   }
 }
 
