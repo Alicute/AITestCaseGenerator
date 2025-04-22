@@ -41,6 +41,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: "/testcases/create",
+    name: "CreateTestCase",
+    component: () => import("../views/TestCaseCreate.vue"),
+    meta: { requiresAuth: true }
+  },
+  {
     path: "/ai-generate",
     name: "AIGenerate",
     component: () => import("../views/AIGeneration.vue"),
