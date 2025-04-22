@@ -56,6 +56,13 @@
                 </el-button>
               </div>
               <div class="secondary-actions">
+                <el-button size="small" @click="toggleExpandAll">
+                  <el-icon>
+                    <Folder v-if="!isAllExpanded" />
+                    <FolderOpened v-else />
+                  </el-icon>
+                  {{ isAllExpanded ? '折叠' : '展开' }}
+                </el-button>
                 <el-button size="small" @click="showImportDialog">导入</el-button>
                 <el-button size="small" @click="exportModules">导出</el-button>
               </div>
@@ -66,6 +73,7 @@
             </div>
 
             <el-tree
+              ref="moduleTreeRef"
               v-else
               :data="moduleTree"
               :props="defaultProps"
@@ -347,7 +355,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete } from '@element-plus/icons-vue'
+import { Plus, Delete, Folder, FolderOpened } from '@element-plus/icons-vue'
 import MainLayout from '@/components/layout/MainLayout.vue'
 // 导入API而不是直接使用axios
 import api from '@/api'
@@ -377,6 +385,8 @@ const defaultProps = {
 }
 // 记录展开的节点
 const expandedKeys = ref([])
+// 是否全部展开的状态
+const isAllExpanded = ref(false)
 
 // 功能点数据
 const moduleFunctions = ref([])
@@ -452,7 +462,7 @@ const fetchModuleTree = async () => {
         currentModule.value = moduleTree.value[0]
         fetchModuleFunctions(currentModule.value.id)
         fetchModuleTestCases(currentModule.value.id)
-        
+
         // 如果之前没有展开的节点，默认展开第一个根节点
         if (expandedKeys.value.length === 0) {
           expandedKeys.value.push(currentModule.value.id)
@@ -544,26 +554,125 @@ const fetchModuleTestCases = async (moduleId) => {
     loading.value = false
   }
 }
-
+// 监听树结构变化，维持展开状态
+watch(moduleTree, () => {
+  // 如果之前是全部展开状态且树组件已加载
+  if (isAllExpanded.value && moduleTreeRef.value && moduleTreeRef.value.store) {
+    // 延迟执行以确保树已更新
+    setTimeout(() => {
+      const nodeMap = moduleTreeRef.value.store.nodesMap;
+      if (nodeMap) {
+        // 重新展开所有节点
+        Object.values(nodeMap).forEach(node => {
+          if (node.childNodes && node.childNodes.length > 0) {
+            node.expand();
+          }
+        });
+      }
+    }, 100);
+  }
+}, { deep: true });
 // 节点点击事件
 const handleNodeClick = (data) => {
-  currentModule.value = data
-  fetchModuleFunctions(data.id)
-  fetchModuleTestCases(data.id)
+  // 保存当前展开状态，防止被覆盖
+  const wasAllExpanded = isAllExpanded.value;
+  
+  // 原有的节点点击逻辑
+  currentModule.value = data;
+  fetchModuleFunctions(data.id);
+  fetchModuleTestCases(data.id);
+  
+  // 如果之前是全部展开状态，确保维持此状态
+  if (wasAllExpanded && !isAllExpanded.value) {
+    isAllExpanded.value = wasAllExpanded;
+  }
 }
 
 // 节点展开事件处理
 const handleNodeExpand = (data) => {
-  expandedKeys.value.push(data.id)
+  if (!expandedKeys.value.includes(data.id)) {
+    expandedKeys.value.push(data.id);
+  }
+  // 不要在这里修改isAllExpanded
 }
 
 // 节点折叠事件处理
 const handleNodeCollapse = (data) => {
-  const index = expandedKeys.value.indexOf(data.id)
+  const index = expandedKeys.value.indexOf(data.id);
   if (index !== -1) {
-    expandedKeys.value.splice(index, 1)
+    expandedKeys.value.splice(index, 1);
   }
+  // 不要在这里修改isAllExpanded
 }
+// 添加一个ref
+// 添加树组件的ref
+const moduleTreeRef = ref(null)
+// 添加一个锁定标志
+const expandLocked = ref(false);
+
+
+// 展开/折叠所有节点
+const toggleExpandAll = () => {
+  console.log('当前状态:', isAllExpanded.value);
+  
+  // 确保树组件已加载
+  if (!moduleTreeRef.value || !moduleTreeRef.value.store) {
+    console.error('树组件未加载或store不存在');
+    return;
+  }
+  
+  try {
+    const nodeMap = moduleTreeRef.value.store.nodesMap;
+    if (!nodeMap) {
+      console.error('节点映射不存在');
+      return;
+    }
+    
+    if (isAllExpanded.value) {
+      console.log('执行折叠操作');
+      // 清空展开的节点列表 - 这是折叠功能修复的关键
+      expandedKeys.value.length = 0;
+      // 使用树组件的内部方法折叠所有节点
+      Object.values(nodeMap).forEach(node => {
+        if (node.expanded) {
+          node.collapse();
+        }
+      });
+      isAllExpanded.value = false;
+    } else {
+      console.log('执行展开操作');
+      // 收集所有可展开节点的ID
+      const allNodeIds = [];
+      Object.values(nodeMap).forEach(node => {
+        if (node.data && node.data.id) {
+          // 只添加有子节点的节点
+          if (node.childNodes && node.childNodes.length > 0) {
+            allNodeIds.push(node.data.id);
+            // 确保节点被展开
+            node.expand();
+          }
+        }
+      });
+      
+      // 更新展开的节点列表
+      expandedKeys.value.length = 0; // 先清空数组
+      expandedKeys.value.push(...allNodeIds); // 然后添加所有ID
+      isAllExpanded.value = true;
+    }
+  } catch (error) {
+    console.error('展开/折叠操作出错:', error);
+  }
+  
+  console.log('操作后状态:', isAllExpanded.value);
+  console.log('操作后已展开节点:', expandedKeys.value);
+}
+
+
+
+
+
+
+
 
 // 添加模块相关
 const addModuleDialogVisible = ref(false)
@@ -647,7 +756,7 @@ const addModule = async () => {
         if (parentId && !expandedKeys.value.includes(parentId)) {
           expandedKeys.value.push(parentId)
         }
-        
+
         // 查找并选中新模块
         const findAndSelectModule = (modules) => {
           for (const module of modules) {
@@ -665,7 +774,7 @@ const addModule = async () => {
           }
           return false
         }
-        
+
         findAndSelectModule(moduleTree.value)
       }
     } else {
@@ -1145,13 +1254,16 @@ onMounted(() => {
 })
 
 // 监听路由参数变化，当URL中的projectId变化时重新加载数据
-watch(() => route.query.projectId, (newProjectId, oldProjectId) => {
-  if (newProjectId !== oldProjectId) {
-    console.log('路由projectId变化:', newProjectId)
-    fetchProjectInfo()
-    fetchModuleTree()
+watch(
+  () => route.query.projectId,
+  (newProjectId, oldProjectId) => {
+    if (newProjectId !== oldProjectId) {
+      console.log('路由projectId变化:', newProjectId)
+      fetchProjectInfo()
+      fetchModuleTree()
+    }
   }
-})
+)
 </script>
 
 <style scoped>
@@ -1192,7 +1304,12 @@ watch(() => route.query.projectId, (newProjectId, oldProjectId) => {
 
 .secondary-actions {
   display: flex;
-  gap: 8px;
+  gap: 0;
+  flex-wrap: nowrap;
+}
+
+.secondary-actions .el-button + .el-button {
+  margin-left: -1px;  /* 负边距使按钮重叠边框 */
 }
 
 .custom-tree-node {
