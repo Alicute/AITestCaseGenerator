@@ -52,6 +52,20 @@
             <el-button type="success" @click="goToAIGenerate">AI生成测试用例</el-button>
             <el-button @click="exportTestCases">导出</el-button>
             <el-button @click="goToModuleDesign">查看模块设计</el-button>
+            <el-button @click="openLoadJsonDialog">加载JSON</el-button>
+            <!-- 加载 JSON 对话框 -->
+            <el-dialog v-model="loadJsonDialogVisible" title="加载 JSON" width="600px">
+              <el-input
+                type="textarea"
+                v-model="jsonInput"
+                placeholder="请粘贴 JSON 内容"
+                rows="10"
+              />
+              <span slot="footer" class="dialog-footer">
+                <el-button @click="loadJson">加载</el-button>
+                <el-button @click="loadJsonDialogVisible = false">取消</el-button>
+              </span>
+            </el-dialog>
             <el-upload
               class="upload-demo"
               action="#"
@@ -86,14 +100,19 @@
                 </template>
               </el-input>
             </div>
-            
+
             <!-- 过滤器区域 -->
             <div class="filter-section">
               <el-form :model="filters" label-width="80px" class="filter-form">
                 <el-row :gutter="20">
                   <el-col :span="8">
                     <el-form-item label="模块:">
-                      <el-select v-model="selectedModuleId" placeholder="选择模块" clearable @change="handleModuleChange">
+                      <el-select
+                        v-model="selectedModuleId"
+                        placeholder="选择模块"
+                        clearable
+                        @change="handleModuleChange"
+                      >
                         <el-option
                           v-for="module in modules"
                           :key="module.id"
@@ -105,7 +124,12 @@
                   </el-col>
                   <el-col :span="8">
                     <el-form-item label="优先级:">
-                      <el-select v-model="filters.priority" placeholder="选择优先级" clearable @change="applyFilters">
+                      <el-select
+                        v-model="filters.priority"
+                        placeholder="选择优先级"
+                        clearable
+                        @change="applyFilters"
+                      >
                         <el-option label="高" value="P0" />
                         <el-option label="中" value="P1" />
                         <el-option label="低" value="P3" />
@@ -114,7 +138,12 @@
                   </el-col>
                   <el-col :span="8">
                     <el-form-item label="类型:">
-                      <el-select v-model="filters.type" placeholder="选择类型" clearable @change="applyFilters">
+                      <el-select
+                        v-model="filters.type"
+                        placeholder="选择类型"
+                        clearable
+                        @change="applyFilters"
+                      >
                         <el-option label="功能测试" value="功能测试" />
                         <el-option label="性能测试" value="性能测试" />
                         <el-option label="安全测试" value="安全测试" />
@@ -126,7 +155,12 @@
                 <el-row :gutter="20">
                   <el-col :span="8">
                     <el-form-item label="状态:">
-                      <el-select v-model="filters.status" placeholder="选择状态" clearable @change="applyFilters">
+                      <el-select
+                        v-model="filters.status"
+                        placeholder="选择状态"
+                        clearable
+                        @change="applyFilters"
+                      >
                         <el-option label="未执行" value="waiting" />
                         <el-option label="通过" value="passed" />
                         <el-option label="失败" value="failed" />
@@ -170,7 +204,9 @@
                   <td>{{ testCase.maintainer }}</td>
                   <td>
                     <el-tag v-if="testCase.type === '功能测试'" type="primary">功能测试</el-tag>
-                    <el-tag v-else-if="testCase.type === '性能测试'" type="warning">性能测试</el-tag>
+                    <el-tag v-else-if="testCase.type === '性能测试'" type="warning"
+                      >性能测试</el-tag
+                    >
                     <el-tag v-else-if="testCase.type === '安全测试'" type="danger">安全测试</el-tag>
                     <el-tag v-else type="info">其他</el-tag>
                   </td>
@@ -219,7 +255,7 @@
               <span>创建人: {{ currentTestCase.creatorId || '未知' }}</span>
               <span>创建时间: {{ formatDate(currentTestCase.createdAt) }}</span>
               <span>
-                优先级: 
+                优先级:
                 <el-tag v-if="currentTestCase.priority === 'P0'" type="danger">高</el-tag>
                 <el-tag v-else-if="currentTestCase.priority === 'P1'" type="danger">高</el-tag>
                 <el-tag v-else-if="currentTestCase.priority === 'P2'" type="warning">中</el-tag>
@@ -271,7 +307,7 @@ const selectedProjectId = computed({
   get: () => selectionStore.selectedProjectId,
   set: (value) => {
     if (value) {
-      const project = projectsList.value.find(p => p.id === value)
+      const project = projectsList.value.find((p) => p.id === value)
       if (project) {
         selectionStore.setSelectedProject(project)
       }
@@ -346,7 +382,7 @@ const handleProjectChange = async (projectId) => {
   if (projectId) {
     loading.value = true
     try {
-      const project = projectsList.value.find(p => p.id === projectId)
+      const project = projectsList.value.find((p) => p.id === projectId)
       if (project) {
         selectionStore.setSelectedProject(project)
         await fetchProjectInfo()
@@ -375,11 +411,11 @@ const goToCreateProject = () => {
 // 获取模块列表
 const fetchModules = async (projectId) => {
   if (!projectId) return
-  
+
   loading.value = true
   try {
     const response = await api.module.getModuleTree(projectId)
-    
+
     if (response.success) {
       // 将树形结构扁平化，以便在过滤器中显示
       modules.value = flattenModules(response.data)
@@ -396,18 +432,18 @@ const fetchModules = async (projectId) => {
 
 // 将树形模块结构扁平化
 const flattenModules = (moduleTree, result = []) => {
-  moduleTree.forEach(module => {
+  moduleTree.forEach((module) => {
     result.push({
       id: module.id,
       name: module.name,
       parentId: module.parentId
     })
-    
+
     if (module.children && module.children.length > 0) {
       flattenModules(module.children, result)
     }
   })
-  
+
   return result
 }
 
@@ -418,7 +454,7 @@ const fetchTestCases = async () => {
     pagination.value.total = 0
     return
   }
-  
+
   loading.value = true
   try {
     // 构建查询参数
@@ -428,18 +464,18 @@ const fetchTestCases = async () => {
       projectId: selectedProjectId.value,
       ...filters.value
     }
-    
+
     // 如果有搜索关键字，添加到查询参数
     if (searchQuery.value) {
       params.search = searchQuery.value
     }
-    
+
     const response = await api.testCase.getTestCases(params)
-    
+
     if (response.success) {
-      testCases.value = response.data.map(testCase => ({
+      testCases.value = response.data.map((testCase) => ({
         ...testCase,
-        moduleName: modules.value.find(m => m.id === testCase.moduleId)?.name || '未知模块'
+        moduleName: modules.value.find((m) => m.id === testCase.moduleId)?.name || '未知模块'
       }))
       pagination.value.total = response.total || response.data.length
     } else {
@@ -470,7 +506,7 @@ const testSteps = computed(() => {
   if (!currentTestCase.value || !currentTestCase.value.steps) return []
   // 处理步骤，可能是字符串或数组
   if (typeof currentTestCase.value.steps === 'string') {
-    return currentTestCase.value.steps.split('\n').filter(step => step.trim())
+    return currentTestCase.value.steps.split('\n').filter((step) => step.trim())
   }
   return currentTestCase.value.steps
 })
@@ -541,15 +577,11 @@ const editTestCase = (testCase) => {
 }
 
 const deleteTestCase = (testCase) => {
-  ElMessageBox.confirm(
-    `确定要删除测试用例 "${testCase.title}" 吗？`,
-    '警告',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    }
-  )
+  ElMessageBox.confirm(`确定要删除测试用例 "${testCase.title}" 吗？`, '警告', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  })
     .then(async () => {
       try {
         const response = await api.testCase.deleteTestCase(testCase.id)
@@ -582,14 +614,25 @@ const exportTestCases = () => {
   try {
     // 准备表头
     const headers = [
-      '模块', '编号', '标题', '维护人', '用例类型', 
-      '重要程度', '测试类型', '预估工时', '剩余工时', 
-      '关联工作项', '前置条件', '步骤描述', '预期结果', 
-      '关注人', '备注'
+      '模块',
+      '编号',
+      '标题',
+      '维护人',
+      '用例类型',
+      '重要程度',
+      '测试类型',
+      '预估工时',
+      '剩余工时',
+      '关联工作项',
+      '前置条件',
+      '步骤描述',
+      '预期结果',
+      '关注人',
+      '备注'
     ]
 
     // 准备数据行
-    const rows = testCases.value.map(testCase => [
+    const rows = testCases.value.map((testCase) => [
       testCase.module,
       testCase.id,
       testCase.title,
@@ -609,36 +652,36 @@ const exportTestCases = () => {
 
     // 创建工作簿
     const wb = XLSX.utils.book_new()
-    
+
     // 组合所有行：空行 + 表头 + 数据行
     const allRows = [new Array(headers.length).fill(''), headers, ...rows]
     const ws = XLSX.utils.aoa_to_sheet(allRows)
 
     // 设置列宽
     const colWidths = [
-      { wch: 10 },  // 模块
-      { wch: 8 },   // 编号
-      { wch: 30 },  // 标题
-      { wch: 10 },  // 维护人
-      { wch: 10 },  // 用例类型
-      { wch: 10 },  // 重要程度
-      { wch: 10 },  // 测试类型
-      { wch: 10 },  // 预估工时
-      { wch: 10 },  // 剩余工时
-      { wch: 15 },  // 关联工作项
-      { wch: 30 },  // 前置条件
-      { wch: 40 },  // 步骤描述
-      { wch: 40 },  // 预期结果
-      { wch: 10 },  // 关注人
-      { wch: 20 }   // 备注
+      { wch: 10 }, // 模块
+      { wch: 8 }, // 编号
+      { wch: 30 }, // 标题
+      { wch: 10 }, // 维护人
+      { wch: 10 }, // 用例类型
+      { wch: 10 }, // 重要程度
+      { wch: 10 }, // 测试类型
+      { wch: 10 }, // 预估工时
+      { wch: 10 }, // 剩余工时
+      { wch: 15 }, // 关联工作项
+      { wch: 30 }, // 前置条件
+      { wch: 40 }, // 步骤描述
+      { wch: 40 }, // 预期结果
+      { wch: 10 }, // 关注人
+      { wch: 20 } // 备注
     ]
     ws['!cols'] = colWidths
 
     // 设置标题行样式（第二行）
     const headerStyle = {
-      font: { bold: true, color: { rgb: "FFFFFF" } },
-      fill: { fgColor: { rgb: "3498DB" } },
-      alignment: { horizontal: "center", vertical: "center" }
+      font: { bold: true, color: { rgb: 'FFFFFF' } },
+      fill: { fgColor: { rgb: '3498DB' } },
+      alignment: { horizontal: 'center', vertical: 'center' }
     }
 
     // 将样式应用到标题行（第二行）
@@ -675,7 +718,7 @@ const goToModuleDesign = () => {
 // 添加文件处理相关的方法
 const handleFileChange = async (file) => {
   if (!file.raw) return
-  
+
   try {
     const reader = new FileReader()
     reader.onload = async (e) => {
@@ -683,7 +726,7 @@ const handleFileChange = async (file) => {
         const jsonData = JSON.parse(e.target.result)
         if (jsonData.testCases && Array.isArray(jsonData.testCases)) {
           // 处理导入的测试用例数据
-          const importedTestCases = jsonData.testCases.map(testCase => ({
+          const importedTestCases = jsonData.testCases.map((testCase) => ({
             id: testCase.id || '',
             module: testCase.module,
             title: testCase.title,
@@ -738,6 +781,52 @@ watch(selectedProjectId, (newValue) => {
 const formatDate = (date) => {
   if (!date) return ''
   return new Date(date).toLocaleString()
+}
+
+// 加载 JSON 对话框相关
+const loadJsonDialogVisible = ref(false)
+const jsonInput = ref('')
+
+// 打开加载 JSON 对话框
+const openLoadJsonDialog = () => {
+  loadJsonDialogVisible.value = true
+}
+
+// 加载 JSON 内容
+const loadJson = () => {
+  try {
+    const jsonData = JSON.parse(jsonInput.value)
+    if (jsonData.testCases && Array.isArray(jsonData.testCases)) {
+      // 处理导入的测试用例数据
+      const importedTestCases = jsonData.testCases.map(testCase => ({
+        id: testCase.id || '',
+        module: testCase.module,
+        title: testCase.title,
+        maintainer: testCase.maintainer || '',
+        type: testCase.type || '功能测试', // 确保有默认值
+        priority: testCase.priority || 'P1', // 确保有默认值
+        testType: testCase.testType || '',
+        estimatedHours: testCase.estimatedHours || '',
+        remainingHours: testCase.remainingHours || '',
+        relatedItems: testCase.relatedItems || '',
+        preconditions: testCase.preconditions || '',
+        steps: testCase.steps || '',
+        expectedResults: testCase.expectedResults || '',
+        followers: testCase.followers || '',
+        notes: testCase.notes || ''
+      }))
+
+      // 将导入的测试用例添加到现有列表中
+      testCases.value = [...testCases.value, ...importedTestCases]
+      ElMessage.success(`成功加载 ${importedTestCases.length} 个测试用例`)
+      loadJsonDialogVisible.value = false // 关闭对话框
+    } else {
+      ElMessage.error('文件格式不正确，请确保包含 testCases 数组')
+    }
+  } catch (error) {
+    console.error('解析JSON内容错误:', error)
+    ElMessage.error('解析JSON内容失败，请检查格式')
+  }
 }
 </script>
 
@@ -884,7 +973,8 @@ table {
   table-layout: fixed;
 }
 
-th, td {
+th,
+td {
   padding: 6px 8px;
   text-align: left;
   border-bottom: 1px solid #ddd;
@@ -907,25 +997,55 @@ tr:hover {
 }
 
 /* 设置列宽 */
-th:nth-child(1) { width: 5%; }  /* 模块 */
-th:nth-child(2) { width: 3%; }  /* 编号 */
-th:nth-child(3) { width: 10%; } /* 标题 */
-th:nth-child(4) { width: 4%; }  /* 维护人 */
-th:nth-child(5) { width: 5%; }  /* 用例类型 */
-th:nth-child(6) { width: 4%; }  /* 重要程度 */
-th:nth-child(7) { width: 4%; }  /* 测试类型 */
-th:nth-child(8) { width: 4%; }  /* 预估工时 */
-th:nth-child(9) { width: 4%; }  /* 剩余工时 */
-th:nth-child(10) { width: 4%; } /* 关联工作项 */
-th:nth-child(11) { width: 13%; } /* 前置条件 */
-th:nth-child(12) { width: 17%; } /* 步骤描述 */
-th:nth-child(13) { width: 17%; } /* 预期结果 */
-th:nth-child(14) { width: 3%; } /* 关注人 */
-th:nth-child(15) { width: 3%; } /* 备注 */
+th:nth-child(1) {
+  width: 5%;
+} /* 模块 */
+th:nth-child(2) {
+  width: 3%;
+} /* 编号 */
+th:nth-child(3) {
+  width: 10%;
+} /* 标题 */
+th:nth-child(4) {
+  width: 4%;
+} /* 维护人 */
+th:nth-child(5) {
+  width: 5%;
+} /* 用例类型 */
+th:nth-child(6) {
+  width: 4%;
+} /* 重要程度 */
+th:nth-child(7) {
+  width: 4%;
+} /* 测试类型 */
+th:nth-child(8) {
+  width: 4%;
+} /* 预估工时 */
+th:nth-child(9) {
+  width: 4%;
+} /* 剩余工时 */
+th:nth-child(10) {
+  width: 4%;
+} /* 关联工作项 */
+th:nth-child(11) {
+  width: 13%;
+} /* 前置条件 */
+th:nth-child(12) {
+  width: 17%;
+} /* 步骤描述 */
+th:nth-child(13) {
+  width: 17%;
+} /* 预期结果 */
+th:nth-child(14) {
+  width: 3%;
+} /* 关注人 */
+th:nth-child(15) {
+  width: 3%;
+} /* 备注 */
 
 /* 为宽列添加特殊样式 */
-td:nth-child(11), 
-td:nth-child(12), 
+td:nth-child(11),
+td:nth-child(12),
 td:nth-child(13) {
   white-space: pre-line;
   max-height: 200px;
