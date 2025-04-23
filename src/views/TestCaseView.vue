@@ -1,184 +1,161 @@
 <template>
   <main-layout>
-    <div class="test-case-management">
-      <!-- 优化项目选择区域 -->
-      <div class="project-selection-container">
-        <div class="project-selection-card">
-          <div class="project-selector">
-            <el-select
-              v-model="selectedProjectId"
-              placeholder="请选择一个项目"
-              style="width: 300px"
-              @change="handleProjectChange"
-            >
-              <el-option
-                v-for="project in projectsList"
-                :key="project.id"
-                :label="project.name"
-                :value="project.id"
-              />
-            </el-select>
-            <el-button
-              type="primary"
-              size="default"
-              style="margin-left: 10px"
-              @click="goToCreateProject"
-            >
-              创建新项目
-            </el-button>
-          </div>
-        </div>
+    <div class="main-content">
+      <!-- 项目选择区域 -->
+      <div class="project-selection">
+        <el-select
+          v-model="selectedProjectId"
+          placeholder="请选择一个项目"
+          style="width: 300px"
+          @change="handleProjectChange"
+        >
+          <el-option
+            v-for="project in projectsList"
+            :key="project.id"
+            :label="project.name"
+            :value="project.id"
+          />
+        </el-select>
+        <el-button
+          type="primary"
+          size="default"
+          style="margin-left: 10px"
+          @click="goToCreateProject"
+        >
+          创建新项目
+        </el-button>
       </div>
 
-      <!-- 优化加载状态显示 -->
+      <!-- 加载状态显示 -->
       <div v-if="loading && !selectedProjectId" class="loading-container">
         <el-skeleton :rows="5" animated />
       </div>
 
-      <!-- 优化无项目选择时的显示 -->
+      <!-- 无项目选择时的显示 -->
       <div v-else-if="!selectedProjectId" class="no-project-selected">
         <el-empty description="请选择一个项目查看测试用例">
           <el-button type="primary" @click="goToCreateProject">创建新项目</el-button>
         </el-empty>
       </div>
 
-      <!-- 优化选择项目后的内容区域 -->
-      <div v-else class="testcase-content">
-        <div class="content-header">
-          <!-- <h2>{{ projectInfo.name || '项目' }} 的测试用例</h2> -->
-          <div class="header-actions">
-            <el-button type="primary" @click="createTestCase">新建测试用例</el-button>
-            <el-button type="success" @click="goToAIGenerate">AI生成测试用例</el-button>
-            <el-button @click="exportTestCases">导出</el-button>
-            <el-button @click="goToModuleDesign">查看模块设计</el-button>
-            <el-button @click="openLoadJsonDialog">加载JSON</el-button>
-            <!-- 加载 JSON 对话框 -->
-            <el-dialog v-model="loadJsonDialogVisible" title="加载 JSON" width="600px">
-              <el-input
-                type="textarea"
-                v-model="jsonInput"
-                placeholder="请粘贴 JSON 内容"
-                rows="10"
-              />
-              <span slot="footer" class="dialog-footer">
-                <el-button @click="loadJson">加载</el-button>
-                <el-button @click="loadJsonDialogVisible = false">取消</el-button>
-              </span>
-            </el-dialog>
-            <el-upload
-              class="upload-demo"
-              action="#"
-              :auto-upload="false"
-              :show-file-list="false"
-              accept=".json"
-              @change="handleFileChange"
+      <!-- 选择项目后的内容区域 -->
+      <div v-else class="content-area">
+        <!-- 操作按钮区域 -->
+        <div class="action-buttons">
+          <el-button type="primary" @click="createTestCase">新建测试用例</el-button>
+          <el-button type="success" @click="goToAIGenerate">AI生成测试用例</el-button>
+          <el-button @click="exportTestCases">导出</el-button>
+          <el-button @click="goToModuleDesign">查看模块设计</el-button>
+          <el-button @click="openLoadJsonDialog">加载JSON</el-button>
+          <el-upload
+            class="upload-demo"
+            action="#"
+            :auto-upload="false"
+            :show-file-list="false"
+            accept=".json"
+            @change="handleFileChange"
+          >
+            <el-button type="primary">导入JSON</el-button>
+          </el-upload>
+          <el-button type="primary" @click="saveSelectedTestCases" :disabled="!hasSelectedItems">
+            保存选中项
+          </el-button>
+        </div>
+
+        <!-- 过滤器区域 -->
+        <div class="filter-area">
+          <!-- 搜索栏 -->
+          <div class="search-section">
+            <el-input
+              v-model="searchQuery"
+              placeholder="搜索测试用例"
+              clearable
+              @clear="handleSearchClear"
+              @input="handleSearchInput"
+              class="search-input"
             >
-              <el-button type="primary">导入JSON</el-button>
-            </el-upload>
+              <template #prefix>
+                <el-icon><search /></el-icon>
+              </template>
+              <template #append>
+                <el-button @click="searchTestCases">搜索</el-button>
+              </template>
+            </el-input>
+          </div>
+
+          <!-- 过滤器 -->
+          <div class="filter-section">
+            <el-form :model="filters" label-width="80px" class="filter-form">
+              <el-row :gutter="20">
+                <el-col :span="8">
+                  <el-form-item label="模块:">
+                    <el-select
+                      v-model="selectedModuleId"
+                      placeholder="选择模块"
+                      clearable
+                      @change="handleModuleChange"
+                    >
+                      <el-option
+                        v-for="module in modules"
+                        :key="module.id"
+                        :label="module.name"
+                        :value="module.id"
+                      />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="优先级:">
+                    <el-select
+                      v-model="filters.priority"
+                      placeholder="选择优先级"
+                      clearable
+                      @change="applyFilters"
+                    >
+                      <el-option label="高" value="P0" />
+                      <el-option label="中" value="P1" />
+                      <el-option label="低" value="P3" />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="类型:">
+                    <el-select
+                      v-model="filters.type"
+                      placeholder="选择类型"
+                      clearable
+                      @change="applyFilters"
+                    >
+                      <el-option label="功能测试" value="功能测试" />
+                      <el-option label="性能测试" value="性能测试" />
+                      <el-option label="安全测试" value="安全测试" />
+                      <el-option label="其他" value="其他" />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              <el-row :gutter="20">
+                <el-col :span="8">
+                  <el-form-item label="状态:">
+                    <el-select
+                      v-model="filters.status"
+                      placeholder="选择状态"
+                      clearable
+                      @change="applyFilters"
+                    >
+                      <el-option label="未执行" value="waiting" />
+                      <el-option label="通过" value="passed" />
+                      <el-option label="失败" value="failed" />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+              </el-row>
+            </el-form>
           </div>
         </div>
 
-        <!-- 优化过滤器卡片 -->
-        <el-card class="filter-card">
-          <div class="filter-container">
-            <!-- 搜索栏 -->
-            <div class="search-section">
-              <el-input
-                v-model="searchQuery"
-                placeholder="搜索测试用例"
-                clearable
-                @clear="handleSearchClear"
-                @input="handleSearchInput"
-                class="search-input"
-              >
-                <template #prefix>
-                  <el-icon><search /></el-icon>
-                </template>
-                <template #append>
-                  <el-button @click="searchTestCases">搜索</el-button>
-                </template>
-              </el-input>
-            </div>
-
-            <!-- 过滤器区域 -->
-            <div class="filter-section">
-              <el-form :model="filters" label-width="80px" class="filter-form">
-                <el-row :gutter="20">
-                  <el-col :span="8">
-                    <el-form-item label="模块:">
-                      <el-select
-                        v-model="selectedModuleId"
-                        placeholder="选择模块"
-                        clearable
-                        @change="handleModuleChange"
-                      >
-                        <el-option
-                          v-for="module in modules"
-                          :key="module.id"
-                          :label="module.name"
-                          :value="module.id"
-                        />
-                      </el-select>
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="8">
-                    <el-form-item label="优先级:">
-                      <el-select
-                        v-model="filters.priority"
-                        placeholder="选择优先级"
-                        clearable
-                        @change="applyFilters"
-                      >
-                        <el-option label="高" value="P0" />
-                        <el-option label="中" value="P1" />
-                        <el-option label="低" value="P3" />
-                      </el-select>
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="8">
-                    <el-form-item label="类型:">
-                      <el-select
-                        v-model="filters.type"
-                        placeholder="选择类型"
-                        clearable
-                        @change="applyFilters"
-                      >
-                        <el-option label="功能测试" value="功能测试" />
-                        <el-option label="性能测试" value="性能测试" />
-                        <el-option label="安全测试" value="安全测试" />
-                        <el-option label="其他" value="其他" />
-                      </el-select>
-                    </el-form-item>
-                  </el-col>
-                </el-row>
-                <el-row :gutter="20">
-                  <el-col :span="8">
-                    <el-form-item label="状态:">
-                      <el-select
-                        v-model="filters.status"
-                        placeholder="选择状态"
-                        clearable
-                        @change="applyFilters"
-                      >
-                        <el-option label="未执行" value="waiting" />
-                        <el-option label="通过" value="passed" />
-                        <el-option label="失败" value="failed" />
-                      </el-select>
-                    </el-form-item>
-                  </el-col>
-                </el-row>
-              </el-form>
-            </div>
-          </div>
-        </el-card>
-
-        <!-- 测试用例表格 -->
-        <el-card class="table-card">
-          <div class="table-header">
-            <el-button type="primary" @click="saveSelectedTestCases" :disabled="!hasSelectedItems">
-              保存选中项
-            </el-button>
-          </div>
+        <!-- 表格区域 -->
+        <div class="table-area">
           <div class="table-wrapper">
             <table id="testCaseTable">
               <thead>
@@ -210,11 +187,7 @@
                   </td>
                   <td>{{ testCase.module }}</td>
                   <td>{{ testCase.id }}</td>
-                  <td>
-                    <el-tooltip :content="testCase.title" placement="top" :show-after="500">
-                      <span>{{ testCase.title }}</span>
-                    </el-tooltip>
-                  </td>
+                  <td>{{ testCase.title }}</td>
                   <td>{{ testCase.maintainer }}</td>
                   <td>
                     <el-tag v-if="testCase.type === '功能测试'" type="primary">功能测试</el-tag>
@@ -229,33 +202,17 @@
                     <el-tag v-else-if="testCase.priority === 'P1'" type="danger">高</el-tag>
                     <el-tag v-else-if="testCase.priority === 'P2'" type="warning">中</el-tag>
                     <el-tag v-else-if="testCase.priority === 'P3'" type="success">低</el-tag>
-                    <el-tag v-else type="info">未设置</el-tag>
+                    <el-tag v-else type="info"></el-tag>
                   </td>
                   <td>{{ testCase.testType }}</td>
                   <td>{{ testCase.estimatedHours }}</td>
                   <td>{{ testCase.remainingHours }}</td>
                   <td>{{ testCase.relatedItems }}</td>
-                  <td>
-                    <el-tooltip :content="testCase.preconditions" placement="top" :show-after="500">
-                      <span>{{ testCase.preconditions }}</span>
-                    </el-tooltip>
-                  </td>
-                  <td>
-                    <el-tooltip :content="testCase.steps" placement="top" :show-after="500">
-                      <span>{{ testCase.steps }}</span>
-                    </el-tooltip>
-                  </td>
-                  <td>
-                    <el-tooltip :content="testCase.expectedResults" placement="top" :show-after="500">
-                      <span>{{ testCase.expectedResults }}</span>
-                    </el-tooltip>
-                  </td>
+                  <td>{{ testCase.preconditions }}</td>
+                  <td>{{ testCase.steps }}</td>
+                  <td>{{ testCase.expectedResults }}</td>
                   <td>{{ testCase.followers }}</td>
-                  <td>
-                    <el-tooltip :content="testCase.notes" placement="top" :show-after="500">
-                      <span>{{ testCase.notes }}</span>
-                    </el-tooltip>
-                  </td>
+                  <td>{{ testCase.notes }}</td>
                 </tr>
               </tbody>
             </table>
@@ -273,46 +230,23 @@
               @current-change="handleCurrentChange"
             />
           </div>
-        </el-card>
+        </div>
       </div>
 
-      <!-- 测试用例详情对话框 -->
-      <el-dialog v-model="testCaseDialogVisible" :title="dialogTitle" width="800px">
-        <div v-if="currentTestCase" class="test-case-detail">
-          <div class="detail-header">
-            <h3>{{ currentTestCase.title }}</h3>
-            <div class="detail-meta">
-              <span>创建人: {{ currentTestCase.creatorId || '未知' }}</span>
-              <span>创建时间: {{ formatDate(currentTestCase.createdAt) }}</span>
-              <span>
-                优先级:
-                <el-tag v-if="currentTestCase.priority === 'P0'" type="danger">高</el-tag>
-                <el-tag v-else-if="currentTestCase.priority === 'P1'" type="danger">高</el-tag>
-                <el-tag v-else-if="currentTestCase.priority === 'P2'" type="warning">中</el-tag>
-                <el-tag v-else-if="currentTestCase.priority === 'P3'" type="success">低</el-tag>
-              </span>
-            </div>
-          </div>
-
-          <div class="detail-section">
-            <div class="section-title">前置条件:</div>
-            <div class="section-content">{{ currentTestCase.precondition || '无' }}</div>
-          </div>
-
-          <div class="detail-section">
-            <div class="section-title">测试步骤:</div>
-            <div class="section-content">
-              <ol>
-                <li v-for="(step, index) in testSteps" :key="index">{{ step }}</li>
-              </ol>
-            </div>
-          </div>
-
-          <div class="detail-section">
-            <div class="section-title">预期结果:</div>
-            <div class="section-content">{{ currentTestCase.expectedResult || '无' }}</div>
-          </div>
-        </div>
+      <!-- 加载 JSON 对话框 -->
+      <el-dialog v-model="loadJsonDialogVisible" title="加载 JSON" width="600px">
+        <el-input
+          type="textarea"
+          v-model="jsonInput"
+          placeholder="请粘贴 JSON 内容"
+          rows="10"
+        />
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="loadJson">加载</el-button>
+            <el-button @click="loadJsonDialogVisible = false">取消</el-button>
+          </span>
+        </template>
       </el-dialog>
     </div>
   </main-layout>
@@ -909,79 +843,56 @@ const saveSelectedTestCases = async () => {
 </script>
 
 <style scoped>
-.test-case-management {
+.main-content {
   padding: 20px;
-}
-
-.project-selection-container {
-  margin-bottom: 20px;
-}
-
-.project-selection-card {
-  background: #fff;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-}
-
-.project-selection-card h2 {
-  margin-bottom: 15px;
-  color: #303133;
-}
-
-.project-selector {
-  display: flex;
-  align-items: center;
-}
-
-.loading-container {
-  padding: 20px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-}
-
-.no-project-selected {
-  padding: 40px;
-  text-align: center;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-}
-
-.testcase-content {
-  background: #fff;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-}
-
-.content-header {
-  margin-bottom: 20px;
-}
-
-.header-actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-.filter-card {
-  margin-bottom: 20px;
-}
-
-.filter-container {
+  height: 100%;
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
-.search-section {
-  width: 100%;
+.project-selection {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
 }
 
-.search-input {
-  width: 100%;
+.loading-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.no-project-selected {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.content-area {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-area {
+  background: #fff;
+  padding: 20px;
+  border-radius: 4px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+.search-section {
+  margin-bottom: 20px;
 }
 
 .filter-section {
@@ -992,67 +903,20 @@ const saveSelectedTestCases = async () => {
   width: 100%;
 }
 
-.table-card {
-  margin-bottom: 20px;
-}
-
-.table-header {
-  margin-bottom: 10px;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  padding: 0 10px;
-}
-
-.pagination-container {
-  margin-top: 20px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.test-case-detail {
+.table-area {
+  background: #fff;
   padding: 20px;
-}
-
-.detail-header {
-  margin-bottom: 20px;
-}
-
-.detail-header h3 {
-  margin-bottom: 10px;
-  color: #303133;
-}
-
-.detail-meta {
-  display: flex;
-  gap: 20px;
-  color: #909399;
-  font-size: 14px;
-}
-
-.detail-section {
-  margin-bottom: 20px;
-}
-
-.section-title {
-  font-weight: bold;
-  margin-bottom: 10px;
-  color: #303133;
-}
-
-.section-content {
-  color: #606266;
-  line-height: 1.6;
-}
-
-/* 添加表格相关样式 */
-.table-wrapper {
-  margin: 15px 0;
-  background-color: #fff;
   border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  max-height: 600px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.table-wrapper {
+  flex: 1;
   overflow-y: auto;
+  margin: 15px 0;
 }
 
 table {
@@ -1068,9 +932,9 @@ td {
   border-bottom: 1px solid #ddd;
   font-size: 12px;
   line-height: 1.4;
-  height: auto; /* 改为自动高度 */
-  min-height: 40px; /* 最小高度 */
-  vertical-align: top; /* 顶部对齐 */
+  height: auto;
+  min-height: 40px;
+  vertical-align: top;
 }
 
 th {
@@ -1080,7 +944,9 @@ th {
   top: 0;
   font-weight: normal;
   font-size: 12px;
-  white-space: nowrap; /* 表头不换行 */
+  white-space: normal;  /* 改为 normal */
+  word-break: break-word;  /* 添加这行 */
+  padding: 8px 4px;  /* 可以调整内边距 */
 }
 
 tr:hover {
@@ -1092,8 +958,8 @@ th:nth-child(1) { width: 3%; } /* 复选框 */
 th:nth-child(2) { width: 5%; } /* 模块 */
 th:nth-child(3) { width: 3%; } /* 编号 */
 th:nth-child(4) { width: 10%; } /* 标题 */
-th:nth-child(5) { width: 4%; } /* 维护人 */
-th:nth-child(6) { width: 5%; } /* 用例类型 */
+th:nth-child(5) { width: 3%; } /* 维护人 */
+th:nth-child(6) { width: 6%; } /* 用例类型 */
 th:nth-child(7) { width: 4%; } /* 重要程度 */
 th:nth-child(8) { width: 4%; } /* 测试类型 */
 th:nth-child(9) { width: 4%; } /* 预估工时 */
@@ -1111,9 +977,9 @@ td:nth-child(12), /* 前置条件 */
 td:nth-child(13), /* 步骤描述 */
 td:nth-child(14), /* 预期结果 */
 td:nth-child(16) { /* 备注 */
-  white-space: pre-wrap; /* 保留换行符和空格 */
-  word-break: break-word; /* 允许在单词内换行 */
-  overflow-wrap: break-word; /* 确保长单词也能换行 */
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 /* 为短文本列添加样式 */
@@ -1131,6 +997,12 @@ td:nth-child(15) { /* 关注人 */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.pagination-container {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .upload-demo {
