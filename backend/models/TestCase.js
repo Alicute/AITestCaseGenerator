@@ -17,48 +17,78 @@ const TestCase = sequelize.define('TestCase', {
       }
     }
   },
-  priority: {
-    type: DataTypes.ENUM('high', 'medium', 'low'),
-    defaultValue: 'medium'
+  moduleId: {
+    type: DataTypes.INTEGER,
+    allowNull: false
   },
-  type: {
-    type: DataTypes.ENUM('functional', 'performance', 'security', 'other'),
-    defaultValue: 'functional'
-  },
-  status: {
-    type: DataTypes.ENUM('passed', 'failed', 'waiting'),
-    defaultValue: 'waiting'
+  projectId: {
+    type: DataTypes.INTEGER,
+    allowNull: false
   },
   precondition: {
     type: DataTypes.TEXT,
     allowNull: true
   },
   steps: {
-    type: DataTypes.JSON, // 存储步骤数组
+    type: DataTypes.TEXT,
     allowNull: false
   },
   expectedResult: {
     type: DataTypes.TEXT,
     allowNull: false
   },
-  actualResult: {
+  priority: {
+    type: DataTypes.ENUM('P0', 'P1', 'P2', 'P3', 'P4'),
+    defaultValue: 'P1'
+  },
+  status: {
+    type: DataTypes.ENUM('waiting', 'running', 'passed', 'failed'),
+    defaultValue: 'waiting'
+  },
+  type: {
+    type: DataTypes.ENUM('functional', 'performance', 'security', 'ui', 'other'),
+    defaultValue: 'functional'
+  },
+  maintainer: {
+    type: DataTypes.STRING(100),
+    allowNull: true
+  },
+  testType: {
+    type: DataTypes.STRING(50),
+    allowNull: true
+  },
+  estimatedHours: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true
+  },
+  remainingHours: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true
+  },
+  relatedItems: {
     type: DataTypes.TEXT,
     allowNull: true
   },
-  isGenerated: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false
-  },
-  aiProvider: {
-    type: DataTypes.STRING,
+  followers: {
+    type: DataTypes.TEXT,
     allowNull: true
   },
-  executionDate: {
-    type: DataTypes.DATE,
+  notes: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  createdBy: {
+    type: DataTypes.INTEGER,
     allowNull: true
   }
 }, {
-  timestamps: true // 自动添加createdAt和updatedAt字段
+  timestamps: true,
+  indexes: [
+    {
+      unique: true,
+      fields: ['title', 'moduleId']
+    }
+  ]
 });
 
 module.exports = TestCase;

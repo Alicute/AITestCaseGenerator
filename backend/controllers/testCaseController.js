@@ -1,6 +1,5 @@
-const TestCase = require('../models/TestCase');
-const Module = require('../models/Module');
-const Project = require('../models/Project');
+const { TestCase, Module, Project } = require('../models');
+const { Op } = require('sequelize');
 const { sequelize } = require('../config/database');
 const User = require('../models/User');
 /**
@@ -10,68 +9,41 @@ const User = require('../models/User');
  */
 exports.getTestCases = async (req, res) => {
   try {
-    // 构建查询条件
-    const queryObj = { ...req.query };
-    
-    // 排除特殊查询参数
-    const excludedFields = ['page', 'sort', 'limit', 'fields'];
-    excludedFields.forEach(field => delete queryObj[field]);
-    
-    // 创建where条件
+    const { moduleId, projectId, page = 1, limit = 10 } = req.query;
     const where = {};
-    
-    // 处理过滤条件
-    Object.keys(queryObj).forEach(key => {
-      where[key] = queryObj[key];
-    });
-    
-    // 分页
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 10;
-    const offset = (page - 1) * limit;
-    
-    // 排序
-    let order = [['createdAt', 'DESC']];
-    if (req.query.sort) {
-      const sortFields = req.query.sort.split(',');
-      order = sortFields.map(field => {
-        const direction = field.startsWith('-') ? 'DESC' : 'ASC';
-        return [field.replace('-', ''), direction];
-      });
+
+    if (moduleId) {
+      where.moduleId = moduleId;
     }
-    
-    console.log('查询条件:', where); // 调试信息
-    
-    // 执行查询，暂时移除include关联
-    const { count, rows: testCases } = await TestCase.findAndCountAll({
+
+    if (projectId) {
+      where.projectId = projectId;
+    }
+
+    const offset = (page - 1) * limit;
+
+    const { count, rows } = await TestCase.findAndCountAll({
       where,
-      // 暂时注释掉include关联，避免潜在错误
-      // include: [
-      //   { model: Module, as: 'module', attributes: ['name', 'path'] },
-      //   { model: User, as: 'creator', attributes: ['username'] },
-      //   { model: User, as: 'executor', attributes: ['username'] }
-      // ],
-      offset,
-      limit,
-      order
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      order: [['createdAt', 'DESC']]
     });
-    
-    res.json({
+
+    return res.json({
       success: true,
-      count: testCases.length,
-      total: count,
-      pagination: {
-        current: page,
-        pages: Math.ceil(count / limit)
-      },
-      data: testCases
+      data: {
+        total: count,
+        items: rows,
+        page: parseInt(page),
+        limit: parseInt(limit)
+      }
     });
   } catch (error) {
-    console.error('获取测试用例错误:', error);
-    res.status(500).json({
+    console.error('获取测试用例列表失败:', error);
+    return res.status(500).json({
       success: false,
-      message: '服务器错误',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: '获取测试用例列表失败',
+      error: error.message
     });
   }
 };
@@ -109,11 +81,6 @@ exports.getTestCasesByModule = async (req, res) => {
     // 获取模块的测试用例
     const testCases = await TestCase.findAll({
       where: { moduleId },
-      // 暂时注释掉include关联
-      // include: [
-      //   { model: User, as: 'creator', attributes: ['username'] },
-      //   { model: User, as: 'executor', attributes: ['username'] }
-      // ],
       order: [['createdAt', 'DESC']]
     });
     
@@ -232,44 +199,26 @@ exports.getTestCasesByProject = async (req, res) => {
  */
 exports.getTestCase = async (req, res) => {
   try {
-    const testCase = await TestCase.findByPk(req.params.id, {
-      /* 暂时注释掉可能造成错误的关联
-      include: [
-        { model: Module, as: 'module', attributes: ['name', 'path'] },
-        { model: User, as: 'creator', attributes: ['username'] },
-        { model: User, as: 'executor', attributes: ['username'] }
-      ]
-      */
-    });
-    
+    const { id } = req.params;
+    const testCase = await TestCase.findByPk(id);
+
     if (!testCase) {
       return res.status(404).json({
         success: false,
-        message: '未找到测试用例'
+        message: '测试用例不存在'
       });
     }
-    
-    // 检查用户是否有权限查看此测试用例
-    const project = await Project.findByPk(testCase.projectId);
-    if (
-      project.creatorId !== req.user.id && 
-      !(await project.hasMembers(req.user.id))
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: '无权访问此测试用例'
-      });
-    }
-    
-    res.json({
+
+    return res.json({
       success: true,
       data: testCase
     });
   } catch (error) {
-    res.status(500).json({
+    console.error('获取测试用例失败:', error);
+    return res.status(500).json({
       success: false,
-      message: '服务器错误',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: '获取测试用例失败',
+      error: error.message
     });
   }
 };
@@ -281,90 +230,99 @@ exports.getTestCase = async (req, res) => {
  */
 exports.createTestCase = async (req, res) => {
   try {
-    const { module: moduleId, projectId, title, priority, type, precondition, steps, expectedResult, isGenerated, aiProvider } = req.body;
-    
-    // 验证模块存在
+    const {
+      title,
+      moduleId,
+      projectId,
+      precondition,
+      steps,
+      expectedResult,
+      priority,
+      type,
+      maintainer,
+      testType,
+      estimatedHours,
+      remainingHours,
+      relatedItems,
+      followers,
+      notes
+    } = req.body;
+
+    // 验证必填字段
+    if (!title || !moduleId || !projectId || !steps || !expectedResult) {
+      return res.status(400).json({
+        success: false,
+        message: '缺少必填字段'
+      });
+    }
+
+    // 检查模块是否存在
     const module = await Module.findByPk(moduleId);
     if (!module) {
       return res.status(404).json({
         success: false,
-        message: '未找到模块'
+        message: '模块不存在'
       });
     }
-    
-    // 验证项目存在
+
+    // 检查项目是否存在
     const project = await Project.findByPk(projectId);
     if (!project) {
       return res.status(404).json({
         success: false,
-        message: '未找到项目'
+        message: '项目不存在'
       });
     }
-    
-    // 检查用户是否有权限在此项目中创建测试用例
-    if (
-      project.creatorId !== req.user.id && 
-      !(await project.hasMembers(req.user.id))
-    ) {
-      return res.status(403).json({
+
+    // 检查测试用例是否已存在
+    const existingTestCase = await TestCase.findOne({
+      where: {
+        title,
+        moduleId
+      }
+    });
+
+    if (existingTestCase) {
+      return res.status(409).json({
         success: false,
-        message: '无权在此项目中创建测试用例'
+        message: '该模块下已存在相同标题的测试用例'
       });
     }
-    
+
     // 创建测试用例
     const testCase = await TestCase.create({
       title,
-      moduleId: moduleId,
+      moduleId,
       projectId,
-      priority,
-      type,
       precondition,
       steps,
       expectedResult,
-      isGenerated,
-      aiProvider,
-      creatorId: req.user.id
+      priority,
+      type,
+      maintainer,
+      testType,
+      estimatedHours,
+      remainingHours,
+      relatedItems,
+      followers,
+      notes,
+      createdBy: req.user.id
     });
-    
+
     // 更新模块的测试用例计数
-    await Module.update(
-      { testCaseCount: sequelize.literal('testCaseCount + 1') },
-      { where: { id: moduleId } }
-    );
-    
-    // 更新项目的测试用例计数
-    await Project.update(
-      { testCaseCount: sequelize.literal('testCaseCount + 1') },
-      { where: { id: projectId } }
-    );
-    
-    // 查询包含关联数据的完整测试用例信息
-    const createdTestCase = await TestCase.findByPk(testCase.id, {
-      include: [
-        { model: Module, as: 'module', attributes: ['name', 'path'] },
-        { model: User, as: 'creator', attributes: ['username'] },
-        { model: User, as: 'executor', attributes: ['username'] }
-      ]
-    });
-    
-    res.status(201).json({
+    await module.increment('testCaseCount');
+
+    return res.status(201).json({
       success: true,
-      data: createdTestCase
+      message: '测试用例创建成功',
+      data: testCase
     });
   } catch (error) {
-    if (error.name === 'SequelizeValidationError') {
-      const messages = error.errors.map(val => val.message);
-      return res.status(400).json({
-        success: false,
-        message: messages.join(', ')
-      });
-    }
-    
-    res.status(500).json({
+    console.error('创建测试用例失败:', error);
+    return res.status(500).json({
       success: false,
-      message: '服务器错误',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: '创建测试用例失败',
+      error: error.message
     });
   }
 };
@@ -376,69 +334,48 @@ exports.createTestCase = async (req, res) => {
  */
 exports.updateTestCase = async (req, res) => {
   try {
-    const testCase = await TestCase.findByPk(req.params.id);
-    
+    const { id } = req.params;
+    const updateData = req.body;
+
+    const testCase = await TestCase.findByPk(id);
     if (!testCase) {
       return res.status(404).json({
         success: false,
-        message: '未找到测试用例'
+        message: '测试用例不存在'
       });
     }
-    
-    // 检查用户是否有权限更新此测试用例
-    const project = await Project.findByPk(testCase.projectId);
-    if (
-      project.creatorId !== req.user.id && 
-      !(await project.hasMembers(req.user.id))
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: '无权更新此测试用例'
+
+    // 如果更新了标题，检查是否与其他测试用例冲突
+    if (updateData.title && updateData.title !== testCase.title) {
+      const existingTestCase = await TestCase.findOne({
+        where: {
+          title: updateData.title,
+          moduleId: testCase.moduleId,
+          id: { [Op.ne]: id }
+        }
       });
+
+      if (existingTestCase) {
+        return res.status(409).json({
+          success: false,
+          message: '该模块下已存在相同标题的测试用例'
+        });
+      }
     }
-    
-    // 如果更改了模块，需要更新计数
-    if (req.body.moduleId && req.body.moduleId !== testCase.moduleId) {
-      // 减少原模块的计数
-      await Module.update(
-        { testCaseCount: sequelize.literal('testCaseCount - 1') },
-        { where: { id: testCase.moduleId } }
-      );
-      
-      // 增加新模块的计数
-      await Module.update(
-        { testCaseCount: sequelize.literal('testCaseCount + 1') },
-        { where: { id: req.body.moduleId } }
-      );
-    }
-    
-    // 更新测试用例
-    await testCase.update(req.body);
-    const updatedTestCase = await TestCase.findByPk(req.params.id, {
-      include: [
-        { model: Module, as: 'module', attributes: ['name', 'path'] },
-        { model: User, as: 'creator', attributes: ['username'] },
-        { model: User, as: 'executor', attributes: ['username'] }
-      ]
-    });
-    
-    res.json({
+
+    await testCase.update(updateData);
+
+    return res.json({
       success: true,
-      data: updatedTestCase
+      message: '测试用例更新成功',
+      data: testCase
     });
   } catch (error) {
-    if (error.name === 'SequelizeValidationError') {
-      const messages = error.errors.map(val => val.message);
-      return res.status(400).json({
-        success: false,
-        message: messages.join(', ')
-      });
-    }
-    
-    res.status(500).json({
+    console.error('更新测试用例失败:', error);
+    return res.status(500).json({
       success: false,
-      message: '服务器错误',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: '更新测试用例失败',
+      error: error.message
     });
   }
 };
@@ -450,51 +387,34 @@ exports.updateTestCase = async (req, res) => {
  */
 exports.deleteTestCase = async (req, res) => {
   try {
-    const testCase = await TestCase.findByPk(req.params.id);
-    
+    const { id } = req.params;
+    const testCase = await TestCase.findByPk(id);
+
     if (!testCase) {
       return res.status(404).json({
         success: false,
-        message: '未找到测试用例'
+        message: '测试用例不存在'
       });
     }
-    
-    // 检查用户是否有权限删除此测试用例
-    const project = await Project.findByPk(testCase.projectId);
-    if (
-      project.creatorId !== req.user.id && 
-      !(await project.hasMembers(req.user.id))
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: '无权删除此测试用例'
-      });
-    }
-    
-    // 删除测试用例
+
     await testCase.destroy();
-    
-    // 更新项目的测试用例计数
-    await Project.update(
-      { testCaseCount: sequelize.literal('testCaseCount - 1') },
-      { where: { id: testCase.projectId } }
-    );
-    
+
     // 更新模块的测试用例计数
-    await Module.update(
-      { testCaseCount: sequelize.literal('testCaseCount - 1') },
-      { where: { id: testCase.moduleId } }
-    );
-    
-    res.json({
+    const module = await Module.findByPk(testCase.moduleId);
+    if (module) {
+      await module.decrement('testCaseCount');
+    }
+
+    return res.json({
       success: true,
-      message: '测试用例已删除'
+      message: '测试用例删除成功'
     });
   } catch (error) {
-    res.status(500).json({
+    console.error('删除测试用例失败:', error);
+    return res.status(500).json({
       success: false,
-      message: '服务器错误',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: '删除测试用例失败',
+      error: error.message
     });
   }
 }; 

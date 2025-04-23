@@ -57,7 +57,7 @@
           
           <div v-if="moduleFunctions.length > 0" class="function-list">
             <h4>功能点列表：</h4>
-            <el-checkbox-group v-model="selectedFunctions">
+            <el-checkbox-group v-model="selectedFunctions" @change="updatePromptContent">
               <el-checkbox 
                 v-for="func in moduleFunctions" 
                 :key="func.id" 

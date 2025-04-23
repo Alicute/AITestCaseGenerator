@@ -4,7 +4,6 @@
       <!-- 优化项目选择区域 -->
       <div class="project-selection-container">
         <div class="project-selection-card">
-          <h2>选择项目</h2>
           <div class="project-selector">
             <el-select
               v-model="selectedProjectId"
@@ -175,10 +174,18 @@
 
         <!-- 测试用例表格 -->
         <el-card class="table-card">
+          <div class="table-header">
+            <el-button type="primary" @click="saveSelectedTestCases" :disabled="!hasSelectedItems">
+              保存选中项
+            </el-button>
+          </div>
           <div class="table-wrapper">
             <table id="testCaseTable">
               <thead>
                 <tr>
+                  <th style="width: 3%;">
+                    <el-checkbox v-model="allSelected" @change="handleSelectAll" />
+                  </th>
                   <th>模块</th>
                   <th>编号</th>
                   <th>标题</th>
@@ -198,9 +205,16 @@
               </thead>
               <tbody>
                 <tr v-for="testCase in filteredTestCases" :key="testCase.id">
+                  <td>
+                    <el-checkbox v-model="testCase.selected" @change="handleItemSelectChange" />
+                  </td>
                   <td>{{ testCase.module }}</td>
                   <td>{{ testCase.id }}</td>
-                  <td>{{ testCase.title }}</td>
+                  <td>
+                    <el-tooltip :content="testCase.title" placement="top" :show-after="500">
+                      <span>{{ testCase.title }}</span>
+                    </el-tooltip>
+                  </td>
                   <td>{{ testCase.maintainer }}</td>
                   <td>
                     <el-tag v-if="testCase.type === '功能测试'" type="primary">功能测试</el-tag>
@@ -221,11 +235,27 @@
                   <td>{{ testCase.estimatedHours }}</td>
                   <td>{{ testCase.remainingHours }}</td>
                   <td>{{ testCase.relatedItems }}</td>
-                  <td>{{ testCase.preconditions }}</td>
-                  <td>{{ testCase.steps }}</td>
-                  <td>{{ testCase.expectedResults }}</td>
+                  <td>
+                    <el-tooltip :content="testCase.preconditions" placement="top" :show-after="500">
+                      <span>{{ testCase.preconditions }}</span>
+                    </el-tooltip>
+                  </td>
+                  <td>
+                    <el-tooltip :content="testCase.steps" placement="top" :show-after="500">
+                      <span>{{ testCase.steps }}</span>
+                    </el-tooltip>
+                  </td>
+                  <td>
+                    <el-tooltip :content="testCase.expectedResults" placement="top" :show-after="500">
+                      <span>{{ testCase.expectedResults }}</span>
+                    </el-tooltip>
+                  </td>
                   <td>{{ testCase.followers }}</td>
-                  <td>{{ testCase.notes }}</td>
+                  <td>
+                    <el-tooltip :content="testCase.notes" placement="top" :show-after="500">
+                      <span>{{ testCase.notes }}</span>
+                    </el-tooltip>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -339,6 +369,11 @@ const filters = ref({
   priority: '',
   type: '',
   status: ''
+})
+
+const allSelected = ref(false)
+const hasSelectedItems = computed(() => {
+  return testCases.value.some(testCase => testCase.selected)
 })
 
 // 获取项目列表
@@ -733,7 +768,7 @@ const handleFileChange = async (file) => {
             maintainer: testCase.maintainer || '',
             type: testCase.type || '功能测试', // 确保有默认值
             priority: testCase.priority || 'P1', // 确保有默认值
-            testType: testCase.testType || '',
+            testType: testCase.testType || '手动',
             estimatedHours: testCase.estimatedHours || '',
             remainingHours: testCase.remainingHours || '',
             relatedItems: testCase.relatedItems || '',
@@ -741,11 +776,13 @@ const handleFileChange = async (file) => {
             steps: testCase.steps || '',
             expectedResults: testCase.expectedResults || '',
             followers: testCase.followers || '',
-            notes: testCase.notes || ''
+            notes: testCase.notes || '',
+            selected: true // 默认选中
           }))
 
           // 将导入的测试用例添加到现有列表中
           testCases.value = [...testCases.value, ...importedTestCases]
+          allSelected.value = true // 设置全选状态
           ElMessage.success(`成功加载 ${importedTestCases.length} 个测试用例`)
         } else {
           ElMessage.error('文件格式不正确，请确保包含 testCases 数组')
@@ -803,9 +840,9 @@ const loadJson = () => {
         module: testCase.module,
         title: testCase.title,
         maintainer: testCase.maintainer || '',
-        type: testCase.type || '功能测试', // 确保有默认值
-        priority: testCase.priority || 'P1', // 确保有默认值
-        testType: testCase.testType || '',
+        type: testCase.type || '功能测试',
+        priority: testCase.priority || 'P1',
+        testType: testCase.testType || '手动',
         estimatedHours: testCase.estimatedHours || '',
         remainingHours: testCase.remainingHours || '',
         relatedItems: testCase.relatedItems || '',
@@ -813,11 +850,13 @@ const loadJson = () => {
         steps: testCase.steps || '',
         expectedResults: testCase.expectedResults || '',
         followers: testCase.followers || '',
-        notes: testCase.notes || ''
+        notes: testCase.notes || '',
+        selected: true // 默认选中
       }))
 
       // 将导入的测试用例添加到现有列表中
       testCases.value = [...testCases.value, ...importedTestCases]
+      allSelected.value = true // 设置全选状态
       ElMessage.success(`成功加载 ${importedTestCases.length} 个测试用例`)
       loadJsonDialogVisible.value = false // 关闭对话框
     } else {
@@ -826,6 +865,45 @@ const loadJson = () => {
   } catch (error) {
     console.error('解析JSON内容错误:', error)
     ElMessage.error('解析JSON内容失败，请检查格式')
+  }
+}
+
+// 处理全选/取消全选
+const handleSelectAll = (val) => {
+  testCases.value.forEach(testCase => {
+    testCase.selected = val
+  })
+}
+
+// 处理单个项目选择变化
+const handleItemSelectChange = () => {
+  allSelected.value = testCases.value.every(testCase => testCase.selected)
+}
+
+// 保存选中的测试用例
+const saveSelectedTestCases = async () => {
+  const selectedTestCases = testCases.value.filter(testCase => testCase.selected)
+  if (selectedTestCases.length === 0) {
+    ElMessage.warning('请选择要保存的测试用例')
+    return
+  }
+
+  try {
+    const response = await api.testCase.batchCreateTestCases({
+      projectId: selectedProjectId.value,
+      testCases: selectedTestCases
+    })
+
+    if (response.success) {
+      ElMessage.success('测试用例保存成功')
+      // 重新加载测试用例列表
+      await fetchTestCases()
+    } else {
+      ElMessage.error(response.message || '保存测试用例失败')
+    }
+  } catch (error) {
+    console.error('保存测试用例错误:', error)
+    ElMessage.error('保存测试用例时发生错误')
   }
 }
 </script>
@@ -918,6 +996,14 @@ const loadJson = () => {
   margin-bottom: 20px;
 }
 
+.table-header {
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 0 10px;
+}
+
 .pagination-container {
   margin-top: 20px;
   display: flex;
@@ -965,6 +1051,8 @@ const loadJson = () => {
   background-color: #fff;
   border-radius: 4px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  max-height: 600px;
+  overflow-y: auto;
 }
 
 table {
@@ -975,12 +1063,14 @@ table {
 
 th,
 td {
-  padding: 6px 8px;
+  padding: 8px;
   text-align: left;
   border-bottom: 1px solid #ddd;
   font-size: 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.4;
+  height: auto; /* 改为自动高度 */
+  min-height: 40px; /* 最小高度 */
+  vertical-align: top; /* 顶部对齐 */
 }
 
 th {
@@ -990,6 +1080,7 @@ th {
   top: 0;
   font-weight: normal;
   font-size: 12px;
+  white-space: nowrap; /* 表头不换行 */
 }
 
 tr:hover {
@@ -997,59 +1088,49 @@ tr:hover {
 }
 
 /* 设置列宽 */
-th:nth-child(1) {
-  width: 5%;
-} /* 模块 */
-th:nth-child(2) {
-  width: 3%;
-} /* 编号 */
-th:nth-child(3) {
-  width: 10%;
-} /* 标题 */
-th:nth-child(4) {
-  width: 4%;
-} /* 维护人 */
-th:nth-child(5) {
-  width: 5%;
-} /* 用例类型 */
-th:nth-child(6) {
-  width: 4%;
-} /* 重要程度 */
-th:nth-child(7) {
-  width: 4%;
-} /* 测试类型 */
-th:nth-child(8) {
-  width: 4%;
-} /* 预估工时 */
-th:nth-child(9) {
-  width: 4%;
-} /* 剩余工时 */
-th:nth-child(10) {
-  width: 4%;
-} /* 关联工作项 */
-th:nth-child(11) {
-  width: 13%;
-} /* 前置条件 */
-th:nth-child(12) {
-  width: 17%;
-} /* 步骤描述 */
-th:nth-child(13) {
-  width: 17%;
-} /* 预期结果 */
-th:nth-child(14) {
-  width: 3%;
-} /* 关注人 */
-th:nth-child(15) {
-  width: 3%;
-} /* 备注 */
+th:nth-child(1) { width: 3%; } /* 复选框 */
+th:nth-child(2) { width: 5%; } /* 模块 */
+th:nth-child(3) { width: 3%; } /* 编号 */
+th:nth-child(4) { width: 10%; } /* 标题 */
+th:nth-child(5) { width: 4%; } /* 维护人 */
+th:nth-child(6) { width: 5%; } /* 用例类型 */
+th:nth-child(7) { width: 4%; } /* 重要程度 */
+th:nth-child(8) { width: 4%; } /* 测试类型 */
+th:nth-child(9) { width: 4%; } /* 预估工时 */
+th:nth-child(10) { width: 4%; } /* 剩余工时 */
+th:nth-child(11) { width: 4%; } /* 关联工作项 */
+th:nth-child(12) { width: 13%; } /* 前置条件 */
+th:nth-child(13) { width: 17%; } /* 步骤描述 */
+th:nth-child(14) { width: 17%; } /* 预期结果 */
+th:nth-child(15) { width: 3%; } /* 关注人 */
+th:nth-child(16) { width: 3%; } /* 备注 */
 
-/* 为宽列添加特殊样式 */
-td:nth-child(11),
-td:nth-child(12),
-td:nth-child(13) {
-  white-space: pre-line;
-  max-height: 200px;
-  line-height: 1.4;
+/* 为长文本列添加特殊样式 */
+td:nth-child(4), /* 标题 */
+td:nth-child(12), /* 前置条件 */
+td:nth-child(13), /* 步骤描述 */
+td:nth-child(14), /* 预期结果 */
+td:nth-child(16) { /* 备注 */
+  white-space: pre-wrap; /* 保留换行符和空格 */
+  word-break: break-word; /* 允许在单词内换行 */
+  overflow-wrap: break-word; /* 确保长单词也能换行 */
+}
+
+/* 为短文本列添加样式 */
+td:nth-child(1), /* 复选框 */
+td:nth-child(2), /* 模块 */
+td:nth-child(3), /* 编号 */
+td:nth-child(5), /* 维护人 */
+td:nth-child(6), /* 用例类型 */
+td:nth-child(7), /* 重要程度 */
+td:nth-child(8), /* 测试类型 */
+td:nth-child(9), /* 预估工时 */
+td:nth-child(10), /* 剩余工时 */
+td:nth-child(11), /* 关联工作项 */
+td:nth-child(15) { /* 关注人 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .upload-demo {
