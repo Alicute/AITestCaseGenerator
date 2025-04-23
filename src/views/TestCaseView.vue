@@ -46,7 +46,7 @@
       <!-- 优化选择项目后的内容区域 -->
       <div v-else class="testcase-content">
         <div class="content-header">
-          <h2>{{ projectInfo.name || '项目' }} 的测试用例</h2>
+          <!-- <h2>{{ projectInfo.name || '项目' }} 的测试用例</h2> -->
           <div class="header-actions">
             <el-button type="primary" @click="createTestCase">新建测试用例</el-button>
             <el-button type="success" @click="goToAIGenerate">AI生成测试用例</el-button>

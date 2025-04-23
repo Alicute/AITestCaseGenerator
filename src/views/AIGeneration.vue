@@ -1,7 +1,7 @@
 <template>
   <main-layout>
     <div class="ai-generation">
-      <h1>AI测试用例生成</h1>
+
       
       <!-- 选择功能点区域 -->
       <el-card class="section-card">
@@ -19,7 +19,7 @@
                 v-model="selectedProjectId" 
                 placeholder="请选择项目" 
                 @change="handleProjectChange"
-                style="width: 250px"
+                style="width: 200px"
               >
                 <el-option 
                   v-for="project in projects" 
@@ -37,21 +37,11 @@
                 :options="moduleOptions"
                 :props="{ checkStrictly: true, emitPath: false }"
                 placeholder="请选择功能模块"
-                style="width: 350px"
+                style="width: 300px"
                 @change="handleModuleChange"
                 :disabled="!selectedProjectId"
               />
             </div>
-          </div>
-          
-          <div class="selector-actions">
-            <el-button 
-              type="primary" 
-              @click="loadModuleDescription"
-              :disabled="!selectedModuleId"
-            >
-              加载功能点描述
-            </el-button>
           </div>
         </div>
         
@@ -88,6 +78,23 @@
           </div>
         </template>
         
+        <div class="prompt-actions">
+          <el-button type="success" @click="copyPromptContent">
+            <el-icon><DocumentCopy /></el-icon>
+            复制提示词
+          </el-button>
+          <div class="test-case-count">
+            <span class="count-label">每个功能点生成测试用例数量：</span>
+            <el-input-number 
+              v-model="testCasesPerFunction" 
+              :min="1" 
+              :max="10" 
+              @change="updatePromptContent"
+              size="small"
+            />
+          </div>
+        </div>
+        
         <div class="template-selector">
           <el-radio-group v-model="selectedTemplate" class="template-radio-group">
             <el-radio-button label="standard">标准测试</el-radio-button>
@@ -103,8 +110,9 @@
             <el-input
               v-model="promptContent"
               type="textarea"
-              :rows="8"
+              :rows="15"
               placeholder="请编辑生成测试用例的提示词..."
+              class="prompt-textarea"
             />
           </el-form-item>
         </div>
@@ -185,7 +193,7 @@
         </template>
         
         <div class="generation-result">
-          <div v-for="(testCase, index) in parsedTestCases" :key="index" class="test-case-item">
+          <div v-for="(testCase, index) in currentPageTestCases" :key="index" class="test-case-item">
             <div class="test-case-header">
               <h3>{{ testCase.title }}</h3>
               <el-checkbox v-model="testCase.selected" />
@@ -212,6 +220,19 @@
               <div class="section-content">{{ testCase.expectedResult }}</div>
             </div>
           </div>
+        </div>
+
+        <!-- 添加分页器 -->
+        <div class="pagination-container">
+          <el-pagination
+            v-model:current-page="pagination.currentPage"
+            v-model:page-size="pagination.pageSize"
+            :page-sizes="[5, 10, 20, 50]"
+            :total="pagination.total"
+            layout="total, sizes, prev, pager, next"
+            @size-change="handleSizeChange"
+            @current-change="handleCurrentChange"
+          />
         </div>
       </el-card>
 
@@ -251,6 +272,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import MainLayout from '@/components/layout/MainLayout.vue'
 import api from '@/api'
 
+
 const router = useRouter()
 const route = useRoute()
 
@@ -262,6 +284,7 @@ const projects = ref([])
 const moduleOptions = ref([])
 const moduleFunctions = ref([])
 const selectedFunctions = ref([])
+const testCasesPerFunction = ref(3)
 
 // 选择的项目和模块
 const selectedProjectId = ref('')
@@ -320,6 +343,26 @@ const selectedModuleName = computed(() => {
 
 const selectedTestCasesCount = computed(() => {
   return parsedTestCases.value.filter(tc => tc.selected).length
+})
+
+// 分页相关
+const pagination = ref({
+  currentPage: 1,
+  pageSize: 5,
+  total: 0
+})
+
+// 计算当前页的测试用例
+const currentPageTestCases = computed(() => {
+  const start = (pagination.value.currentPage - 1) * pagination.value.pageSize
+  const end = start + pagination.value.pageSize
+  return parsedTestCases.value.slice(start, end)
+})
+
+// 监听测试用例数量变化
+watch(parsedTestCases, (newVal) => {
+  pagination.value.total = newVal.length
+  pagination.value.currentPage = 1
 })
 
 // 查找模块函数
@@ -432,7 +475,7 @@ const handleProjectChange = (projectId) => {
 }
 
 // 模块变更处理
-const handleModuleChange = (moduleId) => {
+const handleModuleChange = async (moduleId) => {
   if (moduleId) {
     selectedModuleId.value = moduleId
     // 确保两个值保持同步
@@ -440,6 +483,9 @@ const handleModuleChange = (moduleId) => {
     currentModuleDescription.value = ''
     moduleFunctions.value = []
     selectedFunctions.value = []
+    
+    // 自动加载模块描述和功能点
+    await loadModuleDescription()
   }
 }
 
@@ -493,52 +539,54 @@ const updatePromptContent = () => {
     .filter(name => name)
     .join('、')
   
-  const moduleDesc = currentModuleDescription.value
+  const testType = selectedTemplate.value === 'standard' ? '功能测试' : 
+                  selectedTemplate.value === 'functional' ? '功能测试' : 
+                  selectedTemplate.value === 'boundary' ? '边界测试' : '异常测试'
   
-  if (selectedTemplate.value === 'standard') {
-    promptContent.value = `生成针对"${selectedModuleName.value}"的测试用例，包括正常情况和异常情况。${functionDescriptions ? `主要功能点包括：${functionDescriptions}。` : ''}${moduleDesc ? `模块描述：${moduleDesc}` : ''}
+  promptContent.value = `系统背景介绍：
+X数字数字成像系统是一款集图像采集、图像处理、图像管理为一体的应用系统。主要用于工业无损探伤检测的数字化应用，实现对数字影像的采集、处理、存储、查询、评定，方便后期分析调阅，协助进行更高效、便捷的工业检测。
 
-每个测试用例应包括:
-1. 标题
-2. 前置条件
-3. 步骤
-4. 预期结果
+请为"${selectedModuleName.value}"模块生成测试用例，主要功能点包括：${functionDescriptions}。
 
-请每个功能点生成至少3个测试用例，确保覆盖主要功能和关键场景。`
-  } else if (selectedTemplate.value === 'functional') {
-    promptContent.value = `生成针对"${selectedModuleName.value}"的功能测试用例。${functionDescriptions ? `主要功能点包括：${functionDescriptions}。` : ''}${moduleDesc ? `模块描述：${moduleDesc}` : ''}
+模块描述：${currentModuleDescription.value}
 
-重点关注功能的正确性和完整性。每个测试用例应包括:
-1. 标题
-2. 前置条件
-3. 测试数据
-4. 步骤
-5. 预期结果
+请生成以下格式的测试用例，每个功能点至少生成${testCasesPerFunction.value}个测试用例：
 
-请每个功能点生成至少3个功能测试用例，确保覆盖所有关键功能点。`
-  } else if (selectedTemplate.value === 'boundary') {
-    promptContent.value = `生成针对"${selectedModuleName.value}"的边界测试用例。${functionDescriptions ? `主要功能点包括：${functionDescriptions}。` : ''}${moduleDesc ? `模块描述：${moduleDesc}` : ''}
+1. 测试用例标题格式：[功能点/场景]-[具体操作/条件]-[预期结果/验证点]
+2. 每个测试用例必须包含：
+   - 前置条件：使用数字编号列出所有必要的前置条件
+   - 测试步骤：使用数字编号详细描述每个步骤，每个步骤用换行符分隔
+   - 预期结果：与测试步骤一一对应，描述每个步骤的预期结果
 
-重点关注输入参数的边界条件、极限值和特殊情况。每个测试用例应包括:
-1. 标题
-2. 测试场景描述
-3. 边界值/特殊值
-4. 步骤
-5. 预期结果
+请以如下JSON格式输出测试用例，确保包含所有必要字段：
 
-请每个功能点生成至少3个边界测试用例，包括最小值、最大值和特殊输入场景。`
-  } else if (selectedTemplate.value === 'exception') {
-    promptContent.value = `生成针对"${selectedModuleName.value}"的异常测试用例。${functionDescriptions ? `主要功能点包括：${functionDescriptions}。` : ''}${moduleDesc ? `模块描述：${moduleDesc}` : ''}
+{
+  "testCases": [
+    {
+      "module": "${selectedModuleName.value}",
+      "id": "",
+      "title": "[功能点/场景]-[具体操作/条件]-[预期结果/验证点]",
+      "maintainer": "程亮",
+      "type": "${testType}",
+      "priority": "P1",
+      "testType": "",
+      "estimatedHours": "",
+      "remainingHours": "",
+      "relatedItems": "",
+      "preconditions": "1. 前置条件1\n2. 前置条件2",
+      "steps": "1. 步骤1\n2. 步骤2",
+      "expectedResults": "1. 步骤1的预期结果\n2. 步骤2的预期结果",
+      "followers": "",
+      "notes": ""
+    }
+  ]
+}
 
-重点关注系统错误处理、异常流程和容错性。每个测试用例应包括:
-1. 标题
-2. 异常场景描述
-3. 触发条件
-4. 步骤
-5. 预期结果
-
-请每个功能点生成至少3个异常测试用例，测试系统对各种错误和意外情况的处理能力。`
-  }
+注意：
+1. id、estimatedHours、remainingHours、relatedItems、followers、notes字段保持为空字符串
+2. preconditions、steps、expectedResults字段必须使用数字编号
+3. 每个测试用例必须完整包含所有字段
+4. 确保生成的测试用例覆盖主要功能和关键场景`
 }
 
 // 监听模板变化
@@ -844,6 +892,32 @@ const doReset = () => {
   ElMessage.info('表单已重置')
 }
 
+// 添加分页处理方法
+const handleSizeChange = (val) => {
+  pagination.value.pageSize = val
+  pagination.value.currentPage = 1
+}
+
+const handleCurrentChange = (val) => {
+  pagination.value.currentPage = val
+}
+
+// 添加复制提示词方法
+const copyPromptContent = () => {
+  if (!promptContent.value) {
+    ElMessage.warning('没有可复制的内容')
+    return
+  }
+  
+  navigator.clipboard.writeText(promptContent.value)
+    .then(() => {
+      ElMessage.success('提示词已复制到剪贴板')
+    })
+    .catch(() => {
+      ElMessage.error('复制失败')
+    })
+}
+
 // 组件挂载时执行
 onMounted(() => {
   fetchProjects()
@@ -856,7 +930,7 @@ onMounted(() => {
 }
 
 .section-card {
-  margin-bottom: 20px;
+  margin-bottom: 15px;
 }
 
 .card-header {
@@ -868,31 +942,27 @@ onMounted(() => {
 .selector-container {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 10px;
 }
 
 .selector-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 20px;
+  gap: 15px;
   align-items: center;
 }
 
 .selector-item {
   display: flex;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 5px;
 }
 
 .selector-label {
   font-weight: bold;
   color: #606266;
-  width: 70px;
+  width: 60px;
   margin-right: 8px;
-}
-
-.selector-actions {
-  margin-top: 10px;
 }
 
 .loading-container {
@@ -904,22 +974,23 @@ onMounted(() => {
 
 .module-description {
   background-color: #f8f9fa;
-  padding: 15px;
+  padding: 12px;
   border-radius: 4px;
-  margin-top: 20px;
+  margin-top: 15px;
 }
 
 .description-content {
-  margin-bottom: 20px;
+  margin-bottom: 15px;
 }
 
 .function-list {
-  margin-top: 20px;
+  margin-top: 15px;
 }
 
 .function-list h4 {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   color: #303133;
+  font-size: 14px;
 }
 
 .template-radio-group {
@@ -1011,5 +1082,45 @@ onMounted(() => {
   .selector-label {
     width: 60px;
   }
+}
+
+.pagination-container {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.prompt-textarea {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+.prompt-actions {
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.test-case-count {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.count-label {
+  color: #606266;
+  font-size: 14px;
+}
+
+.prompt-actions .el-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.prompt-editor {
+  margin-top: 15px;
 }
 </style>
