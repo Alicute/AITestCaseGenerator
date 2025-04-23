@@ -52,6 +52,16 @@
             <el-button type="success" @click="goToAIGenerate">AI生成测试用例</el-button>
             <el-button @click="exportTestCases">导出</el-button>
             <el-button @click="goToModuleDesign">查看模块设计</el-button>
+            <el-upload
+              class="upload-demo"
+              action="#"
+              :auto-upload="false"
+              :show-file-list="false"
+              accept=".json"
+              @change="handleFileChange"
+            >
+              <el-button type="primary">导入JSON</el-button>
+            </el-upload>
           </div>
         </div>
 
@@ -96,19 +106,19 @@
                   <el-col :span="8">
                     <el-form-item label="优先级:">
                       <el-select v-model="filters.priority" placeholder="选择优先级" clearable @change="applyFilters">
-                        <el-option label="高" value="high" />
-                        <el-option label="中" value="medium" />
-                        <el-option label="低" value="low" />
+                        <el-option label="高" value="P0" />
+                        <el-option label="中" value="P1" />
+                        <el-option label="低" value="P3" />
                       </el-select>
                     </el-form-item>
                   </el-col>
                   <el-col :span="8">
                     <el-form-item label="类型:">
                       <el-select v-model="filters.type" placeholder="选择类型" clearable @change="applyFilters">
-                        <el-option label="功能测试" value="functional" />
-                        <el-option label="性能测试" value="performance" />
-                        <el-option label="安全测试" value="security" />
-                        <el-option label="其他" value="other" />
+                        <el-option label="功能测试" value="功能测试" />
+                        <el-option label="性能测试" value="性能测试" />
+                        <el-option label="安全测试" value="安全测试" />
+                        <el-option label="其他" value="其他" />
                       </el-select>
                     </el-form-item>
                   </el-col>
@@ -131,52 +141,59 @@
 
         <!-- 测试用例表格 -->
         <el-card class="table-card">
-          <el-table
-            v-loading="loading"
-            :data="filteredTestCases"
-            style="width: 100%"
-            @selection-change="handleSelectionChange"
-            :max-height="500"
-            :row-key="row => row.id"
-            :default-sort="{ prop: 'priority', order: 'ascending' }"
-            :resize-observer="false"
-            :height="400"
-            :scrollbar-always-on="true"
-          >
-            <el-table-column type="selection" width="55" />
-            <el-table-column prop="id" label="ID" width="80" />
-            <el-table-column prop="moduleName" label="模块" min-width="120" />
-            <el-table-column prop="title" label="标题" min-width="200" />
-            <el-table-column prop="priority" label="优先级" width="100" sortable>
-              <template #default="scope">
-                <el-tag v-if="scope.row.priority === 'high'" type="danger">高</el-tag>
-                <el-tag v-else-if="scope.row.priority === 'medium'" type="warning">中</el-tag>
-                <el-tag v-else-if="scope.row.priority === 'low'" type="success">低</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="type" label="类型" width="120">
-              <template #default="scope">
-                <el-tag v-if="scope.row.type === 'functional'" type="primary">功能测试</el-tag>
-                <el-tag v-else-if="scope.row.type === 'performance'" type="warning">性能测试</el-tag>
-                <el-tag v-else-if="scope.row.type === 'security'" type="danger">安全测试</el-tag>
-                <el-tag v-else type="info">其他</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="status" label="状态" width="100">
-              <template #default="scope">
-                <el-tag v-if="scope.row.status === 'passed'" type="success">通过</el-tag>
-                <el-tag v-else-if="scope.row.status === 'failed'" type="danger">失败</el-tag>
-                <el-tag v-else type="info">未执行</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="220" fixed="right">
-              <template #default="scope">
-                <el-button size="small" @click="viewTestCase(scope.row)">查看</el-button>
-                <el-button size="small" type="primary" @click="editTestCase(scope.row)">编辑</el-button>
-                <el-button size="small" type="danger" @click="deleteTestCase(scope.row)">删除</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
+          <div class="table-wrapper">
+            <table id="testCaseTable">
+              <thead>
+                <tr>
+                  <th>模块</th>
+                  <th>编号</th>
+                  <th>标题</th>
+                  <th>维护人</th>
+                  <th>用例类型</th>
+                  <th>重要程度</th>
+                  <th>测试类型</th>
+                  <th>预估工时</th>
+                  <th>剩余工时</th>
+                  <th>关联工作项</th>
+                  <th>前置条件</th>
+                  <th>步骤描述</th>
+                  <th>预期结果</th>
+                  <th>关注人</th>
+                  <th>备注</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="testCase in filteredTestCases" :key="testCase.id">
+                  <td>{{ testCase.module }}</td>
+                  <td>{{ testCase.id }}</td>
+                  <td>{{ testCase.title }}</td>
+                  <td>{{ testCase.maintainer }}</td>
+                  <td>
+                    <el-tag v-if="testCase.type === '功能测试'" type="primary">功能测试</el-tag>
+                    <el-tag v-else-if="testCase.type === '性能测试'" type="warning">性能测试</el-tag>
+                    <el-tag v-else-if="testCase.type === '安全测试'" type="danger">安全测试</el-tag>
+                    <el-tag v-else type="info">其他</el-tag>
+                  </td>
+                  <td>
+                    <el-tag v-if="testCase.priority === 'P0'" type="danger">高</el-tag>
+                    <el-tag v-else-if="testCase.priority === 'P1'" type="danger">高</el-tag>
+                    <el-tag v-else-if="testCase.priority === 'P2'" type="warning">中</el-tag>
+                    <el-tag v-else-if="testCase.priority === 'P3'" type="success">低</el-tag>
+                    <el-tag v-else type="info">未设置</el-tag>
+                  </td>
+                  <td>{{ testCase.testType }}</td>
+                  <td>{{ testCase.estimatedHours }}</td>
+                  <td>{{ testCase.remainingHours }}</td>
+                  <td>{{ testCase.relatedItems }}</td>
+                  <td>{{ testCase.preconditions }}</td>
+                  <td>{{ testCase.steps }}</td>
+                  <td>{{ testCase.expectedResults }}</td>
+                  <td>{{ testCase.followers }}</td>
+                  <td>{{ testCase.notes }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
           <!-- 分页 -->
           <div class="pagination-container">
@@ -203,9 +220,10 @@
               <span>创建时间: {{ formatDate(currentTestCase.createdAt) }}</span>
               <span>
                 优先级: 
-                <el-tag v-if="currentTestCase.priority === 'high'" type="danger">高</el-tag>
-                <el-tag v-else-if="currentTestCase.priority === 'medium'" type="warning">中</el-tag>
-                <el-tag v-else-if="currentTestCase.priority === 'low'" type="success">低</el-tag>
+                <el-tag v-if="currentTestCase.priority === 'P0'" type="danger">高</el-tag>
+                <el-tag v-else-if="currentTestCase.priority === 'P1'" type="danger">高</el-tag>
+                <el-tag v-else-if="currentTestCase.priority === 'P2'" type="warning">中</el-tag>
+                <el-tag v-else-if="currentTestCase.priority === 'P3'" type="success">低</el-tag>
               </span>
             </div>
           </div>
@@ -242,6 +260,7 @@ import { Search } from '@element-plus/icons-vue'
 import MainLayout from '@/components/layout/MainLayout.vue'
 import api from '@/api'
 import { useSelectionStore } from '@/stores/selection'
+import * as XLSX from 'xlsx'
 
 const router = useRouter()
 
@@ -555,7 +574,94 @@ const createTestCase = () => {
 }
 
 const exportTestCases = () => {
-  ElMessage.info('导出功能正在开发中')
+  if (testCases.value.length === 0) {
+    ElMessage.warning('没有可导出的测试用例')
+    return
+  }
+
+  try {
+    // 准备表头
+    const headers = [
+      '模块', '编号', '标题', '维护人', '用例类型', 
+      '重要程度', '测试类型', '预估工时', '剩余工时', 
+      '关联工作项', '前置条件', '步骤描述', '预期结果', 
+      '关注人', '备注'
+    ]
+
+    // 准备数据行
+    const rows = testCases.value.map(testCase => [
+      testCase.module,
+      testCase.id,
+      testCase.title,
+      testCase.maintainer,
+      testCase.type,
+      testCase.priority,
+      testCase.testType,
+      testCase.estimatedHours,
+      testCase.remainingHours,
+      testCase.relatedItems,
+      testCase.preconditions,
+      testCase.steps,
+      testCase.expectedResults,
+      testCase.followers,
+      testCase.notes
+    ])
+
+    // 创建工作簿
+    const wb = XLSX.utils.book_new()
+    
+    // 组合所有行：空行 + 表头 + 数据行
+    const allRows = [new Array(headers.length).fill(''), headers, ...rows]
+    const ws = XLSX.utils.aoa_to_sheet(allRows)
+
+    // 设置列宽
+    const colWidths = [
+      { wch: 10 },  // 模块
+      { wch: 8 },   // 编号
+      { wch: 30 },  // 标题
+      { wch: 10 },  // 维护人
+      { wch: 10 },  // 用例类型
+      { wch: 10 },  // 重要程度
+      { wch: 10 },  // 测试类型
+      { wch: 10 },  // 预估工时
+      { wch: 10 },  // 剩余工时
+      { wch: 15 },  // 关联工作项
+      { wch: 30 },  // 前置条件
+      { wch: 40 },  // 步骤描述
+      { wch: 40 },  // 预期结果
+      { wch: 10 },  // 关注人
+      { wch: 20 }   // 备注
+    ]
+    ws['!cols'] = colWidths
+
+    // 设置标题行样式（第二行）
+    const headerStyle = {
+      font: { bold: true, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "3498DB" } },
+      alignment: { horizontal: "center", vertical: "center" }
+    }
+
+    // 将样式应用到标题行（第二行）
+    const range = XLSX.utils.decode_range(ws['!ref'])
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      const cell = XLSX.utils.encode_cell({ r: 1, c: C }) // 第二行
+      if (!ws[cell]) continue
+      ws[cell].s = headerStyle
+    }
+
+    // 将工作表添加到工作簿
+    XLSX.utils.book_append_sheet(wb, ws, '测试用例')
+
+    // 生成文件名
+    const fileName = `测试用例_${new Date().toISOString().split('T')[0]}.xlsx`
+
+    // 导出文件
+    XLSX.writeFile(wb, fileName)
+    ElMessage.success('导出成功')
+  } catch (error) {
+    console.error('导出Excel错误:', error)
+    ElMessage.error('导出失败，请重试')
+  }
 }
 
 const goToAIGenerate = () => {
@@ -564,6 +670,53 @@ const goToAIGenerate = () => {
 
 const goToModuleDesign = () => {
   router.push(`/module-design?projectId=${selectedProjectId.value}`)
+}
+
+// 添加文件处理相关的方法
+const handleFileChange = async (file) => {
+  if (!file.raw) return
+  
+  try {
+    const reader = new FileReader()
+    reader.onload = async (e) => {
+      try {
+        const jsonData = JSON.parse(e.target.result)
+        if (jsonData.testCases && Array.isArray(jsonData.testCases)) {
+          // 处理导入的测试用例数据
+          const importedTestCases = jsonData.testCases.map(testCase => ({
+            id: testCase.id || '',
+            module: testCase.module,
+            title: testCase.title,
+            maintainer: testCase.maintainer || '',
+            type: testCase.type || '功能测试', // 确保有默认值
+            priority: testCase.priority || 'P1', // 确保有默认值
+            testType: testCase.testType || '',
+            estimatedHours: testCase.estimatedHours || '',
+            remainingHours: testCase.remainingHours || '',
+            relatedItems: testCase.relatedItems || '',
+            preconditions: testCase.preconditions || '',
+            steps: testCase.steps || '',
+            expectedResults: testCase.expectedResults || '',
+            followers: testCase.followers || '',
+            notes: testCase.notes || ''
+          }))
+
+          // 将导入的测试用例添加到现有列表中
+          testCases.value = [...testCases.value, ...importedTestCases]
+          ElMessage.success(`成功加载 ${importedTestCases.length} 个测试用例`)
+        } else {
+          ElMessage.error('文件格式不正确，请确保包含 testCases 数组')
+        }
+      } catch (error) {
+        console.error('解析JSON文件错误:', error)
+        ElMessage.error('解析JSON文件失败，请检查文件格式')
+      }
+    }
+    reader.readAsText(file.raw)
+  } catch (error) {
+    console.error('读取文件错误:', error)
+    ElMessage.error('读取文件失败')
+  }
 }
 
 // 生命周期钩子
@@ -643,6 +796,7 @@ const formatDate = (date) => {
 .header-actions {
   display: flex;
   gap: 10px;
+  align-items: center;
 }
 
 .filter-card {
@@ -714,5 +868,71 @@ const formatDate = (date) => {
 .section-content {
   color: #606266;
   line-height: 1.6;
+}
+
+/* 添加表格相关样式 */
+.table-wrapper {
+  margin: 15px 0;
+  background-color: #fff;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+th, td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+th {
+  background-color: #3498db;
+  color: white;
+  position: sticky;
+  top: 0;
+  font-weight: normal;
+  font-size: 12px;
+}
+
+tr:hover {
+  background-color: #f1f1f1;
+}
+
+/* 设置列宽 */
+th:nth-child(1) { width: 5%; }  /* 模块 */
+th:nth-child(2) { width: 3%; }  /* 编号 */
+th:nth-child(3) { width: 10%; } /* 标题 */
+th:nth-child(4) { width: 4%; }  /* 维护人 */
+th:nth-child(5) { width: 5%; }  /* 用例类型 */
+th:nth-child(6) { width: 4%; }  /* 重要程度 */
+th:nth-child(7) { width: 4%; }  /* 测试类型 */
+th:nth-child(8) { width: 4%; }  /* 预估工时 */
+th:nth-child(9) { width: 4%; }  /* 剩余工时 */
+th:nth-child(10) { width: 4%; } /* 关联工作项 */
+th:nth-child(11) { width: 13%; } /* 前置条件 */
+th:nth-child(12) { width: 17%; } /* 步骤描述 */
+th:nth-child(13) { width: 17%; } /* 预期结果 */
+th:nth-child(14) { width: 3%; } /* 关注人 */
+th:nth-child(15) { width: 3%; } /* 备注 */
+
+/* 为宽列添加特殊样式 */
+td:nth-child(11), 
+td:nth-child(12), 
+td:nth-child(13) {
+  white-space: pre-line;
+  max-height: 200px;
+  line-height: 1.4;
+}
+
+.upload-demo {
+  display: inline-block;
 }
 </style>
