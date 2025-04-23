@@ -462,8 +462,12 @@ const fetchModuleTree = async (projectId) => {
       if (routeModuleId) {
         const moduleId = parseInt(routeModuleId)
         selectedModuleId.value = moduleId
-        // 同时设置级联选择器的值，确保UI显示正确
         selectedModulePath.value = moduleId
+        loadModuleDescription()
+      } else if (selectionStore.selectedModuleId) {
+        // 如果 store 中有选中的模块，使用它
+        selectedModuleId.value = selectionStore.selectedModuleId
+        selectedModulePath.value = selectionStore.selectedModuleId
         loadModuleDescription()
       }
     } else {
@@ -513,7 +517,6 @@ const handleProjectChange = (projectId) => {
     if (project) {
       selectionStore.setSelectedProject(project)
       fetchModuleTree(projectId)
-      selectionStore.clearSelection()
     }
   }
 }
