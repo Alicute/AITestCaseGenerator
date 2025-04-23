@@ -271,10 +271,12 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import MainLayout from '@/components/layout/MainLayout.vue'
 import api from '@/api'
+import { useSelectionStore } from '@/stores/selection'
 
 
 const router = useRouter()
 const route = useRoute()
+const selectionStore = useSelectionStore()
 
 // 状态变量
 const loading = ref(false)
@@ -287,9 +289,50 @@ const selectedFunctions = ref([])
 const testCasesPerFunction = ref(3)
 
 // 选择的项目和模块
-const selectedProjectId = ref('')
-const selectedModulePath = ref([])
-const selectedModuleId = ref(null)
+const selectedProjectId = computed({
+  get: () => selectionStore.selectedProjectId,
+  set: (value) => {
+    if (value) {
+      const project = projects.value.find(p => p.id === value)
+      if (project) {
+        selectionStore.setSelectedProject(project)
+      }
+    }
+  }
+})
+
+const selectedModulePath = computed({
+  get: () => selectionStore.selectedModulePath,
+  set: (value) => {
+    if (value) {
+      const module = findModuleById(moduleOptions.value, value)
+      if (module) {
+        selectionStore.setSelectedModule({
+          id: value,
+          name: module.label,
+          path: value
+        })
+      }
+    }
+  }
+})
+
+const selectedModuleId = computed({
+  get: () => selectionStore.selectedModuleId,
+  set: (value) => {
+    if (value) {
+      const module = findModuleById(moduleOptions.value, value)
+      if (module) {
+        selectionStore.setSelectedModule({
+          id: value,
+          name: module.label,
+          path: selectedModulePath.value
+        })
+      }
+    }
+  }
+})
+
 const currentModuleDescription = ref('')
 
 // 提示词相关
@@ -466,26 +509,27 @@ const buildCascaderOptions = (modules) => {
 // 项目变更处理
 const handleProjectChange = (projectId) => {
   if (projectId) {
-    fetchModuleTree(projectId)
-    selectedModuleId.value = null
-    currentModuleDescription.value = ''
-    moduleFunctions.value = []
-    selectedFunctions.value = []
+    const project = projects.value.find(p => p.id === projectId)
+    if (project) {
+      selectionStore.setSelectedProject(project)
+      fetchModuleTree(projectId)
+      selectionStore.clearSelection()
+    }
   }
 }
 
 // 模块变更处理
 const handleModuleChange = async (moduleId) => {
   if (moduleId) {
-    selectedModuleId.value = moduleId
-    // 确保两个值保持同步
-    selectedModulePath.value = moduleId
-    currentModuleDescription.value = ''
-    moduleFunctions.value = []
-    selectedFunctions.value = []
-    
-    // 自动加载模块描述和功能点
-    await loadModuleDescription()
+    const module = findModuleById(moduleOptions.value, moduleId)
+    if (module) {
+      selectionStore.setSelectedModule({
+        id: moduleId,
+        name: module.label,
+        path: selectedModulePath.value
+      })
+      await loadModuleDescription()
+    }
   }
 }
 
@@ -557,7 +601,8 @@ X数字数字成像系统是一款集图像采集、图像处理、图像管理�
    - 前置条件：使用数字编号列出所有必要的前置条件
    - 测试步骤：使用数字编号详细描述每个步骤，每个步骤用换行符分隔
    - 预期结果：与测试步骤一一对应，描述每个步骤的预期结果
-
+   - 优先级：根据测试用例的重要程度，选择P1、P2、P3、P4
+   - 类型：根据测试用例的类型，选择功能测试、性能测试、安全测试、边界测试、异常测试、UI测试
 请以如下JSON格式输出测试用例，确保包含所有必要字段：
 
 {
@@ -921,6 +966,12 @@ const copyPromptContent = () => {
 // 组件挂载时执行
 onMounted(() => {
   fetchProjects()
+  
+  // 如果store中有选中的项目，自动加载
+  if (selectionStore.selectedProjectId) {
+    selectedProjectId.value = selectionStore.selectedProjectId
+    fetchModuleTree(selectionStore.selectedProjectId)
+  }
 })
 </script>
 

@@ -83,7 +83,7 @@
                 <el-row :gutter="20">
                   <el-col :span="8">
                     <el-form-item label="模块:">
-                      <el-select v-model="filters.moduleId" placeholder="选择模块" clearable @change="applyFilters">
+                      <el-select v-model="selectedModuleId" placeholder="选择模块" clearable @change="handleModuleChange">
                         <el-option
                           v-for="module in modules"
                           :key="module.id"
@@ -236,17 +236,30 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import MainLayout from '@/components/layout/MainLayout.vue'
 import api from '@/api'
+import { useSelectionStore } from '@/stores/selection'
 
 const router = useRouter()
-const route = useRoute()
+
+const selectionStore = useSelectionStore()
 
 // 项目选择相关
-const selectedProjectId = ref(null)
+const selectedProjectId = computed({
+  get: () => selectionStore.selectedProjectId,
+  set: (value) => {
+    if (value) {
+      const project = projectsList.value.find(p => p.id === value)
+      if (project) {
+        selectionStore.setSelectedProject(project)
+      }
+    }
+  }
+})
+
 const projectsList = ref([])
 const projectInfo = ref({})
 
@@ -256,6 +269,7 @@ const testCases = ref([])
 const modules = ref([])
 const searchQuery = ref('')
 const selectedRows = ref([])
+const selectedModuleId = ref(null)
 
 // 分页相关
 const pagination = ref({
@@ -309,12 +323,28 @@ const fetchProjectInfo = async () => {
 }
 
 // 处理项目选择变化
-const handleProjectChange = (projectId) => {
+const handleProjectChange = async (projectId) => {
   if (projectId) {
-    selectedProjectId.value = projectId
-    fetchProjectInfo()
-    fetchModules()
-    fetchTestCases()
+    loading.value = true
+    try {
+      const project = projectsList.value.find(p => p.id === projectId)
+      if (project) {
+        selectionStore.setSelectedProject(project)
+        await fetchProjectInfo()
+        await fetchModules(projectId)
+        await fetchTestCases()
+      }
+    } catch (error) {
+      console.error('项目切换错误:', error)
+      ElMessage.error('加载项目数据时发生错误')
+    } finally {
+      loading.value = false
+    }
+  } else {
+    selectionStore.clearSelection()
+    testCases.value = []
+    modules.value = []
+    projectInfo.value = {}
   }
 }
 
@@ -324,12 +354,12 @@ const goToCreateProject = () => {
 }
 
 // 获取模块列表
-const fetchModules = async () => {
-  if (!selectedProjectId.value) return
+const fetchModules = async (projectId) => {
+  if (!projectId) return
   
   loading.value = true
   try {
-    const response = await api.module.getModuleTree(selectedProjectId.value)
+    const response = await api.module.getModuleTree(projectId)
     
     if (response.success) {
       // 将树形结构扁平化，以便在过滤器中显示
@@ -364,7 +394,11 @@ const flattenModules = (moduleTree, result = []) => {
 
 // 获取测试用例列表
 const fetchTestCases = async () => {
-  if (!selectedProjectId.value) return
+  if (!selectedProjectId.value) {
+    testCases.value = []
+    pagination.value.total = 0
+    return
+  }
   
   loading.value = true
   try {
@@ -381,24 +415,24 @@ const fetchTestCases = async () => {
       params.search = searchQuery.value
     }
     
-    // 如果路由中有moduleId参数，优先使用它
-    const routeModuleId = route.query.moduleId
-    if (routeModuleId && !filters.value.moduleId) {
-      params.moduleId = routeModuleId
-      filters.value.moduleId = routeModuleId
-    }
-    
     const response = await api.testCase.getTestCases(params)
     
     if (response.success) {
-      testCases.value = response.data
+      testCases.value = response.data.map(testCase => ({
+        ...testCase,
+        moduleName: modules.value.find(m => m.id === testCase.moduleId)?.name || '未知模块'
+      }))
       pagination.value.total = response.total || response.data.length
     } else {
       ElMessage.error(response.message || '获取测试用例失败')
+      testCases.value = []
+      pagination.value.total = 0
     }
   } catch (error) {
     console.error('获取测试用例错误:', error)
     ElMessage.error('获取测试用例时发生错误')
+    testCases.value = []
+    pagination.value.total = 0
   } finally {
     loading.value = false
   }
@@ -529,55 +563,45 @@ const goToAIGenerate = () => {
 }
 
 const goToModuleDesign = () => {
-  router.push(`/modules?projectId=${selectedProjectId.value}`)
+  router.push(`/module-design?projectId=${selectedProjectId.value}`)
 }
 
-// 日期格式化函数
-const formatDate = (dateString) => {
-  if (!dateString) return '-'
-  const date = new Date(dateString)
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
-}
-
-// 组件挂载时加载数据
-onMounted(() => {
-  fetchProjects()
+// 生命周期钩子
+onMounted(async () => {
+  await fetchProjects()
+  if (selectedProjectId.value) {
+    await handleProjectChange(selectedProjectId.value)
+  }
 })
 
-// 监听路由参数变化，当URL中的projectId变化时重新加载数据
-watch(
-  () => route.query.projectId,
-  (newProjectId) => {
-    if (newProjectId) {
-      selectedProjectId.value = newProjectId
-      fetchProjectInfo()
-      fetchModules()
-      fetchTestCases()
-    }
-  },
-  { immediate: true }
-)
+// 监听项目选择变化
+watch(selectedProjectId, (newValue) => {
+  if (newValue) {
+    handleProjectChange(newValue)
+  }
+})
+
+// 格式化日期
+const formatDate = (date) => {
+  if (!date) return ''
+  return new Date(date).toLocaleString()
+}
 </script>
 
 <style scoped>
 .test-case-management {
-  width: 100%;
+  padding: 20px;
 }
 
 .project-selection-container {
-  display: flex;
-  justify-content: center;
   margin-bottom: 20px;
 }
 
 .project-selection-card {
-  background-color: #fff;
-  border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: 15px;
-  width: 100%;
-  max-width: 500px;
-  text-align: center;
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
 }
 
 .project-selection-card h2 {
@@ -587,42 +611,38 @@ watch(
 
 .project-selector {
   display: flex;
-  justify-content: center;
   align-items: center;
+}
+
+.loading-container {
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+.no-project-selected {
+  padding: 40px;
+  text-align: center;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+.testcase-content {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+.content-header {
+  margin-bottom: 20px;
 }
 
 .header-actions {
   display: flex;
   gap: 10px;
-}
-
-.loading-container {
-  width: 100%;
-  padding: 20px;
-  display: flex;
-  justify-content: center;
-}
-
-.no-project-selected {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 300px;
-}
-
-.testcase-content {
-  margin-top: 20px;
-}
-
-.content-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.content-header h2 {
-  margin: 0;
 }
 
 .filter-card {
@@ -632,18 +652,15 @@ watch(
 .filter-container {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 20px;
 }
 
 .search-section {
   width: 100%;
-  display: flex;
-  justify-content: center;
 }
 
 .search-input {
   width: 100%;
-  max-width: 500px;
 }
 
 .filter-section {
@@ -651,9 +668,7 @@ watch(
 }
 
 .filter-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  width: 100%;
 }
 
 .table-card {
@@ -666,25 +681,23 @@ watch(
   justify-content: flex-end;
 }
 
-/* 测试用例详情样式 */
 .test-case-detail {
-  padding: 10px;
+  padding: 20px;
 }
 
 .detail-header {
   margin-bottom: 20px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #eee;
 }
 
 .detail-header h3 {
-  margin: 0 0 10px 0;
+  margin-bottom: 10px;
+  color: #303133;
 }
 
 .detail-meta {
   display: flex;
   gap: 20px;
-  color: #666;
+  color: #909399;
   font-size: 14px;
 }
 
@@ -694,32 +707,12 @@ watch(
 
 .section-title {
   font-weight: bold;
-  margin-bottom: 5px;
-  color: #333;
+  margin-bottom: 10px;
+  color: #303133;
 }
 
 .section-content {
-  padding: 10px;
-  background-color: #f9f9f9;
-  border-radius: 4px;
-  min-height: 50px;
-}
-</style>
-
-<style>
-/* 全局样式，防止 ResizeObserver 警告显示 */
-.el-overlay-dialog {
-  z-index: 2000;
-}
-
-/* 隐藏 ResizeObserver 警告 */
-.el-message-box__wrapper {
-  z-index: 2001;
-}
-
-/* 确保表格内容不会导致页面抖动 */
-.el-table__body-wrapper {
-  overflow-y: auto;
-  overflow-x: hidden;
+  color: #606266;
+  line-height: 1.6;
 }
 </style>

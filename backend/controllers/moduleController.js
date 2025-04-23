@@ -307,21 +307,37 @@ exports.getModuleTree = async (req, res) => {
       });
     }
     
-    // 获取项目的所有模块，明确指定不加载任何关联
+    // 获取项目的所有模块
     const modules = await Module.findAll({
       where: { projectId },
       order: [
         ['level', 'ASC'],
         ['name', 'ASC']
       ],
-      // 明确指定属性，不包括可能导致问题的字段
       attributes: ['id', 'name', 'description', 'level', 'path', 'parentId', 'projectId', 'createdAt', 'updatedAt', 'functionCount', 'testCaseCount']
     });
+
+    // 构建树形结构
+    const buildTree = (modules, parentId = null) => {
+      const tree = [];
+      modules.forEach(module => {
+        if (module.parentId === parentId) {
+          const children = buildTree(modules, module.id);
+          if (children.length) {
+            module.dataValues.children = children;
+          }
+          tree.push(module);
+        }
+      });
+      return tree;
+    };
+
+    const moduleTree = buildTree(modules);
     
     res.json({
       success: true,
       count: modules.length,
-      data: modules
+      data: moduleTree
     });
   } catch (error) {
     console.error('获取模块树错误:', error);
