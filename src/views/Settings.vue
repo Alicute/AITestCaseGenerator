@@ -1,252 +1,70 @@
 <template>
-  <div class="settings-container">
-    <h1 class="settings-title">系统设置</h1>
-    
-    <div class="settings-layout">
-      <!-- 侧边菜单 -->
-      <div class="settings-sidebar">
-        <el-menu
-          :default-active="activeMenu"
-          class="settings-menu"
-          @select="handleMenuChange"
-        >
-          <el-menu-item index="general">
-            <el-icon><setting /></el-icon>
-            <span>通用设置</span>
-          </el-menu-item>
-          <el-menu-item index="ai">
-            <el-icon><connection /></el-icon>
-            <span>AI设置</span>
-          </el-menu-item>
-          <el-menu-item index="users">
-            <el-icon><user /></el-icon>
-            <span>用户管理</span>
-          </el-menu-item>
-          <el-menu-item index="templates">
-            <el-icon><document /></el-icon>
-            <span>模板管理</span>
-          </el-menu-item>
-          <el-menu-item index="storage">
-            <el-icon><folder /></el-icon>
-            <span>数据存储</span>
-          </el-menu-item>
-          <el-menu-item index="advanced">
-            <el-icon><magic-stick /></el-icon>
-            <span>高级</span>
-          </el-menu-item>
-        </el-menu>
-      </div>
+  <main-layout>
+    <div class="settings-container">
+      <h1 class="settings-title">系统设置</h1>
       
-      <!-- 设置内容区域 -->
-      <div class="settings-content">
-        <!-- 通用设置 -->
-        <div v-if="activeMenu === 'general'" class="setting-section">
-          <h2 class="section-title">通用设置</h2>
-          
-          <el-form label-position="top" class="settings-form">
-            <el-form-item label="界面主题">
-              <el-switch
-                v-model="settings.darkMode"
-                active-text="暗色模式"
-                inactive-text="亮色模式"
-              />
-            </el-form-item>
-            
-            <el-form-item label="自动保存">
-              <el-switch
-                v-model="settings.autoSave"
-                active-text="启用"
-                inactive-text="禁用"
-              />
-            </el-form-item>
-            
-            <el-form-item label="默认视图">
-              <el-select v-model="settings.defaultView" class="form-input">
-                <el-option
-                  v-for="item in viewOptions"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value"
-                />
-              </el-select>
-            </el-form-item>
-            
-            <el-form-item label="语言">
-              <el-select v-model="settings.language" class="form-input">
-                <el-option
-                  v-for="item in languageOptions"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value"
-                />
-              </el-select>
-            </el-form-item>
-            
-            <el-form-item>
-              <el-button type="primary" @click="saveGeneralSettings">保存设置</el-button>
-            </el-form-item>
-          </el-form>
+      <div class="settings-layout">
+        <!-- 侧边菜单 -->
+        <div class="settings-sidebar">
+          <el-menu
+            :default-active="activeMenu"
+            class="settings-menu"
+            @select="handleMenuChange"
+          >
+            <el-menu-item index="general">
+              <el-icon><setting /></el-icon>
+              <span>通用设置</span>
+            </el-menu-item>
+            <el-menu-item index="ai">
+              <el-icon><connection /></el-icon>
+              <span>AI设置</span>
+            </el-menu-item>
+            <el-menu-item index="users">
+              <el-icon><user /></el-icon>
+              <span>用户管理</span>
+            </el-menu-item>
+            <el-menu-item index="templates">
+              <el-icon><document /></el-icon>
+              <span>模板管理</span>
+            </el-menu-item>
+            <el-menu-item index="storage">
+              <el-icon><folder /></el-icon>
+              <span>数据存储</span>
+            </el-menu-item>
+            <el-menu-item index="advanced">
+              <el-icon><magic-stick /></el-icon>
+              <span>高级</span>
+            </el-menu-item>
+          </el-menu>
         </div>
         
-        <!-- AI设置 -->
-        <div v-if="activeMenu === 'ai'" class="setting-section">
-          <h2 class="section-title">AI设置</h2>
-          
-          <el-form label-position="top" class="settings-form">
-            <el-form-item label="AI服务提供商">
-              <el-select v-model="settings.provider" class="form-input">
-                <el-option
-                  v-for="item in providerOptions"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value"
-                />
-              </el-select>
-            </el-form-item>
+        <!-- 设置内容区域 -->
+        <div class="settings-content">
+          <!-- 通用设置 -->
+          <div v-if="activeMenu === 'general'" class="setting-section">
+            <h2 class="section-title">通用设置</h2>
             
-            <el-form-item label="API密钥">
-              <el-input
-                v-model="settings.apiKey"
-                type="password"
-                show-password
-                placeholder="请输入API密钥"
-                class="form-input"
-              />
-            </el-form-item>
-            
-            <el-form-item label="默认模型">
-              <el-select v-model="settings.model" class="form-input">
-                <el-option
-                  v-for="item in modelOptions"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value"
-                />
-              </el-select>
-            </el-form-item>
-            
-            <el-form-item label="Temperature (创造性)">
-              <el-slider
-                v-model="settings.temperature"
-                :min="0"
-                :max="2"
-                :step="0.1"
-                show-stops
-              />
-              <div class="slider-description">
-                <span>精确</span>
-                <span>平衡</span>
-                <span>创造性</span>
-              </div>
-            </el-form-item>
-            
-            <el-form-item>
-              <el-button type="primary" @click="saveAISettings">保存设置</el-button>
-              <el-button @click="settings.apiKey = ''">清除API密钥</el-button>
-            </el-form-item>
-          </el-form>
-        </div>
-        
-        <!-- 用户管理 -->
-        <div v-if="activeMenu === 'users'" class="setting-section">
-          <h2 class="section-title">用户管理</h2>
-          
-          <div class="user-management-header">
-            <el-button type="primary" @click="addUser">
-              <el-icon><plus /></el-icon> 添加用户
-            </el-button>
-            
-            <el-input
-              v-model="searchQuery"
-              placeholder="搜索用户"
-              class="user-search"
-              clearable
-            >
-              <template #prefix>
-                <el-icon><search /></el-icon>
-              </template>
-            </el-input>
-          </div>
-          
-          <el-table
-            :data="usersList"
-            style="width: 100%"
-            border
-            stripe
-            v-loading="userStore.loading"
-          >
-            <el-table-column prop="username" label="用户名" min-width="120" />
-            <el-table-column prop="email" label="邮箱" min-width="180" />
-            <el-table-column prop="role" label="角色" min-width="100">
-              <template #default="scope">
-                <el-tag :type="scope.row.role === 'admin' ? 'danger' : scope.row.role === 'editor' ? 'warning' : 'success'">
-                  {{ formatRole(scope.row.role) }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="lastLogin" label="最后登录时间" min-width="160">
-              <template #default="scope">
-                {{ formatDate(scope.row.lastLogin) }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="active" label="状态" min-width="80">
-              <template #default="scope">
-                <el-tag :type="scope.row.active ? 'success' : 'info'">
-                  {{ scope.row.active ? '正常' : '禁用' }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="150" fixed="right">
-              <template #default="scope">
-                <el-button size="small" @click="editUser(scope.row)">
-                  编辑
-                </el-button>
-                <el-button
-                  size="small"
-                  type="danger"
-                  :disabled="!canDeleteUser(scope.row)"
-                  @click="deleteUser(scope.row.id)"
-                >
-                  删除
-                </el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-          
-          <!-- 用户添加/编辑对话框 -->
-          <el-dialog
-            v-model="dialogVisible"
-            :title="userDialogTitle"
-            width="500px"
-            destroy-on-close
-          >
-            <el-form
-              ref="userFormRef"
-              :model="userForm"
-              :rules="userFormRules"
-              label-position="top"
-            >
-              <el-form-item label="用户名" prop="username">
-                <el-input v-model="userForm.username" />
-              </el-form-item>
-              
-              <el-form-item label="邮箱" prop="email">
-                <el-input v-model="userForm.email" />
-              </el-form-item>
-              
-              <el-form-item :label="userForm.id ? '密码（不修改请留空）' : '密码'" prop="password">
-                <el-input
-                  v-model="userForm.password"
-                  type="password"
-                  show-password
-                  :placeholder="userForm.id ? '不修改请留空' : '请输入密码'"
+            <el-form label-position="top" class="settings-form">
+              <el-form-item label="界面主题">
+                <el-switch
+                  v-model="settings.darkMode"
+                  active-text="暗色模式"
+                  inactive-text="亮色模式"
                 />
               </el-form-item>
               
-              <el-form-item label="用户角色" prop="role">
-                <el-select v-model="userForm.role" class="form-input">
+              <el-form-item label="自动保存">
+                <el-switch
+                  v-model="settings.autoSave"
+                  active-text="启用"
+                  inactive-text="禁用"
+                />
+              </el-form-item>
+              
+              <el-form-item label="默认视图">
+                <el-select v-model="settings.defaultView" class="form-input">
                   <el-option
-                    v-for="item in roleOptions"
+                    v-for="item in viewOptions"
                     :key="item.value"
                     :label="item.label"
                     :value="item.value"
@@ -254,66 +72,251 @@
                 </el-select>
               </el-form-item>
               
-              <el-form-item label="状态">
-                <el-switch
-                  v-model="userForm.active"
-                  active-text="启用"
-                  inactive-text="禁用"
-                />
+              <el-form-item label="语言">
+                <el-select v-model="settings.language" class="form-input">
+                  <el-option
+                    v-for="item in languageOptions"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value"
+                  />
+                </el-select>
+              </el-form-item>
+              
+              <el-form-item>
+                <el-button type="primary" @click="saveGeneralSettings">保存设置</el-button>
               </el-form-item>
             </el-form>
+          </div>
+          
+          <!-- AI设置 -->
+          <div v-if="activeMenu === 'ai'" class="setting-section">
+            <h2 class="section-title">AI设置</h2>
             
-            <template #footer>
-              <el-button @click="dialogVisible = false">取消</el-button>
-              <el-button
-                type="primary"
-                @click="saveUser"
-                :loading="userFormLoading"
-              >
-                确定
+            <el-form label-position="top" class="settings-form">
+              <el-form-item label="AI服务提供商">
+                <el-select v-model="settings.provider" class="form-input">
+                  <el-option
+                    v-for="item in providerOptions"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value"
+                  />
+                </el-select>
+              </el-form-item>
+              
+              <el-form-item label="API密钥">
+                <el-input
+                  v-model="settings.apiKey"
+                  type="password"
+                  show-password
+                  placeholder="请输入API密钥"
+                  class="form-input"
+                />
+              </el-form-item>
+              
+              <el-form-item label="默认模型">
+                <el-select v-model="settings.model" class="form-input">
+                  <el-option
+                    v-for="item in modelOptions"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value"
+                  />
+                </el-select>
+              </el-form-item>
+              
+              <el-form-item label="Temperature (创造性)">
+                <el-slider
+                  v-model="settings.temperature"
+                  :min="0"
+                  :max="2"
+                  :step="0.1"
+                  show-stops
+                />
+                <div class="slider-description">
+                  <span>精确</span>
+                  <span>平衡</span>
+                  <span>创造性</span>
+                </div>
+              </el-form-item>
+              
+              <el-form-item>
+                <el-button type="primary" @click="saveAISettings">保存设置</el-button>
+                <el-button @click="settings.apiKey = ''">清除API密钥</el-button>
+              </el-form-item>
+            </el-form>
+          </div>
+          
+          <!-- 用户管理 -->
+          <div v-if="activeMenu === 'users'" class="setting-section">
+            <h2 class="section-title">用户管理</h2>
+            
+            <div class="user-management-header">
+              <el-button type="primary" @click="addUser">
+                <el-icon><plus /></el-icon> 添加用户
               </el-button>
-            </template>
-          </el-dialog>
-        </div>
-        
-        <!-- 模板管理 -->
-        <div v-if="activeMenu === 'templates'" class="setting-section">
-          <h2 class="section-title">模板管理</h2>
-          
-          <div class="placeholder-content">
-            <el-empty description="模板管理功能正在开发中" />
-            <el-button type="primary" @click="saveTemplateSettings">保存设置</el-button>
+              
+              <el-input
+                v-model="searchQuery"
+                placeholder="搜索用户"
+                class="user-search"
+                clearable
+              >
+                <template #prefix>
+                  <el-icon><search /></el-icon>
+                </template>
+              </el-input>
+            </div>
+            
+            <el-table
+              :data="usersList"
+              style="width: 100%"
+              border
+              stripe
+              v-loading="userStore.loading"
+            >
+              <el-table-column prop="username" label="用户名" min-width="120" />
+              <el-table-column prop="email" label="邮箱" min-width="180" />
+              <el-table-column prop="role" label="角色" min-width="100">
+                <template #default="scope">
+                  <el-tag :type="scope.row.role === 'admin' ? 'danger' : scope.row.role === 'editor' ? 'warning' : 'success'">
+                    {{ formatRole(scope.row.role) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="lastLogin" label="最后登录时间" min-width="160">
+                <template #default="scope">
+                  {{ formatDate(scope.row.lastLogin) }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="active" label="状态" min-width="80">
+                <template #default="scope">
+                  <el-tag :type="scope.row.active ? 'success' : 'info'">
+                    {{ scope.row.active ? '正常' : '禁用' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="150" fixed="right">
+                <template #default="scope">
+                  <el-button size="small" @click="editUser(scope.row)">
+                    编辑
+                  </el-button>
+                  <el-button
+                    size="small"
+                    type="danger"
+                    :disabled="!canDeleteUser(scope.row)"
+                    @click="deleteUser(scope.row.id)"
+                  >
+                    删除
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            
+            <!-- 用户添加/编辑对话框 -->
+            <el-dialog
+              v-model="dialogVisible"
+              :title="userDialogTitle"
+              width="500px"
+              destroy-on-close
+            >
+              <el-form
+                ref="userFormRef"
+                :model="userForm"
+                :rules="userFormRules"
+                label-position="top"
+              >
+                <el-form-item label="用户名" prop="username">
+                  <el-input v-model="userForm.username" />
+                </el-form-item>
+                
+                <el-form-item label="邮箱" prop="email">
+                  <el-input v-model="userForm.email" />
+                </el-form-item>
+                
+                <el-form-item :label="userForm.id ? '密码（不修改请留空）' : '密码'" prop="password">
+                  <el-input
+                    v-model="userForm.password"
+                    type="password"
+                    show-password
+                    :placeholder="userForm.id ? '不修改请留空' : '请输入密码'"
+                  />
+                </el-form-item>
+                
+                <el-form-item label="用户角色" prop="role">
+                  <el-select v-model="userForm.role" class="form-input">
+                    <el-option
+                      v-for="item in roleOptions"
+                      :key="item.value"
+                      :label="item.label"
+                      :value="item.value"
+                    />
+                  </el-select>
+                </el-form-item>
+                
+                <el-form-item label="状态">
+                  <el-switch
+                    v-model="userForm.active"
+                    active-text="启用"
+                    inactive-text="禁用"
+                  />
+                </el-form-item>
+              </el-form>
+              
+              <template #footer>
+                <el-button @click="dialogVisible = false">取消</el-button>
+                <el-button
+                  type="primary"
+                  @click="saveUser"
+                  :loading="userFormLoading"
+                >
+                  确定
+                </el-button>
+              </template>
+            </el-dialog>
           </div>
-        </div>
-        
-        <!-- 数据存储 -->
-        <div v-if="activeMenu === 'storage'" class="setting-section">
-          <h2 class="section-title">数据存储</h2>
           
-          <div class="placeholder-content">
-            <el-empty description="数据存储功能正在开发中" />
-            <el-button type="primary" @click="saveStorageSettings">保存设置</el-button>
+          <!-- 模板管理 -->
+          <div v-if="activeMenu === 'templates'" class="setting-section">
+            <h2 class="section-title">模板管理</h2>
+            
+            <div class="placeholder-content">
+              <el-empty description="模板管理功能正在开发中" />
+              <el-button type="primary" @click="saveTemplateSettings">保存设置</el-button>
+            </div>
           </div>
-        </div>
-        
-        <!-- 高级设置 -->
-        <div v-if="activeMenu === 'advanced'" class="setting-section">
-          <h2 class="section-title">高级设置</h2>
           
-          <div class="placeholder-content">
-            <el-empty description="高级设置功能正在开发中" />
-            <el-button type="primary" @click="saveAdvancedSettings">保存设置</el-button>
+          <!-- 数据存储 -->
+          <div v-if="activeMenu === 'storage'" class="setting-section">
+            <h2 class="section-title">数据存储</h2>
+            
+            <div class="placeholder-content">
+              <el-empty description="数据存储功能正在开发中" />
+              <el-button type="primary" @click="saveStorageSettings">保存设置</el-button>
+            </div>
+          </div>
+          
+          <!-- 高级设置 -->
+          <div v-if="activeMenu === 'advanced'" class="setting-section">
+            <h2 class="section-title">高级设置</h2>
+            
+            <div class="placeholder-content">
+              <el-empty description="高级设置功能正在开发中" />
+              <el-button type="primary" @click="saveAdvancedSettings">保存设置</el-button>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
+  </main-layout>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useUserStore } from '../stores/user';
+import MainLayout from '@/components/layout/MainLayout.vue';
 import {
   Setting,
   Connection,
