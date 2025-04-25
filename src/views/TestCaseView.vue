@@ -666,8 +666,26 @@ const handleFileChange = async (file) => {
 // 生命周期钩子
 onMounted(async () => {
   await fetchProjects()
-  if (selectedProjectId.value) {
+  
+  // 检查是否有项目
+  if (projectsList.value.length === 0) {
+    selectedProjectId.value = null
+    return
+  }
+  // 如果有项目列表且当前没有选中项目，则自动选中第一个项目
+  if (!selectedProjectId.value) {
+    selectedProjectId.value = projectsList.value[0].id
+  } else {
     await handleProjectChange(selectedProjectId.value)
+  }
+})
+
+// 监听项目列表变化
+watch(projectsList, (newProjects) => {
+  if (newProjects.length === 0) {
+    // 如果没有项目了，清除选择
+    selectionStore.clearSelection()
+    testCases.value = []
   }
 })
 

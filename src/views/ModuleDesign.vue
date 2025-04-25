@@ -1321,7 +1321,13 @@ const formatDate = (dateString) => {
 // 组件挂载时加载数据
 onMounted(async () => {
   try {
-    await Promise.all([fetchProjectInfo(), fetchModuleTree(), fetchProjects()])
+    await Promise.all([fetchProjects(), fetchProjectInfo(), fetchModuleTree()])
+    
+    // 如果有项目列表且当前没有选中项目，则自动选中第一个项目
+    if (projectsList.value.length > 0 && !selectedProjectId.value) {
+      selectedProjectId.value = projectsList.value[0].id
+      router.push(`/modules?projectId=${projectsList.value[0].id}`)
+    }
   } catch (error) {
     console.error('初始化数据失败:', error)
     ElMessage.error('初始化数据失败')

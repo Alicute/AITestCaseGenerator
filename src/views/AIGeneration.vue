@@ -966,14 +966,35 @@ const copyPromptContent = () => {
     })
 }
 
+// 监听项目列表变化
+watch(projects, (newProjects) => {
+  if (newProjects.length === 0) {
+    // 如果没有项目了，清除选择
+    selectionStore.clearSelection()
+    moduleOptions.value = []
+    moduleFunctions.value = []
+    currentModuleDescription.value = ''
+  }
+})
+
 // 组件挂载时执行
-onMounted(() => {
-  fetchProjects()
+onMounted(async () => {
+  await fetchProjects()
   
-  // 如果store中有选中的项目，自动加载
-  if (selectionStore.selectedProjectId) {
+  // 检查是否有项目
+  if (projects.value.length === 0) {
+    selectedProjectId.value = null
+    return
+  }
+  
+  // 如果有项目列表且当前没有选中项目，则自动选中第一个项目
+  if (!selectedProjectId.value) {
+    selectedProjectId.value = projects.value[0].id
+    await handleProjectChange(projects.value[0].id)
+  } else if (selectionStore.selectedProjectId) {
+    // 如果store中有选中的项目，自动加载
     selectedProjectId.value = selectionStore.selectedProjectId
-    fetchModuleTree(selectionStore.selectedProjectId)
+    await fetchModuleTree(selectionStore.selectedProjectId)
   }
 })
 </script>
