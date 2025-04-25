@@ -268,7 +268,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import MainLayout from '@/components/layout/MainLayout.vue'
 import api from '@/api'
@@ -293,14 +293,13 @@ const selectedProjectId = computed({
 })
 
 const projectsList = ref([])
-const projectInfo = ref({})
+
 
 // 状态变量
 const loading = ref(true)
 const testCases = ref([])
 const modules = ref([])
 const searchQuery = ref('')
-const selectedRows = ref([])
 const selectedModuleId = ref(null)
 
 // 分页相关
@@ -338,26 +337,6 @@ const fetchProjects = async () => {
   }
 }
 
-// 获取项目信息
-const fetchProjectInfo = async () => {
-  if (!selectedProjectId.value) return
-
-  try {
-    loading.value = true
-    const response = await api.project.getProject(selectedProjectId.value)
-
-    if (response.success) {
-      projectInfo.value = response.data
-    } else {
-      ElMessage.error(response.message || '获取项目信息失败')
-    }
-  } catch (error) {
-    console.error('获取项目信息错误:', error)
-    ElMessage.error('获取项目信息时发生错误')
-  } finally {
-    loading.value = false
-  }
-}
 
 // 处理项目选择变化
 const handleProjectChange = async (projectId) => {
@@ -480,25 +459,13 @@ const filteredTestCases = computed(() => {
   return [...importedCases, ...otherCases]
 })
 
-// 对话框相关
-const testCaseDialogVisible = ref(false)
-const dialogMode = ref('view') // 'view', 'edit', 'create'
-const currentTestCase = ref(null)
-const testSteps = computed(() => {
-  if (!currentTestCase.value || !currentTestCase.value.steps) return []
-  // 处理步骤，可能是字符串或数组
-  if (typeof currentTestCase.value.steps === 'string') {
-    return currentTestCase.value.steps.split('\n').filter((step) => step.trim())
-  }
-  return currentTestCase.value.steps
-})
+// 加载 JSON 对话框相关
+const loadJsonDialogVisible = ref(false)
+const jsonInput = ref('')
 
-const dialogTitle = computed(() => {
-  if (dialogMode.value === 'view') return '测试用例详情'
-  if (dialogMode.value === 'edit') return '编辑测试用例'
-  if (dialogMode.value === 'create') return '创建测试用例'
-  return ''
-})
+
+
+
 
 // 处理方法
 const applyFilters = () => {
@@ -711,15 +678,7 @@ watch(selectedProjectId, (newValue) => {
   }
 })
 
-// 格式化日期
-const formatDate = (date) => {
-  if (!date) return ''
-  return new Date(date).toLocaleString()
-}
 
-// 加载 JSON 对话框相关
-const loadJsonDialogVisible = ref(false)
-const jsonInput = ref('')
 
 // 打开加载 JSON 对话框
 const openLoadJsonDialog = () => {
@@ -793,7 +752,6 @@ const saveSelectedTestCases = async () => {
 
   try {
     // 将测试用例分为两组：已存在的和新增的
-    const existingTestCases = selectedTestCases.filter(testCase => testCase.id)
     const newTestCases = selectedTestCases.filter(testCase => !testCase.id)
 
     // 处理新增的测试用例
@@ -882,7 +840,6 @@ const deleteSelectedTestCases = async () => {
 
   // 区分已保存和未保存的测试用例
   const savedTestCases = selectedTestCases.filter(testCase => testCase.id)
-  const unsavedTestCases = selectedTestCases.filter(testCase => !testCase.id)
 
   try {
     if (savedTestCases.length > 0) {

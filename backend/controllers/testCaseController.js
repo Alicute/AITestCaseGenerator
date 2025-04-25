@@ -1,6 +1,5 @@
 const { TestCase, Module, Project } = require('../models');
 const { Op } = require('sequelize');
-const { sequelize } = require('../config/database');
 const User = require('../models/User');
 const asyncHandler = require('express-async-handler');
 /**
@@ -481,7 +480,7 @@ exports.batchCreateTestCases = asyncHandler(async (req, res) => {
   try {
     // 为每个测试用例添加项目ID，并处理必要字段
     const testCasesWithProjectId = testCases.map(testCase => {
-      const { id, estimatedHours, remainingHours, ...rest } = testCase;
+      const {  estimatedHours, remainingHours } = testCase;
       
       return {
         title: testCase.title,
