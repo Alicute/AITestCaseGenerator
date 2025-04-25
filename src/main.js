@@ -19,6 +19,17 @@ const app = createApp(App);
 const pinia = createPinia();
 // 抑制 ResizeObserver 循环错误警告
 const originalConsoleError = window.console.error;
+// 在 main.js 中添加
+if (process.env.NODE_ENV === 'development') {
+  // 仅在开发环境中屏蔽 ResizeObserver 警告
+  const originalConsoleError = console.error;
+  console.error = (...args) => {
+    if (args[0] && typeof args[0] === 'string' && args[0].includes('ResizeObserver loop')) {
+      return;
+    }
+    originalConsoleError(...args);
+  };
+}
 window.console.error = (...args) => {
   if (args[0] && args[0].includes && args[0].includes('ResizeObserver loop')) {
     return;

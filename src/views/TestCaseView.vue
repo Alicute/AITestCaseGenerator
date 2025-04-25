@@ -2,7 +2,7 @@
   <main-layout>
     <div class="main-content">
       <!-- 项目选择区域 -->
-      <div class="project-selection">
+      <div class="project-selection" :class="{ 'centered': !selectedProjectId }">
         <el-select
           v-model="selectedProjectId"
           placeholder="请选择一个项目"
@@ -28,7 +28,17 @@
 
       <!-- 加载状态显示 -->
       <div v-if="loading && !selectedProjectId" class="loading-container">
-        <el-skeleton :rows="5" animated />
+        <div class="loading-content">
+          <p class="loading-text">未选择任何项目</p>
+          <el-skeleton :rows="5" animated>
+            <template #template>
+              <el-skeleton-item variant="text" style="width: 30%" />
+              <el-skeleton-item variant="text" style="width: 50%" />
+              <el-skeleton-item variant="text" style="width: 40%" />
+            </template>
+          </el-skeleton>
+
+        </div>
       </div>
 
       <!-- 无项目选择时的显示 -->
@@ -348,27 +358,14 @@ const fetchProjectInfo = async () => {
 
 // 处理项目选择变化
 const handleProjectChange = async (projectId) => {
+  selectedProjectId.value = projectId;
+  selectedModuleId.value = null;
+  modules.value = [];
+  testCases.value = []; // 清空测试用例
+  
   if (projectId) {
-    loading.value = true
-    try {
-      const project = projectsList.value.find((p) => p.id === projectId)
-      if (project) {
-        selectionStore.setSelectedProject(project)
-        await fetchProjectInfo()
-        await fetchModules(projectId)
-        await fetchTestCases()
-      }
-    } catch (error) {
-      console.error('项目切换错误:', error)
-      ElMessage.error('加载项目数据时发生错误')
-    } finally {
-      loading.value = false
-    }
-  } else {
-    selectionStore.clearSelection()
-    testCases.value = []
-    modules.value = []
-    projectInfo.value = {}
+    await fetchModules(projectId);
+    await fetchTestCases(); // 获取新项目的测试用例
   }
 }
 
@@ -442,6 +439,14 @@ const fetchTestCases = async () => {
     const response = await api.testCase.getTestCases(params)
 
     if (response.success) {
+      // 确保 response.data 是数组
+      if (!Array.isArray(response.data)) {
+        console.warn('返回的数据格式不正确:', response.data)
+        testCases.value = []
+        pagination.value.total = 0
+        return
+      }
+
       testCases.value = response.data.map((testCase) => ({
         ...testCase,
         moduleName: modules.value.find((m) => m.id === testCase.moduleId)?.name || '未知模块'
@@ -840,6 +845,15 @@ const saveSelectedTestCases = async () => {
     ElMessage.error('保存测试用例时发生错误')
   }
 }
+
+const handleModuleChange = async (moduleId) => {
+  selectedModuleId.value = moduleId;
+  testCases.value = []; // 清空测试用例
+  
+  if (moduleId) {
+    await fetchTestCases(); // 获取新模块的测试用例
+  }
+}
 </script>
 
 <style scoped>
@@ -857,11 +871,41 @@ const saveSelectedTestCases = async () => {
   margin-bottom: 20px;
 }
 
+.project-selection.centered {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  flex-direction: row;
+  gap: 10px;
+  margin: 0;
+}
+
+.project-selection.centered .el-select {
+  width: 300px;
+}
+
+.project-selection.centered .el-button {
+  margin-left: 10px;
+}
+
 .loading-container {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.loading-content {
+  text-align: center;
+  width: 100%;
+}
+
+.loading-text {
+  margin-top: 20px;
+  color: #606266;
+  font-size: 24px;
+  font-weight: 500;
 }
 
 .no-project-selected {

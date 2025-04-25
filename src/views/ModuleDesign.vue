@@ -155,14 +155,14 @@
                   </div>
 
                   <template v-else>
-                    <el-table 
-                      :data="moduleFunctions" 
+                    <el-table
+                      :data="moduleFunctions"
                       style="width: 100%"
-                      :max-height="500"
-                      :row-key="row => row.id"
+                      height="566px"
+                      :row-key="(row) => row.id"
                       :default-sort="{ prop: 'priority', order: 'ascending' }"
                       :resize-observer="false"
-                      :height="400"
+                      table-layout="fixed"
                       :scrollbar-always-on="true"
                     >
                       <el-table-column prop="name" label="功能点名称" />
@@ -203,7 +203,13 @@
                     v-if="moduleTestCases.length === 0"
                     description="暂无测试用例，请先添加或生成测试用例"
                   ></el-empty>
-                  <el-table v-else :data="moduleTestCases" style="width: 100%">
+                  <el-table
+                    v-else
+                    :data="moduleTestCases"
+                    style="width: 100%"
+                    table-layout="fixed"
+                    :resize-observer="false"
+                  >
                     <el-table-column prop="title" label="测试用例名称" />
                     <el-table-column prop="priority" label="优先级" width="120">
                       <template #default="scope">
@@ -361,7 +367,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, Folder, FolderOpened } from '@element-plus/icons-vue'
@@ -521,95 +527,107 @@ const buildModuleTree = (modules) => {
 }
 
 // 获取模块的功能点列表
+// 修改 fetchModuleFunctions 函数
 const fetchModuleFunctions = async (moduleId) => {
-  if (!moduleId) return
+  if (!moduleId) {
+    moduleFunctions.value = [] // 确保是空数组
+    return
+  }
 
   loading.value = true
   try {
     const response = await api.module.getModuleFunctions(moduleId)
 
     if (response.success) {
-      moduleFunctions.value = response.data || []
+      // 确保数据是数组
+      moduleFunctions.value = Array.isArray(response.data) ? response.data : []
     } else {
       ElMessage.error(response.message || '获取功能点列表失败')
+      moduleFunctions.value = [] // 确保错误时也是空数组
     }
   } catch (error) {
     console.error('获取功能点列表错误:', error)
     ElMessage.error('获取功能点列表时发生错误')
-    moduleFunctions.value = [] // 出错时清空列表
+    moduleFunctions.value = [] // 确保错误时也是空数组
   } finally {
     loading.value = false
   }
 }
 
-// 获取模块的测试用例列表
+// 修改 fetchModuleTestCases 函数
 const fetchModuleTestCases = async (moduleId) => {
-  if (!moduleId) return
+  if (!moduleId) {
+    moduleTestCases.value = [] // 确保是空数组
+    return
+  }
 
   loading.value = true
   try {
     const response = await api.testCase.getTestCases({ moduleId })
 
     if (response.success) {
-      moduleTestCases.value = response.data || []
+      // 确保数据是数组
+      moduleTestCases.value = Array.isArray(response.data) ? response.data : []
     } else {
       ElMessage.error(response.message || '获取测试用例列表失败')
+      moduleTestCases.value = [] // 确保错误时也是空数组
     }
   } catch (error) {
     console.error('获取测试用例列表错误:', error)
     ElMessage.error('获取测试用例列表时发生错误')
-    moduleTestCases.value = [] // 出错时清空列表
+    moduleTestCases.value = [] // 确保错误时也是空数组
   } finally {
     loading.value = false
   }
 }
 // 监听树结构变化，维持展开状态
-watch(moduleTree, () => {
-  // 如果之前是全部展开状态且树组件已加载
-  if (isAllExpanded.value && moduleTreeRef.value && moduleTreeRef.value.store) {
-    // 延迟执行以确保树已更新
-    setTimeout(() => {
-      const nodeMap = moduleTreeRef.value.store.nodesMap;
-      if (nodeMap) {
-        // 重新展开所有节点
-        Object.values(nodeMap).forEach(node => {
-          if (node.childNodes && node.childNodes.length > 0) {
-            node.expand();
-          }
-        });
-      }
-    }, 100);
-  }
-}, { deep: true });
+watch(
+  moduleTree,
+  () => {
+    if (isAllExpanded.value && moduleTreeRef.value && moduleTreeRef.value.store) {
+      nextTick(() => {
+        const nodeMap = moduleTreeRef.value.store.nodesMap
+        if (nodeMap) {
+          Object.values(nodeMap).forEach((node) => {
+            if (node.childNodes && node.childNodes.length > 0 && !node.expanded) {
+              node.expand()
+            }
+          })
+        }
+      })
+    }
+  },
+  { deep: true }
+)
 // 节点点击事件
 const handleNodeClick = (data) => {
   // 保存当前展开状态，防止被覆盖
-  const wasAllExpanded = isAllExpanded.value;
-  
+  const wasAllExpanded = isAllExpanded.value
+
   // 原有的节点点击逻辑
-  currentModule.value = data;
-  fetchModuleFunctions(data.id);
-  fetchModuleTestCases(data.id);
-  
+  currentModule.value = data
+  fetchModuleFunctions(data.id)
+  fetchModuleTestCases(data.id)
+
   // 如果之前是全部展开状态，确保维持此状态
   if (wasAllExpanded && !isAllExpanded.value) {
-    isAllExpanded.value = wasAllExpanded;
+    isAllExpanded.value = wasAllExpanded
   }
 }
 
 // 节点展开事件处理
 const handleNodeExpand = (data) => {
   if (!expandedKeys.value.includes(data.id)) {
-    expandedKeys.value.push(data.id);
+    expandedKeys.value.push(data.id)
   }
   // 不要在这里修改isAllExpanded
 }
 
 // 节点折叠事件处理
 const handleNodeCollapse = (data) => {
-  const index = expandedKeys.value.indexOf(data.id);
+  const index = expandedKeys.value.indexOf(data.id)
   if (index !== -1) {
-    expandedKeys.value.splice(index, 1);
+    expandedKeys.value.splice(index, 1)
   }
   // 不要在这里修改isAllExpanded
 }
@@ -618,66 +636,59 @@ const handleNodeCollapse = (data) => {
 const moduleTreeRef = ref(null)
 // 展开/折叠所有节点
 const toggleExpandAll = () => {
-  console.log('当前状态:', isAllExpanded.value);
-  
+  console.log('当前状态:', isAllExpanded.value)
+
   // 确保树组件已加载
   if (!moduleTreeRef.value || !moduleTreeRef.value.store) {
-    console.error('树组件未加载或store不存在');
-    return;
+    console.error('树组件未加载或store不存在')
+    return
   }
-  
+
   try {
-    const nodeMap = moduleTreeRef.value.store.nodesMap;
+    const nodeMap = moduleTreeRef.value.store.nodesMap
     if (!nodeMap) {
-      console.error('节点映射不存在');
-      return;
+      console.error('节点映射不存在')
+      return
     }
-    
+
     if (isAllExpanded.value) {
-      console.log('执行折叠操作');
+      console.log('执行折叠操作')
       // 清空展开的节点列表 - 这是折叠功能修复的关键
-      expandedKeys.value.length = 0;
+      expandedKeys.value.length = 0
       // 使用树组件的内部方法折叠所有节点
-      Object.values(nodeMap).forEach(node => {
+      Object.values(nodeMap).forEach((node) => {
         if (node.expanded) {
-          node.collapse();
+          node.collapse()
         }
-      });
-      isAllExpanded.value = false;
+      })
+      isAllExpanded.value = false
     } else {
-      console.log('执行展开操作');
+      console.log('执行展开操作')
       // 收集所有可展开节点的ID
-      const allNodeIds = [];
-      Object.values(nodeMap).forEach(node => {
+      const allNodeIds = []
+      Object.values(nodeMap).forEach((node) => {
         if (node.data && node.data.id) {
           // 只添加有子节点的节点
           if (node.childNodes && node.childNodes.length > 0) {
-            allNodeIds.push(node.data.id);
+            allNodeIds.push(node.data.id)
             // 确保节点被展开
-            node.expand();
+            node.expand()
           }
         }
-      });
-      
+      })
+
       // 更新展开的节点列表
-      expandedKeys.value.length = 0; // 先清空数组
-      expandedKeys.value.push(...allNodeIds); // 然后添加所有ID
-      isAllExpanded.value = true;
+      expandedKeys.value.length = 0 // 先清空数组
+      expandedKeys.value.push(...allNodeIds) // 然后添加所有ID
+      isAllExpanded.value = true
     }
   } catch (error) {
-    console.error('展开/折叠操作出错:', error);
+    console.error('展开/折叠操作出错:', error)
   }
-  
-  console.log('操作后状态:', isAllExpanded.value);
-  console.log('操作后已展开节点:', expandedKeys.value);
+
+  console.log('操作后状态:', isAllExpanded.value)
+  console.log('操作后已展开节点:', expandedKeys.value)
 }
-
-
-
-
-
-
-
 
 // 添加模块相关
 const addModuleDialogVisible = ref(false)
@@ -1129,23 +1140,25 @@ const importModuleTree = async (modules, parentId = null) => {
   // 检查是否是一级标题（项目名称）
   if (modules.length === 1 && modules[0].name && modules[0].name.startsWith('# ')) {
     // 提取项目名称（去掉 # 前缀）
-    const importedProjectName = modules[0].name.substring(2).trim();
-    
+    const importedProjectName = modules[0].name.substring(2).trim()
+
     // 如果导入的项目名称与当前项目名称不一致，则使用当前项目名称
     if (importedProjectName !== projectInfo.value.name) {
-      console.log(`导入的项目名称 "${importedProjectName}" 与当前项目名称 "${projectInfo.value.name}" 不一致，使用当前项目名称`);
+      console.log(
+        `导入的项目名称 "${importedProjectName}" 与当前项目名称 "${projectInfo.value.name}" 不一致，使用当前项目名称`
+      )
     }
-    
+
     // 处理子模块
     if (modules[0].children && modules[0].children.length > 0) {
-      await processModules(modules[0].children, parentId);
+      await processModules(modules[0].children, parentId)
     }
-    return;
+    return
   }
-  
+
   // 处理模块列表
-  await processModules(modules, parentId);
-};
+  await processModules(modules, parentId)
+}
 
 // 处理模块列表
 const processModules = async (modules, parentId = null) => {
@@ -1153,69 +1166,69 @@ const processModules = async (modules, parentId = null) => {
     // 检查模块级别
     if (module.name && module.name.startsWith('## ')) {
       // 一级模块
-      module.name = module.name.substring(3).trim();
-      module.level = 1;
+      module.name = module.name.substring(3).trim()
+      module.level = 1
     } else if (module.name && module.name.startsWith('### ')) {
       // 三级模块
-      module.name = module.name.substring(4).trim();
-      module.level = 3;
+      module.name = module.name.substring(4).trim()
+      module.level = 3
     } else {
       // 默认为二级模块
-      module.level = 2;
+      module.level = 2
     }
-    
+
     // 设置父模块ID
-    module.parentId = parentId;
-    
+    module.parentId = parentId
+
     // 保存功能点列表
-    const functions = module.functions || [];
-    delete module.functions; // 移除functions字段，因为API不接受这个字段
-    
+    const functions = module.functions || []
+    delete module.functions // 移除functions字段，因为API不接受这个字段
+
     // 保存子模块
-    const children = module.children || [];
-    delete module.children; // 移除children字段，因为API不接受这个字段
-    
+    const children = module.children || []
+    delete module.children // 移除children字段，因为API不接受这个字段
+
     try {
       // 创建模块
       const response = await api.module.createModule({
         ...module,
         projectId: projectInfo.value.id
-      });
-      
+      })
+
       if (response.success) {
-        const newModuleId = response.data.id;
-        
+        const newModuleId = response.data.id
+
         // 为该模块创建功能点
         for (const func of functions) {
           // 检查功能点格式
           if (typeof func === 'string' && func.startsWith('- ')) {
             // 将功能点字符串转换为对象
-            const functionName = func.substring(2).trim();
+            const functionName = func.substring(2).trim()
             await api.function.createFunction({
               name: functionName,
               moduleId: newModuleId,
               priority: 'medium'
-            });
+            })
           } else if (typeof func === 'object') {
             // 直接使用功能点对象
-            func.moduleId = newModuleId;
-            await api.function.createFunction(func);
+            func.moduleId = newModuleId
+            await api.function.createFunction(func)
           }
         }
-        
+
         // 递归处理子模块
         if (children.length > 0) {
-          await processModules(children, newModuleId);
+          await processModules(children, newModuleId)
         }
       } else {
-        ElMessage.error(`导入模块 "${module.name}" 失败: ${response.message}`);
+        ElMessage.error(`导入模块 "${module.name}" 失败: ${response.message}`)
       }
     } catch (error) {
-      console.error('导入模块错误:', error);
-      ElMessage.error(`导入模块 "${module.name}" 时发生错误`);
+      console.error('导入模块错误:', error)
+      ElMessage.error(`导入模块 "${module.name}" 时发生错误`)
     }
   }
-};
+}
 
 // 导入模块
 const importModules = async () => {
@@ -1306,20 +1319,26 @@ const formatDate = (dateString) => {
 }
 
 // 组件挂载时加载数据
-onMounted(() => {
-  fetchProjectInfo()
-  fetchModuleTree()
-  fetchProjects()
+onMounted(async () => {
+  try {
+    await Promise.all([fetchProjectInfo(), fetchModuleTree(), fetchProjects()])
+  } catch (error) {
+    console.error('初始化数据失败:', error)
+    ElMessage.error('初始化数据失败')
+  }
 })
 
 // 监听路由参数变化，当URL中的projectId变化时重新加载数据
 watch(
   () => route.query.projectId,
-  (newProjectId, oldProjectId) => {
+  async (newProjectId, oldProjectId) => {
     if (newProjectId !== oldProjectId) {
-      console.log('路由projectId变化:', newProjectId)
-      fetchProjectInfo()
-      fetchModuleTree()
+      try {
+        await Promise.all([fetchProjectInfo(), fetchModuleTree()])
+      } catch (error) {
+        console.error('更新数据失败:', error)
+        ElMessage.error('更新数据失败')
+      }
     }
   }
 )
@@ -1386,7 +1405,7 @@ watch(
 }
 
 .secondary-actions .el-button + .el-button {
-  margin-left: -1px;  /* 负边距使按钮重叠边框 */
+  margin-left: -1px; /* 负边距使按钮重叠边框 */
 }
 
 .custom-tree-node {

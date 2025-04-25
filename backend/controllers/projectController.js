@@ -1,6 +1,5 @@
 const Project = require('../models/Project');
 const Module = require('../models/Module');
-const { Op } = require('sequelize');
 
 /**
  * @desc    获取所有项目
@@ -150,12 +149,36 @@ exports.deleteProject = async (req, res) => {
       });
     }
     
-    // 删除项目下的所有模块
+    // 1. 先删除项目关联的所有测试用例
+    const TestCase = require('../models/TestCase');
+    await TestCase.destroy({
+      where: { projectId: req.params.id }
+    });
+    
+    // 2. 获取项目下的所有模块ID
+    const modules = await Module.findAll({
+      where: { projectId: req.params.id }
+    });
+    const moduleIds = modules.map(module => module.id);
+    
+    // 3. 删除这些模块下的所有功能点
+    const Function = require('../models/Function');
+    await Function.destroy({
+      where: { moduleId: moduleIds } // 使用模块ID数组
+    });
+    
+    // 4. 删除项目下的所有模块
     await Module.destroy({
       where: { projectId: req.params.id }
     });
     
-    // 删除项目
+    // 5. 删除项目成员关联记录
+    const { ProjectMember } = require('../models/index');
+    await ProjectMember.destroy({
+      where: { ProjectId: req.params.id }
+    });
+    
+    // 6. 最后删除项目
     await project.destroy();
     
     res.json({
