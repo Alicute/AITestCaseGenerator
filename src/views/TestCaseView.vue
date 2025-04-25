@@ -686,7 +686,7 @@ const goToAIGenerate = () => {
 }
 
 const goToModuleDesign = () => {
-  router.push(`/module-design?projectId=${selectedProjectId.value}`)
+  router.push(`/module?projectId=${selectedProjectId.value}`)
 }
 
 // 添加文件处理相关的方法

@@ -1225,7 +1225,7 @@ const processModules = async (modules, parentId = null) => {
       }
     } catch (error) {
       console.error('导入模块错误:', error)
-      ElMessage.error(`导入模块 "${module.name}" 时发生错误`)
+      ElMessage.error(`导入模块 "${module.name}" 时发生错误，没有项目ID！`)
     }
   }
 }

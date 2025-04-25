@@ -1,17 +1,16 @@
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
+const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 // 数据库配置
 const { sequelize, testConnection } = require('./config/database');
+const { User } = require('./models');
 
 // 创建Express应用
 const app = express();
 const PORT = process.env.PORT || 5000;
-
-// 连接数据库
-testConnection();
 
 // 中间件
 app.use(express.json());
@@ -36,29 +35,53 @@ app.get('/', (req, res) => {
 });
 
 // 错误处理中间件
-app.use((err, req, res, next) => {  // express需要4个参数，即使next不使用
+app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({
     success: false,
     message: '服务器内部错误',
     error: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
-  // 添加一个空操作以使用next参数
   next;
 });
 
-// 同步数据库模型
-sequelize.sync({ force: false }) // 改为false，避免删除表
-  .then(() => {
-    console.log('数据库表同步完成');
+// 初始化数据库和创建默认管理员
+const initializeDatabase = async () => {
+  try {
+    // 测试数据库连接
+    await testConnection();
     
+    // 同步所有模型
+    await sequelize.sync({ alter: true });
+    console.log('数据库表同步完成');
+
+    // 创建默认管理员账户
+    const adminExists = await User.findOne({ where: { username: 'admin' } });
+    if (!adminExists) {
+      const hashedPassword = await bcrypt.hash('admin123', 10);
+      await User.create({
+        username: 'admin',
+        password: hashedPassword,
+        email: 'admin@example.com',
+        role: 'admin',
+        active: true
+      });
+      console.log('默认管理员账户创建成功');
+      console.log('用户名: admin');
+      console.log('密码: admin123');
+    }
+
     // 启动服务器
     app.listen(PORT, () => {
       console.log(`服务器运行在端口: ${PORT}`);
     });
-  })
-  .catch(err => {
-    console.error('数据库同步失败:', err);
-  });
+  } catch (error) {
+    console.error('数据库初始化失败:', error);
+    process.exit(1);
+  }
+};
+
+// 启动应用
+initializeDatabase();
 
 module.exports = app;

@@ -93,21 +93,31 @@ async function initDatabase() {
 
         // 创建测试用例表
         await connection.query(`
-            CREATE TABLE IF NOT EXISTS test_cases (
+            CREATE TABLE IF NOT EXISTS testcases (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 title VARCHAR(200) NOT NULL,
                 moduleId INT NOT NULL,
+                projectId INT NOT NULL,
                 precondition TEXT,
                 steps TEXT NOT NULL,
                 expectedResult TEXT NOT NULL,
                 priority ENUM('P0', 'P1', 'P2', 'P3', 'P4') NOT NULL DEFAULT 'P1',
                 status ENUM('waiting', 'running', 'passed', 'failed') NOT NULL DEFAULT 'waiting',
                 type ENUM('functional', 'performance', 'security', 'ui', 'other') NOT NULL DEFAULT 'functional',
+                maintainer VARCHAR(100),
+                testType VARCHAR(50),
+                estimatedHours DECIMAL(10,2),
+                remainingHours DECIMAL(10,2),
+                relatedItems TEXT,
+                followers TEXT,
+                notes TEXT,
                 createdBy INT,
                 createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 FOREIGN KEY (moduleId) REFERENCES modules(id),
-                FOREIGN KEY (createdBy) REFERENCES users(id)
+                FOREIGN KEY (projectId) REFERENCES projects(id),
+                FOREIGN KEY (createdBy) REFERENCES users(id),
+                UNIQUE KEY unique_test_case (title, moduleId)
             )
         `);
         console.log('测试用例表创建成功');
