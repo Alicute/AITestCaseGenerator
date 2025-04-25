@@ -518,4 +518,69 @@ exports.batchCreateTestCases = asyncHandler(async (req, res) => {
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
+});
+
+/**
+ * @desc    批量删除测试用例
+ * @route   DELETE /api/v1/testcases/batch
+ * @access  Private
+ */
+exports.batchDeleteTestCases = asyncHandler(async (req, res) => {
+  const { testCaseIds } = req.body;
+
+  if (!testCaseIds || !Array.isArray(testCaseIds) || testCaseIds.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: '请提供要删除的测试用例ID列表'
+    });
+  }
+
+  try {
+    // 检查所有测试用例是否存在
+    const testCases = await TestCase.findAll({
+      where: {
+        id: {
+          [Op.in]: testCaseIds
+        }
+      }
+    });
+
+    if (testCases.length !== testCaseIds.length) {
+      return res.status(404).json({
+        success: false,
+        message: '部分测试用例不存在'
+      });
+    }
+
+    // 批量删除测试用例
+    await TestCase.destroy({
+      where: {
+        id: {
+          [Op.in]: testCaseIds
+        }
+      }
+    });
+
+    // 更新相关模块的测试用例计数
+    const moduleIds = [...new Set(testCases.map(tc => tc.moduleId))];
+    for (const moduleId of moduleIds) {
+      const module = await Module.findByPk(moduleId);
+      if (module) {
+        const count = await TestCase.count({ where: { moduleId } });
+        await module.update({ testCaseCount: count });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `成功删除 ${testCaseIds.length} 个测试用例`
+    });
+  } catch (error) {
+    console.error('批量删除测试用例错误:', error);
+    res.status(500).json({
+      success: false,
+      message: '删除测试用例时发生错误',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
 }); 

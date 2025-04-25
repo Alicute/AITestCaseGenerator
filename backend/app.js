@@ -21,13 +21,12 @@ app.use(morgan('dev'));
 // API路由
 app.use('/api/v1/projects', require('./routes/projects'));
 app.use('/api/v1/modules', require('./routes/modules'));
-app.use('/api/v1/testcases', require('./routes/testcases'));
+app.use('/api/v1/functions', require('./routes/functions'));
 app.use('/api/v1/testcases', require('./routes/testCaseRoutes'));
 app.use('/api/v1/users', require('./routes/users'));
 app.use('/api/v1/ai', require('./routes/ai'));
 app.use('/api/v1/settings', require('./routes/settings'));
 app.use('/api/v1/import-export', require('./routes/importExport'));
-app.use('/api/v1/functions', require('./routes/functions'));
 app.use('/api/v1/stats', require('./routes/stats'));
 
 // 根路由

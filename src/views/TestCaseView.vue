@@ -70,6 +70,9 @@
           <el-button type="primary" @click="saveSelectedTestCases" :disabled="!hasSelectedItems">
             保存选中项
           </el-button>
+          <el-button type="danger" @click="deleteSelectedTestCases" :disabled="!hasSelectedItems">
+            删除选中项
+          </el-button>
         </div>
 
         <!-- 过滤器区域 -->
@@ -191,7 +194,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="testCase in filteredTestCases" :key="testCase.id">
+                <tr v-for="testCase in filteredTestCases" :key="testCase.id" :class="{ 'unsaved': !testCase.id }">
                   <td>
                     <el-checkbox v-model="testCase.selected" @change="handleItemSelectChange" />
                   </td>
@@ -469,7 +472,12 @@ const fetchTestCases = async () => {
 
 // 计算筛选后的测试用例列表
 const filteredTestCases = computed(() => {
-  return testCases.value
+  // 将测试用例分为两组：导入的和非导入的
+  const importedCases = testCases.value.filter(tc => tc.isImported)
+  const otherCases = testCases.value.filter(tc => !tc.isImported)
+  
+  // 返回合并后的数组，导入的测试用例在前
+  return [...importedCases, ...otherCases]
 })
 
 // 对话框相关
@@ -522,57 +530,6 @@ const handleSizeChange = (size) => {
 const handleCurrentChange = (page) => {
   pagination.value.current = page
   fetchTestCases()
-}
-
-const handleSelectionChange = (rows) => {
-  selectedRows.value = rows
-}
-
-// 测试用例操作
-const viewTestCase = async (testCase) => {
-  try {
-    // 可以添加额外的API调用来获取完整的测试用例详情
-    const response = await api.testCase.getTestCase(testCase.id)
-    if (response.success) {
-      currentTestCase.value = response.data
-      dialogMode.value = 'view'
-      testCaseDialogVisible.value = true
-    } else {
-      ElMessage.error(response.message || '获取测试用例详情失败')
-    }
-  } catch (error) {
-    console.error('获取测试用例详情错误:', error)
-    ElMessage.error('获取测试用例详情时发生错误')
-  }
-}
-
-const editTestCase = (testCase) => {
-  router.push(`/testcases/${testCase.id}/edit`)
-}
-
-const deleteTestCase = (testCase) => {
-  ElMessageBox.confirm(`确定要删除测试用例 "${testCase.title}" 吗？`, '警告', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning'
-  })
-    .then(async () => {
-      try {
-        const response = await api.testCase.deleteTestCase(testCase.id)
-        if (response.success) {
-          ElMessage.success('测试用例删除成功')
-          fetchTestCases() // 重新加载列表
-        } else {
-          ElMessage.error(response.message || '删除测试用例失败')
-        }
-      } catch (error) {
-        console.error('删除测试用例错误:', error)
-        ElMessage.error('删除测试用例时发生错误')
-      }
-    })
-    .catch(() => {
-      // 用户取消操作
-    })
 }
 
 const createTestCase = () => {
@@ -705,8 +662,8 @@ const handleFileChange = async (file) => {
             module: testCase.module,
             title: testCase.title,
             maintainer: testCase.maintainer || '',
-            type: testCase.type || '功能测试', // 确保有默认值
-            priority: testCase.priority || 'P1', // 确保有默认值
+            type: testCase.type || '功能测试',
+            priority: testCase.priority || 'P1',
             testType: testCase.testType || '手动',
             estimatedHours: testCase.estimatedHours || '',
             remainingHours: testCase.remainingHours || '',
@@ -716,11 +673,12 @@ const handleFileChange = async (file) => {
             expectedResults: testCase.expectedResults || '',
             followers: testCase.followers || '',
             notes: testCase.notes || '',
-            selected: true // 默认选中
+            selected: true, // 默认选中
+            isImported: true // 添加标记表示这是导入的测试用例
           }))
 
-          // 将导入的测试用例添加到现有列表中
-          testCases.value = [...testCases.value, ...importedTestCases]
+          // 将导入的测试用例添加到现有列表的最前面
+          testCases.value = [...importedTestCases, ...testCases.value]
           allSelected.value = true // 设置全选状态
           ElMessage.success(`成功加载 ${importedTestCases.length} 个测试用例`)
         } else {
@@ -790,11 +748,12 @@ const loadJson = () => {
         expectedResults: testCase.expectedResults || '',
         followers: testCase.followers || '',
         notes: testCase.notes || '',
-        selected: true // 默认选中
+        selected: true, // 默认选中
+        isImported: true // 添加标记表示这是导入的测试用例
       }))
 
-      // 将导入的测试用例添加到现有列表中
-      testCases.value = [...testCases.value, ...importedTestCases]
+      // 将导入的测试用例添加到现有列表的最前面
+      testCases.value = [...importedTestCases, ...testCases.value]
       allSelected.value = true // 设置全选状态
       ElMessage.success(`成功加载 ${importedTestCases.length} 个测试用例`)
       loadJsonDialogVisible.value = false // 关闭对话框
@@ -833,75 +792,74 @@ const saveSelectedTestCases = async () => {
   }
 
   try {
-    // 将模块名称转换为模块ID
-    const testCasesWithModuleId = selectedTestCases.map(testCase => {
-      // 尝试精确匹配
-      let module = modules.value.find(m => m.name === testCase.module)
-      
-      // 如果精确匹配失败，尝试模糊匹配（去掉空格和特殊字符）
-      if (!module) {
-        const normalizedModuleName = testCase.module.replace(/\s+/g, '').toLowerCase()
-        module = modules.value.find(m => 
-          m.name.replace(/\s+/g, '').toLowerCase() === normalizedModuleName
-        )
-      }
+    // 将测试用例分为两组：已存在的和新增的
+    const existingTestCases = selectedTestCases.filter(testCase => testCase.id)
+    const newTestCases = selectedTestCases.filter(testCase => !testCase.id)
 
-      if (!module) {
-        console.warn(`未找到模块: ${testCase.module}`, {
-          testCase,
-          availableModules: modules.value.map(m => m.name)
-        })
-      }
+    // 处理新增的测试用例
+    if (newTestCases.length > 0) {
+      // 将模块名称转换为模块ID
+      const testCasesWithModuleId = newTestCases.map(testCase => {
+        // 尝试精确匹配
+        let module = modules.value.find(m => m.name === testCase.module)
+        
+        // 如果精确匹配失败，尝试模糊匹配（去掉空格和特殊字符）
+        if (!module) {
+          const normalizedModuleName = testCase.module.replace(/\s+/g, '').toLowerCase()
+          module = modules.value.find(m => 
+            m.name.replace(/\s+/g, '').toLowerCase() === normalizedModuleName
+          )
+        }
 
-      return {
-        ...testCase,
-        moduleId: module ? module.id : null,
-        projectId: selectedProjectId.value,
-        status: 'waiting',
-        type: testCase.type || 'functional',
-        priority: testCase.priority || 'P1'
-      }
-    })
+        if (!module) {
+          console.warn(`未找到模块: ${testCase.module}`, {
+            testCase,
+            availableModules: modules.value.map(m => m.name)
+          })
+        }
 
-    // 检查是否有未找到对应模块的测试用例
-    const invalidTestCases = testCasesWithModuleId.filter(tc => !tc.moduleId)
-    if (invalidTestCases.length > 0) {
-      const invalidModuleNames = [...new Set(invalidTestCases.map(tc => tc.module))]
-      const availableModules = modules.value.map(m => m.name)
-      ElMessage.warning({
-        message: `以下模块未找到：${invalidModuleNames.join(', ')}`,
-        description: `可用模块：${availableModules.join(', ')}`
+        return {
+          ...testCase,
+          moduleId: module ? module.id : null,
+          projectId: selectedProjectId.value,
+          status: 'waiting',
+          type: testCase.type || '功能测试',
+          priority: testCase.priority || 'P1'
+        }
       })
-      return
+
+      // 检查是否有未找到对应模块的测试用例
+      const invalidTestCases = testCasesWithModuleId.filter(tc => !tc.moduleId)
+      if (invalidTestCases.length > 0) {
+        const invalidModuleNames = [...new Set(invalidTestCases.map(tc => tc.module))]
+        const availableModules = modules.value.map(m => m.name)
+        ElMessage.warning({
+          message: `以下模块未找到：${invalidModuleNames.join(', ')}`,
+          description: `可用模块：${availableModules.join(', ')}`
+        })
+        return
+      }
+
+      const response = await api.testCase.batchCreateTestCases({
+        projectId: selectedProjectId.value,
+        testCases: testCasesWithModuleId
+      })
+
+      if (!response.success) {
+        throw new Error(response.message || '保存测试用例失败')
+      }
     }
 
-    // 添加 console.log 来查看提交的数据
-    console.log('准备提交的测试用例数据:', {
-      projectId: selectedProjectId.value,
-      testCases: testCasesWithModuleId
-    })
+    // 从列表中移除已保存的测试用例
+    testCases.value = testCases.value.filter(testCase => !testCase.selected)
+    allSelected.value = false
 
-    const response = await api.testCase.batchCreateTestCases({
-      projectId: selectedProjectId.value,
-      testCases: testCasesWithModuleId
-    })
-
-    // 添加 console.log 来查看响应数据
-    console.log('服务器响应:', response)
-
-    if (response.success) {
-      ElMessage.success(`成功保存 ${selectedTestCases.length} 个测试用例`)
-      // 重新加载测试用例列表
-      await fetchTestCases()
-      // 清空选中状态
-      testCases.value.forEach(tc => tc.selected = false)
-      allSelected.value = false
-    } else {
-      ElMessage.error(response.message || '保存测试用例失败')
-    }
+    ElMessage.success(`成功保存 ${selectedTestCases.length} 个测试用例`)
+    // 重新加载测试用例列表
+    await fetchTestCases()
   } catch (error) {
     console.error('保存测试用例错误:', error)
-    ElMessage.error('保存测试用例时发生错误')
+    ElMessage.error(error.message || '保存测试用例时发生错误')
   }
 }
 
@@ -911,6 +869,41 @@ const handleModuleChange = async (moduleId) => {
   
   if (moduleId) {
     await fetchTestCases(); // 获取新模块的测试用例
+  }
+}
+
+// 在 script setup 部分添加删除选中项的方法
+const deleteSelectedTestCases = async () => {
+  const selectedTestCases = testCases.value.filter(testCase => testCase.selected)
+  if (selectedTestCases.length === 0) {
+    ElMessage.warning('请选择要删除的测试用例')
+    return
+  }
+
+  // 区分已保存和未保存的测试用例
+  const savedTestCases = selectedTestCases.filter(testCase => testCase.id)
+  const unsavedTestCases = selectedTestCases.filter(testCase => !testCase.id)
+
+  try {
+    if (savedTestCases.length > 0) {
+      // 删除已保存的测试用例
+      const response = await api.testCase.batchDeleteTestCases({
+        testCaseIds: savedTestCases.map(testCase => testCase.id)
+      })
+
+      if (!response.success) {
+        throw new Error(response.message || '删除测试用例失败')
+      }
+    }
+
+    // 从列表中移除所有选中的测试用例
+    testCases.value = testCases.value.filter(testCase => !testCase.selected)
+    allSelected.value = false
+
+    ElMessage.success(`成功删除 ${selectedTestCases.length} 个测试用例`)
+  } catch (error) {
+    console.error('删除测试用例错误:', error)
+    ElMessage.error(error.message || '删除测试用例时发生错误')
   }
 }
 </script>
@@ -1110,5 +1103,19 @@ td:nth-child(15) { /* 关注人 */
 
 .upload-demo {
   display: inline-block;
+}
+
+/* 为未保存的测试用例添加特殊背景色 */
+tr.unsaved {
+  background-color: #fff8e1 !important; /* 浅黄色背景 */
+}
+
+tr.unsaved:hover {
+  background-color: #ffecb3 !important; /* 悬停时稍深的黄色 */
+}
+
+/* 修改表格行样式 */
+tr {
+  transition: background-color 0.3s ease;
 }
 </style>

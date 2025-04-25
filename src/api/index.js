@@ -150,6 +150,11 @@ export const testCaseAPI = {
   // 删除测试用例
   deleteTestCase(id) {
     return api.delete(`/testcases/${id}`)
+  },
+  
+  // 批量删除测试用例
+  batchDeleteTestCases(data) {
+    return api.delete('/testcases/batch', { data })
   }
 }
 
