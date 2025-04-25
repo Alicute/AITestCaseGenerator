@@ -42,20 +42,20 @@ const TestCase = sequelize.define('TestCase', {
     defaultValue: 'P1'
   },
   status: {
-    type: DataTypes.ENUM('waiting', 'running', 'passed', 'failed'),
-    defaultValue: 'waiting'
+    type: DataTypes.ENUM('未执行', '执行中', '通过', '失败'),
+    defaultValue: '未执行'
   },
   type: {
-    type: DataTypes.ENUM('functional', 'performance', 'security', 'ui', 'other'),
-    defaultValue: 'functional'
+    type: DataTypes.ENUM('功能测试', '性能测试', '安全测试', 'UI测试', '其他'),
+    defaultValue: '功能测试'
   },
   maintainer: {
     type: DataTypes.STRING(100),
     allowNull: true
   },
   testType: {
-    type: DataTypes.STRING(50),
-    allowNull: true
+    type: DataTypes.ENUM('手动', '自动'),
+    defaultValue: '手动'
   },
   estimatedHours: {
     type: DataTypes.DECIMAL(10, 2),

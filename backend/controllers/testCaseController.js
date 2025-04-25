@@ -10,15 +10,26 @@ const asyncHandler = require('express-async-handler');
  */
 exports.getTestCases = async (req, res) => {
   try {
-    const { moduleId, projectId, page = 1, limit = 10 } = req.query;
+    const { moduleId, projectId, page = 1, limit = 10, search } = req.query;
     const where = {};
 
+    // 如果有项目ID，添加到查询条件
+    if (projectId) {
+      where.projectId = projectId;
+    }
+
+    // 如果有模块ID，添加到查询条件
     if (moduleId) {
       where.moduleId = moduleId;
     }
 
-    if (projectId) {
-      where.projectId = projectId;
+    // 如果有搜索关键字，添加搜索条件
+    if (search) {
+      where[Op.or] = [
+        { title: { [Op.like]: `%${search}%` } },
+        { steps: { [Op.like]: `%${search}%` } },
+        { expectedResult: { [Op.like]: `%${search}%` } }
+      ];
     }
 
     const offset = (page - 1) * limit;
@@ -27,17 +38,54 @@ exports.getTestCases = async (req, res) => {
       where,
       limit: parseInt(limit),
       offset: parseInt(offset),
-      order: [['createdAt', 'DESC']]
+      order: [['createdAt', 'DESC']],
+      include: [
+        { 
+          model: Module, 
+          attributes: ['id', 'name', 'path']
+        },
+        { model: User, as: 'creator', attributes: ['username'] },
+        { model: User, as: 'executor', attributes: ['username'] }
+      ],
+      attributes: [
+        'id',
+        'title',
+        'moduleId',
+        'projectId',
+        'precondition',
+        'steps',
+        'expectedResult',
+        'priority',
+        'type',
+        'maintainer',
+        'testType',
+        'estimatedHours',
+        'remainingHours',
+        'relatedItems',
+        'followers',
+        'notes',
+        'createdAt',
+        'updatedAt'
+      ]
+    });
+
+    // 处理返回的数据，确保字段名称正确
+    const processedData = rows.map(testCase => {
+      const testCaseJson = testCase.toJSON();
+      return {
+        ...testCaseJson,
+        module: testCaseJson.Module ? testCaseJson.Module.name : null,
+        preconditions: testCaseJson.precondition,
+        expectedResults: testCaseJson.expectedResult
+      };
     });
 
     return res.json({
       success: true,
-      data: {
-        total: count,
-        items: rows,
-        page: parseInt(page),
-        limit: parseInt(limit)
-      }
+      data: processedData,
+      total: count,
+      page: parseInt(page),
+      limit: parseInt(limit)
     });
   } catch (error) {
     console.error('获取测试用例列表失败:', error);
@@ -420,15 +468,6 @@ exports.deleteTestCase = async (req, res) => {
   }
 };
 
-// 测试用例类型映射
-const typeMapping = {
-  '功能测试': 'functional',
-  '性能测试': 'performance',
-  '安全测试': 'security',
-  'UI测试': 'ui',
-  '其他': 'other'
-};
-
 exports.batchCreateTestCases = asyncHandler(async (req, res) => {
   const { projectId, testCases } = req.body;
 
@@ -442,19 +481,18 @@ exports.batchCreateTestCases = asyncHandler(async (req, res) => {
   try {
     // 为每个测试用例添加项目ID，并处理必要字段
     const testCasesWithProjectId = testCases.map(testCase => {
-      const { id, type, estimatedHours, remainingHours, ...rest } = testCase;
+      const { id, estimatedHours, remainingHours, ...rest } = testCase;
       
       return {
         title: testCase.title,
         moduleId: testCase.moduleId,
         projectId,
-        type: typeMapping[type] || 'functional',
+        type: testCase.type || '功能测试',
         priority: testCase.priority || 'P1',
-        testType: testCase.testType || 'manual',
-        precondition: testCase.preconditions || '', // 映射前置条件
+        testType: testCase.testType || '手动',
+        precondition: testCase.preconditions || '',
         steps: testCase.steps || '',
-        expectedResult: testCase.expectedResults || '', // 映射预期结果
-        // 其他可选字段
+        expectedResult: testCase.expectedResults || '',
         maintainer: testCase.maintainer || null,
         estimatedHours: estimatedHours ? parseFloat(estimatedHours) : null,
         remainingHours: remainingHours ? parseFloat(remainingHours) : null,
