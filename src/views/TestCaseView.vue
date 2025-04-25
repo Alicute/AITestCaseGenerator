@@ -686,7 +686,7 @@ const goToAIGenerate = () => {
 }
 
 const goToModuleDesign = () => {
-  router.push(`/module?projectId=${selectedProjectId.value}`)
+  router.push(`/modules?projectId=${selectedProjectId.value}`)
 }
 
 // 添加文件处理相关的方法
@@ -821,6 +821,11 @@ const handleItemSelectChange = () => {
 
 // 保存选中的测试用例
 const saveSelectedTestCases = async () => {
+  if (!selectedProjectId.value) {
+    ElMessage.warning('请先选择一个项目')
+    return
+  }
+
   const selectedTestCases = testCases.value.filter(testCase => testCase.selected)
   if (selectedTestCases.length === 0) {
     ElMessage.warning('请选择要保存的测试用例')
@@ -828,15 +833,69 @@ const saveSelectedTestCases = async () => {
   }
 
   try {
-    const response = await api.testCase.batchCreateTestCases({
-      projectId: selectedProjectId.value,
-      testCases: selectedTestCases
+    // 将模块名称转换为模块ID
+    const testCasesWithModuleId = selectedTestCases.map(testCase => {
+      // 尝试精确匹配
+      let module = modules.value.find(m => m.name === testCase.module)
+      
+      // 如果精确匹配失败，尝试模糊匹配（去掉空格和特殊字符）
+      if (!module) {
+        const normalizedModuleName = testCase.module.replace(/\s+/g, '').toLowerCase()
+        module = modules.value.find(m => 
+          m.name.replace(/\s+/g, '').toLowerCase() === normalizedModuleName
+        )
+      }
+
+      if (!module) {
+        console.warn(`未找到模块: ${testCase.module}`, {
+          testCase,
+          availableModules: modules.value.map(m => m.name)
+        })
+      }
+
+      return {
+        ...testCase,
+        moduleId: module ? module.id : null,
+        projectId: selectedProjectId.value,
+        status: 'waiting',
+        type: testCase.type || 'functional',
+        priority: testCase.priority || 'P1'
+      }
     })
 
+    // 检查是否有未找到对应模块的测试用例
+    const invalidTestCases = testCasesWithModuleId.filter(tc => !tc.moduleId)
+    if (invalidTestCases.length > 0) {
+      const invalidModuleNames = [...new Set(invalidTestCases.map(tc => tc.module))]
+      const availableModules = modules.value.map(m => m.name)
+      ElMessage.warning({
+        message: `以下模块未找到：${invalidModuleNames.join(', ')}`,
+        description: `可用模块：${availableModules.join(', ')}`
+      })
+      return
+    }
+
+    // 添加 console.log 来查看提交的数据
+    console.log('准备提交的测试用例数据:', {
+      projectId: selectedProjectId.value,
+      testCases: testCasesWithModuleId
+    })
+
+    const response = await api.testCase.batchCreateTestCases({
+      projectId: selectedProjectId.value,
+      testCases: testCasesWithModuleId
+    })
+
+    // 添加 console.log 来查看响应数据
+    console.log('服务器响应:', response)
+
     if (response.success) {
-      ElMessage.success('测试用例保存成功')
+      ElMessage.success(`成功保存 ${selectedTestCases.length} 个测试用例`)
       // 重新加载测试用例列表
       await fetchTestCases()
+      // 清空选中状态
+      testCases.value.forEach(tc => tc.selected = false)
+      allSelected.value = false
     } else {
       ElMessage.error(response.message || '保存测试用例失败')
     }

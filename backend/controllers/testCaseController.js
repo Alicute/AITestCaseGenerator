@@ -2,6 +2,7 @@ const { TestCase, Module, Project } = require('../models');
 const { Op } = require('sequelize');
 const { sequelize } = require('../config/database');
 const User = require('../models/User');
+const asyncHandler = require('express-async-handler');
 /**
  * @desc    获取所有测试用例
  * @route   GET /api/v1/testcases
@@ -417,4 +418,66 @@ exports.deleteTestCase = async (req, res) => {
       error: error.message
     });
   }
-}; 
+};
+
+// 测试用例类型映射
+const typeMapping = {
+  '功能测试': 'functional',
+  '性能测试': 'performance',
+  '安全测试': 'security',
+  'UI测试': 'ui',
+  '其他': 'other'
+};
+
+exports.batchCreateTestCases = asyncHandler(async (req, res) => {
+  const { projectId, testCases } = req.body;
+
+  if (!projectId || !testCases || !Array.isArray(testCases)) {
+    return res.status(400).json({
+      success: false,
+      message: '请提供项目ID和测试用例数据'
+    });
+  }
+
+  try {
+    // 为每个测试用例添加项目ID，并处理必要字段
+    const testCasesWithProjectId = testCases.map(testCase => {
+      const { id, type, estimatedHours, remainingHours, ...rest } = testCase;
+      
+      return {
+        title: testCase.title,
+        moduleId: testCase.moduleId,
+        projectId,
+        type: typeMapping[type] || 'functional',
+        priority: testCase.priority || 'P1',
+        testType: testCase.testType || 'manual',
+        precondition: testCase.preconditions || '', // 映射前置条件
+        steps: testCase.steps || '',
+        expectedResult: testCase.expectedResults || '', // 映射预期结果
+        // 其他可选字段
+        maintainer: testCase.maintainer || null,
+        estimatedHours: estimatedHours ? parseFloat(estimatedHours) : null,
+        remainingHours: remainingHours ? parseFloat(remainingHours) : null,
+        relatedItems: testCase.relatedItems || null,
+        followers: testCase.followers || null,
+        notes: testCase.notes || null
+      };
+    });
+
+    // 批量创建测试用例
+    const createdTestCases = await TestCase.bulkCreate(testCasesWithProjectId);
+
+    res.status(201).json({
+      success: true,
+      data: createdTestCases,
+      message: `成功创建 ${createdTestCases.length} 个测试用例`
+    });
+  } catch (error) {
+    console.error('批量创建测试用例错误:', error);
+    res.status(500).json({
+      success: false,
+      message: '创建测试用例时发生错误',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+}); 

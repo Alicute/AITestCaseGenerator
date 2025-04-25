@@ -22,6 +22,7 @@ app.use(morgan('dev'));
 app.use('/api/v1/projects', require('./routes/projects'));
 app.use('/api/v1/modules', require('./routes/modules'));
 app.use('/api/v1/testcases', require('./routes/testcases'));
+app.use('/api/v1/testcases', require('./routes/testCaseRoutes'));
 app.use('/api/v1/users', require('./routes/users'));
 app.use('/api/v1/ai', require('./routes/ai'));
 app.use('/api/v1/settings', require('./routes/settings'));
@@ -51,9 +52,14 @@ const initializeDatabase = async () => {
     // 测试数据库连接
     await testConnection();
     
-    // 同步所有模型
-    await sequelize.sync({ alter: true });
-    console.log('数据库表同步完成');
+    // 根据环境变量决定是否同步数据库
+    if (process.env.DB_SYNC === 'true') {
+      await sequelize.sync({ alter: true });
+      console.log('数据库表同步完成');
+    } else {
+      await sequelize.sync();
+      console.log('数据库连接成功');
+    }
 
     // 创建默认管理员账户
     const adminExists = await User.findOne({ where: { username: 'admin' } });

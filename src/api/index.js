@@ -137,6 +137,11 @@ export const testCaseAPI = {
     return api.post('/testcases', data)
   },
   
+  // 批量创建测试用例
+  batchCreateTestCases(data) {
+    return api.post('/testcases/batch', data)
+  },
+  
   // 更新测试用例
   updateTestCase(id, data) {
     return api.put(`/testcases/${id}`, data)
