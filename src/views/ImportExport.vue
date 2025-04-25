@@ -45,17 +45,17 @@
               <el-form label-position="left" label-width="120px">
                 <el-form-item label="导入方式:">
                   <el-radio-group v-model="importOptions.mode">
-                    <el-radio label="overwrite">覆盖现有数据</el-radio>
-                    <el-radio label="merge">合并数据</el-radio>
+                    <el-radio :value="'overwrite'">覆盖现有数据</el-radio>
+                    <el-radio :value="'merge'">合并数据</el-radio>
                   </el-radio-group>
                 </el-form-item>
                 
                 <el-form-item label="导入目标:">
                   <el-checkbox-group v-model="importOptions.targets">
-                    <el-checkbox label="projects">项目信息</el-checkbox>
-                    <el-checkbox label="modules">模块结构</el-checkbox>
-                    <el-checkbox label="testcases">测试用例</el-checkbox>
-                    <el-checkbox label="settings">配置信息</el-checkbox>
+                    <el-checkbox :value="'projects'">项目信息</el-checkbox>
+                    <el-checkbox :value="'modules'">模块结构</el-checkbox>
+                    <el-checkbox :value="'testcases'">测试用例</el-checkbox>
+                    <el-checkbox :value="'settings'">配置信息</el-checkbox>
                   </el-checkbox-group>
                 </el-form-item>
                 
@@ -84,10 +84,10 @@
             <el-form label-position="left" label-width="120px">
               <el-form-item label="导出内容:">
                 <el-checkbox-group v-model="exportOptions.content">
-                  <el-checkbox label="projects">项目信息</el-checkbox>
-                  <el-checkbox label="modules">模块结构</el-checkbox>
-                  <el-checkbox label="testcases">测试用例</el-checkbox>
-                  <el-checkbox label="settings">配置信息</el-checkbox>
+                  <el-checkbox :value="'projects'">项目信息</el-checkbox>
+                  <el-checkbox :value="'modules'">模块结构</el-checkbox>
+                  <el-checkbox :value="'testcases'">测试用例</el-checkbox>
+                  <el-checkbox :value="'settings'">配置信息</el-checkbox>
                 </el-checkbox-group>
               </el-form-item>
               
@@ -126,10 +126,10 @@
               <el-form-item label="导出格式:">
                 <div class="format-buttons">
                   <el-radio-group v-model="exportOptions.format">
-                    <el-radio-button label="excel">Excel</el-radio-button>
-                    <el-radio-button label="csv">CSV</el-radio-button>
-                    <el-radio-button label="json">JSON</el-radio-button>
-                    <el-radio-button label="xml">XML</el-radio-button>
+                    <el-radio-button :value="'excel'">Excel</el-radio-button>
+                    <el-radio-button :value="'csv'">CSV</el-radio-button>
+                    <el-radio-button :value="'json'">JSON</el-radio-button>
+                    <el-radio-button :value="'xml'">XML</el-radio-button>
                   </el-radio-group>
                 </div>
               </el-form-item>

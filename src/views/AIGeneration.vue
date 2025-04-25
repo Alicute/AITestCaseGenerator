@@ -61,7 +61,7 @@
               <el-checkbox 
                 v-for="func in moduleFunctions" 
                 :key="func.id" 
-                :label="func.id"
+                :value="func.id"
               >
                 {{ func.name }}
               </el-checkbox>
@@ -97,11 +97,11 @@
         
         <div class="template-selector">
           <el-radio-group v-model="selectedTemplate" class="template-radio-group">
-            <el-radio-button label="standard">标准测试</el-radio-button>
-            <el-radio-button label="functional">功能测试</el-radio-button>
-            <el-radio-button label="boundary">边界测试</el-radio-button>
-            <el-radio-button label="exception">异常测试</el-radio-button>
-            <el-radio-button label="custom">自定义...</el-radio-button>
+            <el-radio-button :value="'standard'">标准测试</el-radio-button>
+            <el-radio-button :value="'functional'">功能测试</el-radio-button>
+            <el-radio-button :value="'boundary'">边界测试</el-radio-button>
+            <el-radio-button :value="'exception'">异常测试</el-radio-button>
+            <el-radio-button :value="'custom'">自定义...</el-radio-button>
           </el-radio-group>
         </div>
         
@@ -272,6 +272,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import MainLayout from '@/components/layout/MainLayout.vue'
 import api from '@/api'
 import { useSelectionStore } from '@/stores/selection'
+import { DocumentCopy } from '@element-plus/icons-vue'
 
 
 const router = useRouter()
@@ -591,7 +592,7 @@ const updatePromptContent = () => {
                   selectedTemplate.value === 'boundary' ? '边界测试' : '异常测试'
   
   promptContent.value = `系统背景介绍：
-X数字数字成像系统是一款集图像采集、图像处理、图像管理为一体的应用系统。主要用于工业无损探伤检测的数字化应用，实现对数字影像的采集、处理、存储、查询、评定，方便后期分析调阅，协助进行更高效、便捷的工业检测。
+X射线数字成像系统是一款集图像采集、图像处理、图像管理为一体的应用系统。主要用于工业无损探伤检测的数字化应用，实现对数字影像的采集、处理、存储、查询、评定，方便后期分析调阅，协助进行更高效、便捷的工业检测。
 
 请为"${selectedModuleName.value}"模块生成测试用例，主要功能点包括：${functionDescriptions}。
 

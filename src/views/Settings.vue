@@ -24,7 +24,7 @@
               <span>用户管理</span>
             </el-menu-item>
             <el-menu-item index="templates">
-              <el-icon><document /></el-icon>
+              <el-icon><Document /></el-icon>
               <span>模板管理</span>
             </el-menu-item>
             <el-menu-item index="storage">
@@ -324,7 +324,8 @@ import {
   Folder,
   MagicStick,
   Plus,
-  Search
+  Search,
+  Document
 } from '@element-plus/icons-vue';
 
 // 定义状态变量
