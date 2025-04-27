@@ -4,7 +4,24 @@
       <div class="breadcrumb">
         <el-breadcrumb separator="/">
           <el-breadcrumb-item>模块设计</el-breadcrumb-item>
-          <el-breadcrumb-item>{{ projectInfo.name || '项目' }}</el-breadcrumb-item>
+          <el-breadcrumb-item>
+            <el-dropdown @command="handleProjectChange" trigger="click">
+              <span class="el-dropdown-link">
+                {{ getCurrentProjectName() }} <el-icon class="el-icon--right"><arrow-down /></el-icon>
+              </span>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item 
+                    v-for="project in projectsList" 
+                    :key="project.id" 
+                    :command="project.id"
+                  >
+                    {{ project.name }}
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </el-breadcrumb-item>
         </el-breadcrumb>
       </div>
 
@@ -36,7 +53,9 @@
                     :key="project.id"
                     :label="project.name"
                     :value="project.id"
-                  />
+                  >
+                    <span>{{ project.name }}</span>
+                  </el-option>
                 </el-select>
                 <el-button
                   type="primary"
@@ -370,7 +389,7 @@
 import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, Folder, FolderOpened } from '@element-plus/icons-vue'
+import { Plus, Delete, Folder, FolderOpened, ArrowDown } from '@element-plus/icons-vue'
 import MainLayout from '@/components/layout/MainLayout.vue'
 // 导入API而不是直接使用axios
 import api from '@/api'
@@ -446,17 +465,61 @@ const fetchProjects = async () => {
   }
 }
 
+// 获取当前项目名称
+const getCurrentProjectName = () => {
+  if (projectInfo.value && projectInfo.value.name) {
+    return projectInfo.value.name
+  }
+  
+  if (projectId.value) {
+    const project = projectsList.value.find(p => p.id === projectId.value)
+    if (project) return project.name
+  }
+  
+  return '选择项目'
+}
+
 // 处理项目选择变化
 const handleProjectChange = (projectId) => {
   if (projectId) {
     selectedProjectId.value = projectId
     router.push(`/modules?projectId=${projectId}`)
-    // 重新获取项目信息和模块树
-    console.log('projectId', projectId)
-    fetchProjectInfo()
-    fetchModuleTree()
   }
 }
+
+// 监听 selectedProjectId 变化
+watch(selectedProjectId, async (newProjectId) => {
+  if (newProjectId) {
+    try {
+      await Promise.all([fetchProjectInfo(), fetchModuleTree()])
+    } catch (error) {
+      console.error('切换项目时更新数据失败:', error)
+      ElMessage.error('切换项目时更新数据失败')
+    }
+  }
+})
+
+// 监听路由参数变化，当URL中的projectId变化时更新selectedProjectId
+watch(
+  () => route.query.projectId,
+  (newProjectId) => {
+    if (newProjectId && newProjectId !== selectedProjectId.value) {
+      selectedProjectId.value = newProjectId
+    }
+  },
+  { immediate: true }
+)
+
+// 监听项目列表变化
+watch(projectsList, (newProjects) => {
+  if (newProjects.length > 0 && route.query.projectId) {
+    // 确保选中的项目ID在项目列表中
+    const project = newProjects.find(p => p.id === route.query.projectId)
+    if (project) {
+      selectedProjectId.value = project.id
+    }
+  }
+}, { immediate: true })
 
 // 跳转到创建项目页面
 const goToCreateProject = () => {
@@ -936,9 +999,6 @@ const addFunction = async () => {
 
   submitting.value = true
   try {
-    // 临时模拟API调用，直到后端实现功能点API
-    // 注释掉真实的API调用
-    /*
     let response
     
     if (editingFunction.value) {      // 更新功能点
@@ -947,34 +1007,13 @@ const addFunction = async () => {
       // 添加新功能点
       response = await api.function.createFunction(newFunction.value)
     }
-    */
-
-    // 模拟成功响应
-    const response = {
-      success: true,
-      data: {
-        ...newFunction.value,
-        id: Date.now().toString() // 生成临时ID
-      }
-    }
 
     if (response.success) {
       addFunctionDialogVisible.value = false
       ElMessage.success(editingFunction.value ? '功能点更新成功' : '功能点添加成功')
 
-      // 临时添加到列表
-      if (!editingFunction.value) {
-        moduleFunctions.value.push(response.data)
-      } else {
-        // 更新列表中的项
-        const index = moduleFunctions.value.findIndex((f) => f.id === editingFunction.value.id)
-        if (index !== -1) {
-          moduleFunctions.value[index] = { ...moduleFunctions.value[index], ...newFunction.value }
-        }
-      }
-
-      // 注释掉刷新功能点列表的API调用
-      // fetchModuleFunctions(currentModule.value.id)
+      // 刷新功能点列表
+      fetchModuleFunctions(currentModule.value.id)
     } else {
       ElMessage.error(
         response.message || (editingFunction.value ? '更新功能点失败' : '添加功能点失败')
@@ -1007,24 +1046,12 @@ const deleteFunction = (row) => {
   })
     .then(async () => {
       try {
-        // 临时模拟API调用，直到后端实现功能点API
-        // 注释掉真实的API调用
-        // const response = await api.function.deleteFunction(row.id)
-
-        // 模拟成功响应
-        const response = { success: true }
+        const response = await api.function.deleteFunction(row.id)
 
         if (response.success) {
           ElMessage.success('功能点删除成功')
-
-          // 从列表中移除
-          const index = moduleFunctions.value.findIndex((f) => f.id === row.id)
-          if (index !== -1) {
-            moduleFunctions.value.splice(index, 1)
-          }
-
-          // 注释掉刷新功能点列表的API调用
-          // fetchModuleFunctions(currentModule.value.id)
+          // 刷新功能点列表
+          fetchModuleFunctions(currentModule.value.id)
         } else {
           ElMessage.error(response.message || '删除功能点失败')
         }
@@ -1090,6 +1117,8 @@ const parseMarkdownModules = (markdownText) => {
   const moduleTree = []
   let currentModule = null
   let currentLevel = 0
+  let currentFunction = null
+  let isReadingDescription = false
 
   // 分割文本为行
   const lines = markdownText.split('\n')
@@ -1102,6 +1131,7 @@ const parseMarkdownModules = (markdownText) => {
       // 顶级标题，不作为模块处理
       currentLevel = 1
       currentModule = null
+      isReadingDescription = false
     } else if (line.startsWith('## ')) {
       // 二级标题，作为根模块
       const moduleName = line.substring(3).trim()
@@ -1111,37 +1141,58 @@ const parseMarkdownModules = (markdownText) => {
         parentId: null,
         projectId: projectId.value,
         children: [],
-        functions: [] // 初始化功能点数组
+        functions: []
       }
       moduleTree.push(currentModule)
       currentLevel = 2
+      isReadingDescription = false
     } else if (line.startsWith('### ')) {
-      // 三级标题，作为子模块，但需要有父模块
+      // 三级标题，作为子模块
       if (currentLevel === 2 && currentModule) {
         const moduleName = line.substring(4).trim()
         const childModule = {
           name: moduleName,
           description: '',
-          parentId: null, // 临时设置为null，导入时会根据层级关系设置实际parentId
+          parentId: null,
           projectId: projectId.value,
           children: [],
-          functions: [] // 初始化功能点数组
+          functions: []
         }
         currentModule.children.push(childModule)
       }
       currentLevel = 3
-    } else if (line.startsWith('- ') && currentModule) {
-      // 列表项作为功能点，可以属于任何级别的模块
+      isReadingDescription = false
+    } else if (line.startsWith('- ')) {
+      // 列表项作为功能点
       const functionName = line.substring(2).trim()
-      if (functionName) {
-        if (!currentModule.functions) {
-          currentModule.functions = []
-        }
-        currentModule.functions.push({
+      if (functionName && currentModule) {
+        currentFunction = {
           name: functionName,
           description: '',
           priority: 'medium'
-        })
+        }
+        if (!currentModule.functions) {
+          currentModule.functions = []
+        }
+        currentModule.functions.push(currentFunction)
+        isReadingDescription = false
+      }
+    } else if (line.startsWith('> ')) {
+      // 引用块作为功能点描述
+      if (currentFunction) {
+        const descriptionLine = line.substring(2).trim()
+        if (currentFunction.description) {
+          // 如果已经有描述，添加换行
+          currentFunction.description += '\n' + descriptionLine
+        } else {
+          currentFunction.description = descriptionLine
+        }
+        isReadingDescription = true
+      }
+    } else if (isReadingDescription && line) {
+      // 继续读取描述内容（支持多行）
+      if (currentFunction) {
+        currentFunction.description += '\n' + line
       }
     }
   }
@@ -1337,8 +1388,11 @@ onMounted(async () => {
   try {
     await Promise.all([fetchProjects(), fetchProjectInfo(), fetchModuleTree()])
     
-    // 如果有项目列表且当前没有选中项目，则自动选中第一个项目
-    if (projectsList.value.length > 0 && !selectedProjectId.value) {
+    // 从路由参数中获取项目ID
+    if (route.query.projectId) {
+      selectedProjectId.value = route.query.projectId
+    } else if (projectsList.value.length > 0) {
+      // 只有在没有项目ID参数时才自动选择第一个项目
       selectedProjectId.value = projectsList.value[0].id
       router.push(`/modules?projectId=${projectsList.value[0].id}`)
     }
@@ -1347,21 +1401,6 @@ onMounted(async () => {
     ElMessage.error('初始化数据失败')
   }
 })
-
-// 监听路由参数变化，当URL中的projectId变化时重新加载数据
-watch(
-  () => route.query.projectId,
-  async (newProjectId, oldProjectId) => {
-    if (newProjectId !== oldProjectId) {
-      try {
-        await Promise.all([fetchProjectInfo(), fetchModuleTree()])
-      } catch (error) {
-        console.error('更新数据失败:', error)
-        ElMessage.error('更新数据失败')
-      }
-    }
-  }
-)
 </script>
 
 <style>
@@ -1390,6 +1429,24 @@ watch(
 
 .breadcrumb {
   margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.project-name {
+  font-weight: bold;
+}
+
+.project-dropdown {
+  margin-left: 10px;
+}
+
+.el-dropdown-link {
+  cursor: pointer;
+  color: #409EFF;
+  display: flex;
+  align-items: center;
 }
 
 .module-container {
@@ -1534,5 +1591,11 @@ watch(
   font-size: 12px;
   color: #909399;
   margin-top: 5px;
+}
+
+.project-selector-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 </style>
