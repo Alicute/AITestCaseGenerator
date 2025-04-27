@@ -64,6 +64,7 @@
                 :value="func.id"
               >
                 {{ func.name }}
+                <!-- <div class="function-description" v-if="func.description" v-html="formatDescription(func.description)"></div> -->
               </el-checkbox>
             </el-checkbox-group>
           </div>
@@ -578,14 +579,17 @@ const loadModuleDescription = async () => {
 const updatePromptContent = () => {
   if (!selectedModuleName.value) return
   
-  // 获取选中的功能点描述
+  // 获取选中的功能点描述，并转为列表形式
   const functionDescriptions = selectedFunctions.value
     .map(id => {
       const func = moduleFunctions.value.find(f => f.id === id)
-      return func ? func.name : ''
+      if (!func) return ''
+      // 处理换行符，转换为空格
+      const cleanDescription = func.description ? func.description.replace(/\n/g, ' ') : '';
+      return cleanDescription ? `- ${func.name}（${cleanDescription}）` : `- ${func.name}`
     })
-    .filter(name => name)
-    .join('、')
+    .filter(desc => desc)
+    .join('\n')
   
   const testType = selectedTemplate.value === 'standard' ? '功能测试' : 
                   selectedTemplate.value === 'functional' ? '功能测试' : 
@@ -594,7 +598,8 @@ const updatePromptContent = () => {
   promptContent.value = `系统背景介绍：
 X射线数字成像系统是一款集图像采集、图像处理、图像管理为一体的应用系统。主要用于工业无损探伤检测的数字化应用，实现对数字影像的采集、处理、存储、查询、评定，方便后期分析调阅，协助进行更高效、便捷的工业检测。
 
-请为"${selectedModuleName.value}"模块生成测试用例，主要功能点包括：${functionDescriptions}。
+请为"${selectedModuleName.value}"模块生成测试用例，主要功能点包括：
+${functionDescriptions}
 
 模块描述：${currentModuleDescription.value}
 
@@ -1198,5 +1203,15 @@ onMounted(async () => {
 
 .prompt-editor {
   margin-top: 15px;
+}
+
+/* 添加功能点描述的样式 */
+.function-description {
+  font-size: 12px;
+  color: #909399;
+  margin-left: 5px;
+  margin-top: 3px;
+  line-height: 1.4;
+  max-width: 500px;
 }
 </style>
