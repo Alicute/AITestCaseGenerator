@@ -882,43 +882,104 @@ const addModule = async () => {
 }
 
 // 删除节点
-const removeNode = (node, data) => {
-  ElMessageBox.confirm(
-    `确定要删除模块 "${node.label}" 吗？此操作会删除其所有子模块和相关测试用例。`,
-    '警告',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
+const removeNode = async (node, data) => {
+  try {
+    // 先检查是否有子模块
+    const hasChildModules = data.children && data.children.length > 0;
+    
+    // 检查是否有功能点
+    let hasFunctions = false;
+    const functionResponse = await api.module.getModuleFunctions(data.id);
+    if (functionResponse.success && functionResponse.data && functionResponse.data.length > 0) {
+      hasFunctions = true;
     }
-  )
-    .then(async () => {
-      try {
-        const response = await api.module.deleteModule(data.id)
-
-        if (response.success) {
-          ElMessage.success('模块删除成功')
-
-          // 如果当前选中的是被删除的模块，清空选择
-          if (currentModule.value && currentModule.value.id === data.id) {
-            currentModule.value = null
-            moduleFunctions.value = []
-            moduleTestCases.value = []
-          }
-
-          // 刷新模块树
-          fetchModuleTree()
-        } else {
-          ElMessage.error(response.message || '删除模块失败')
-        }
-      } catch (error) {
-        console.error('删除模块错误:', error)
-        ElMessage.error('删除模块时发生错误')
+    
+    // 检查是否有测试用例
+    let hasTestCases = false;
+    const testCaseResponse = await api.testCase.getTestCases({ moduleId: data.id });
+    if (testCaseResponse.success && testCaseResponse.data && testCaseResponse.data.length > 0) {
+      hasTestCases = true;
+    }
+    
+    // 如果有子模块或功能点或测试用例，给出更详细的警告
+    let warningMessage = `确定要删除模块 "${node.label}" 吗？`;
+    let warningDetail = '';
+    
+    if (hasChildModules) {
+      warningDetail += '• 该模块包含子模块，删除将同时删除所有子模块。\n';
+    }
+    
+    if (hasFunctions) {
+      warningDetail += '• 该模块包含功能点，删除将同时删除所有功能点。\n';
+    }
+    
+    if (hasTestCases) {
+      warningDetail += '• 该模块包含测试用例，删除将同时删除所有测试用例。\n';
+    }
+    
+    if (warningDetail) {
+      warningMessage += '\n\n' + warningDetail;
+    }
+    
+    ElMessageBox.confirm(
+      warningMessage,
+      '警告',
+      {
+        confirmButtonText: '确定删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+        dangerouslyUseHTMLString: true
       }
-    })
-    .catch(() => {
-      // 用户取消了操作
-    })
+    )
+      .then(async () => {
+        try {
+          const response = await api.module.deleteModule(data.id)
+
+          if (response.success) {
+            ElMessage.success('模块删除成功')
+
+            // 如果当前选中的是被删除的模块，清空选择
+            if (currentModule.value && currentModule.value.id === data.id) {
+              currentModule.value = null
+              moduleFunctions.value = []
+              moduleTestCases.value = []
+            }
+
+            // 刷新模块树
+            fetchModuleTree()
+          } else {
+            ElMessage.error(response.message || '删除模块失败')
+            // 尽管API调用没有成功，但我们仍需要尝试刷新模块树
+            // 这样用户可以看到当前的状态
+            fetchModuleTree()
+          }
+        } catch (error) {
+          console.error('删除模块错误:', error)
+          
+          // 提供更详细的错误信息
+          let errorMessage = '删除模块时发生错误'
+          if (error.response) {
+            // 服务器返回了错误状态码
+            if (error.response.status === 500) {
+              errorMessage = '服务器内部错误：可能是该模块存在其他关联数据，请联系管理员'
+            } else if (error.response.data && error.response.data.message) {
+              errorMessage = `删除失败: ${error.response.data.message}`
+            }
+          }
+          
+          ElMessage.error(errorMessage)
+          
+          // 即使出错也刷新模块树，确保UI与后端状态同步
+          fetchModuleTree()
+        }
+      })
+      .catch(() => {
+        // 用户取消了操作
+      })
+  } catch (error) {
+    console.error('检查模块关联数据时出错:', error);
+    ElMessage.error('检查模块关联数据时发生错误，请稍后重试');
+  }
 }
 
 // 编辑模块

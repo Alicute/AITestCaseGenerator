@@ -202,11 +202,16 @@ exports.deleteModule = async (req, res) => {
     
     // 递归删除所有子模块
     for (const childModule of childModules) {
-      // 调用自身进行递归删除
-      await this.deleteModule({
-        params: { id: childModule.id }
-      }, { json: () => {} });
+      // 不要直接调用控制器方法，而是递归执行删除逻辑
+      await deleteModuleRecursively(childModule.id);
     }
+    
+    // 删除与此模块相关的功能点
+    await Function.destroy({
+      where: {
+        moduleId: req.params.id
+      }
+    });
     
     // 删除与此模块相关的测试用例
     await TestCase.destroy({
@@ -241,6 +246,63 @@ exports.deleteModule = async (req, res) => {
     });
   }
 };
+
+/**
+ * 递归删除模块及其所有子模块、功能点和测试用例
+ * @param {Number} moduleId - 要删除的模块ID
+ */
+async function deleteModuleRecursively(moduleId) {
+  try {
+    // 查找所有子模块
+    const childModules = await Module.findAll({
+      where: {
+        parentId: moduleId
+      }
+    });
+    
+    // 递归删除子模块
+    for (const childModule of childModules) {
+      await deleteModuleRecursively(childModule.id);
+    }
+    
+    // 删除与此模块相关的功能点
+    await Function.destroy({
+      where: {
+        moduleId: moduleId
+      }
+    });
+    
+    // 删除与此模块相关的测试用例
+    await TestCase.destroy({
+      where: {
+        moduleId: moduleId
+      }
+    });
+    
+    // 查找模块信息（用于更新项目计数）
+    const module = await Module.findByPk(moduleId);
+    
+    // 减少项目的模块计数
+    if (module && module.projectId) {
+      const project = await Project.findByPk(module.projectId);
+      if (project && project.moduleCount > 0) {
+        await project.update({
+          moduleCount: project.moduleCount - 1
+        });
+      }
+    }
+    
+    // 删除模块本身
+    if (module) {
+      await module.destroy();
+    }
+    
+    return true;
+  } catch (error) {
+    console.error(`递归删除模块 ${moduleId} 错误:`, error);
+    throw error; // 向上抛出错误，让主方法处理
+  }
+}
 
 /**
  * @desc    获取模块的功能点
