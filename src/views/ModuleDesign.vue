@@ -563,19 +563,33 @@ const fetchModuleTestCases = async (moduleId) => {
 
   loading.value = true
   try {
-    const response = await api.testCase.getTestCases({ moduleId })
-
+    const response = await api.testCase.getTestCases({ 
+      moduleId,
+      limit: 1000 // 设置一个足够大的限制来获取所有测试用例
+    })
     if (response.success) {
       // 确保数据是数组
       moduleTestCases.value = Array.isArray(response.data) ? response.data : []
+      // 更新当前模块的测试用例数量
+      if (currentModule.value) {
+        currentModule.value.testCaseCount = response.total || 0
+      }
     } else {
       ElMessage.error(response.message || '获取测试用例列表失败')
       moduleTestCases.value = [] // 确保错误时也是空数组
+      // 更新当前模块的测试用例数量为0
+      if (currentModule.value) {
+        currentModule.value.testCaseCount = 0
+      }
     }
   } catch (error) {
     console.error('获取测试用例列表错误:', error)
     ElMessage.error('获取测试用例列表时发生错误')
     moduleTestCases.value = [] // 确保错误时也是空数组
+    // 更新当前模块的测试用例数量为0
+    if (currentModule.value) {
+      currentModule.value.testCaseCount = 0
+    }
   } finally {
     loading.value = false
   }

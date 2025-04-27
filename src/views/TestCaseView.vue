@@ -199,7 +199,7 @@
                     <el-checkbox v-model="testCase.selected" @change="handleItemSelectChange" />
                   </td>
                   <td>{{ testCase.module }}</td>
-                  <td>{{ testCase.id }}</td>
+                  <td></td>
                   <td>{{ testCase.title }}</td>
                   <td>{{ testCase.maintainer }}</td>
                   <td>
@@ -532,7 +532,7 @@ const exportTestCases = () => {
     // 准备数据行
     const rows = testCases.value.map((testCase) => [
       testCase.module,
-      testCase.id,
+      "",
       testCase.title,
       testCase.maintainer,
       testCase.type,

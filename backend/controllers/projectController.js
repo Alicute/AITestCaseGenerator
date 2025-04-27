@@ -11,6 +11,15 @@ exports.getProjects = async (req, res) => {
     // 使用Sequelize查询所有项目
     const projects = await Project.findAll();
     
+    // 获取每个项目的测试用例数量
+    const TestCase = require('../models/TestCase');
+    for (const project of projects) {
+      const testCaseCount = await TestCase.count({
+        where: { projectId: project.id }
+      });
+      project.testCaseCount = testCaseCount;
+    }
+    
     // 即使没有数据也返回空数组
     res.json({
       success: true,
@@ -34,7 +43,6 @@ exports.getProjects = async (req, res) => {
  */
 exports.getProject = async (req, res) => {
   try {
-    // 使用Sequelize的findByPk方法
     const project = await Project.findByPk(req.params.id);
     
     if (!project) {
@@ -43,6 +51,13 @@ exports.getProject = async (req, res) => {
         message: '未找到项目'
       });
     }
+
+    // 获取该项目的测试用例数量
+    const TestCase = require('../models/TestCase');
+    const testCaseCount = await TestCase.count({
+      where: { projectId: project.id }
+    });
+    project.testCaseCount = testCaseCount;
     
     res.json({
       success: true,
