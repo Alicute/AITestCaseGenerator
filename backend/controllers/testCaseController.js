@@ -129,7 +129,7 @@ exports.getTestCasesByModule = async (req, res) => {
     // 获取模块的测试用例
     const testCases = await TestCase.findAll({
       where: { moduleId },
-      order: [['createdAt', 'DESC']]
+      order: [['createdAt', 'DESC']],
     });
     
     res.json({

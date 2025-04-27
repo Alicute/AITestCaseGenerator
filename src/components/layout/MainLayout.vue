@@ -18,11 +18,11 @@
     </header>
 
     <!-- 临时调试信息 -->
-    <div v-if="userStore.isAuthenticated" style="background-color: #f0f0f0; padding: 5px 20px; font-size: 12px;">
+    <!-- <div v-if="userStore.isAuthenticated" style="background-color: #f0f0f0; padding: 5px 20px; font-size: 12px;">
       当前用户: {{ userStore.currentUser?.username }} | 
       角色: {{ userStore.currentUser?.role }} | 
       管理员: {{ userStore.isAdmin ? '是' : '否' }}
-    </div>
+    </div> -->
 
     <div class="main-container">
       <aside class="main-sidebar">
@@ -129,7 +129,7 @@ const handleCommand = (command) => {
 .app-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 98vh;
 }
 
 .app-header {

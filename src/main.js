@@ -5,6 +5,7 @@ import App from "./App.vue";
 import router from "./router";
 import { createPinia } from "pinia";
 import axios from 'axios';
+import zhCn from 'element-plus/es/locale/lang/zh-cn'; // 引入中文语言包
 
 // 设置axios基础URL
 axios.defaults.baseURL = process.env.VUE_APP_API_URL || '/api';
@@ -36,7 +37,7 @@ window.console.error = (...args) => {
   }
   originalConsoleError(...args);
 };
-app.use(ElementPlus);
+app.use(ElementPlus, { locale: zhCn }); // 设置 Element Plus 的语言为中文
 app.use(pinia);
 app.use(router);
 

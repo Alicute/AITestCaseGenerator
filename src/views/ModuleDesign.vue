@@ -158,7 +158,7 @@
                     <el-table
                       :data="moduleFunctions"
                       style="width: 100%"
-                      height="566px"
+                      height="569px"
                       :row-key="(row) => row.id"
                       :default-sort="{ prop: 'priority', order: 'ascending' }"
                       :resize-observer="false"
@@ -206,7 +206,7 @@
                   <el-table
                     v-else
                     :data="moduleTestCases"
-                    style="width: 100%"
+                    style="width: 100%;height: 569px; overflow: auto;"
                     table-layout="fixed"
                     :resize-observer="false"
                   >
