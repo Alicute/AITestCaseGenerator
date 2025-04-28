@@ -35,8 +35,14 @@
               <el-cascader
                 v-model="selectedModulePath"
                 :options="moduleOptions"
-                :props="{ checkStrictly: true, emitPath: false }"
-                placeholder="请选择功能模块"
+                :props="{ 
+                  checkStrictly: false,
+                  emitPath: true,
+                  value: 'value',
+                  label: 'label',
+                  children: 'children'
+                }"
+                :placeholder="selectedModuleDisplay"
                 style="width: 300px"
                 @change="handleModuleChange"
                 :disabled="!selectedProjectId"
@@ -296,10 +302,8 @@ const selectedProjectId = computed({
     return selectionStore.selectedProjectId
   },
   set: (value) => {
-
     if (value) {
       const project = projects.value.find(p => p.id === value)
-
       if (project) {
         selectionStore.setSelectedProject(project)
       }
@@ -307,21 +311,8 @@ const selectedProjectId = computed({
   }
 })
 
-const selectedModulePath = computed({
-  get: () => selectionStore.selectedModulePath,
-  set: (value) => {
-    if (value) {
-      const module = findModuleById(moduleOptions.value, value)
-      if (module) {
-        selectionStore.setSelectedModule({
-          id: value,
-          name: module.label,
-          path: value
-        })
-      }
-    }
-  }
-})
+// 将 selectedModulePath 改为 ref
+const selectedModulePath = ref(selectionStore.selectedModulePath)
 
 const selectedModuleId = computed({
   get: () => selectionStore.selectedModuleId,
@@ -457,7 +448,6 @@ const fetchProjects = async () => {
 
 // 获取模块树
 const fetchModuleTree = async (projectId) => {
-
   if (!projectId) return
   
   loading.value = true
@@ -465,8 +455,15 @@ const fetchModuleTree = async (projectId) => {
     const response = await api.module.getModuleTree(projectId)
     
     if (response.success) {
-      // 转换为级联选择器需要的格式
-      moduleOptions.value = buildCascaderOptions(response.data)
+      // 直接使用后端返回的数据结构
+      moduleOptions.value = response.data.map(module => ({
+        value: module.id,
+        label: module.name,
+        children: module.children?.map(child => ({
+          value: child.id,
+          label: child.name
+        })) || []
+      }))
       
       // 如果路由中有模块ID，自动选择
       const routeModuleId = route.query.moduleId
@@ -492,35 +489,6 @@ const fetchModuleTree = async (projectId) => {
   }
 }
 
-// 构建级联选择器选项
-const buildCascaderOptions = (modules) => {
-  const rootModules = modules.filter(m => !m.parentId)
-  
-  const buildTree = (parentId) => {
-    const children = modules.filter(m => m.parentId === parentId)
-    
-    return children.map(module => {
-      const hasChildren = modules.some(m => m.parentId === module.id)
-      
-      return {
-        value: module.id,
-        label: module.name,
-        children: hasChildren ? buildTree(module.id) : []
-      }
-    })
-  }
-  
-  return rootModules.map(module => {
-    const hasChildren = modules.some(m => m.parentId === module.id)
-    
-    return {
-      value: module.id,
-      label: module.name,
-      children: hasChildren ? buildTree(module.id) : []
-    }
-  })
-}
-
 // 项目变更处理
 const handleProjectChange = (projectId) => {
   if (projectId) {
@@ -533,8 +501,11 @@ const handleProjectChange = (projectId) => {
 }
 
 // 模块变更处理
-const handleModuleChange = async (moduleId) => {
-  if (moduleId) {
+const handleModuleChange = async (path) => {
+  if (path && path.length > 0) {
+    // 获取最后一个选中的模块ID
+    const moduleId = path[path.length - 1]
+    
     // 根据级联选择器的值查找模块
     const module = findModuleById(moduleOptions.value, moduleId)
     if (module) {
@@ -544,10 +515,11 @@ const handleModuleChange = async (moduleId) => {
       
       // 更新选中的模块ID和路径
       selectedModuleId.value = moduleId
+      selectedModulePath.value = path  // 直接更新为完整路径
       selectionStore.setSelectedModule({
         id: moduleId,
         name: module.label,
-        path: selectedModulePath.value
+        path: path.join('/')  // 使用完整路径
       })
       
       // 加载模块描述和功能点
@@ -647,9 +619,9 @@ ${functionDescriptions}
       "estimatedHours": "",
       "remainingHours": "",
       "relatedItems": "",
-      "preconditions": "1. 前置条件1\n2. 前置条件2",
-      "steps": "1. 步骤1\n2. 步骤2",
-      "expectedResults": "1. 步骤1的预期结果\n2. 步骤2的预期结果",
+      "preconditions": "1. 前置条件1\\n2. 前置条件2",
+      "steps": "1. 步骤1\\n2. 步骤2",
+      "expectedResults": "1. 步骤1的预期结果\\n2. 步骤2的预期结果",
       "followers": "",
       "notes": ""
     }
@@ -660,7 +632,8 @@ ${functionDescriptions}
 1. id、estimatedHours、remainingHours、relatedItems、followers、notes字段保持为空字符串
 2. preconditions、steps、expectedResults字段必须使用数字编号
 3. 每个测试用例必须完整包含所有字段
-4. 确保生成的测试用例覆盖主要功能和关键场景`
+4. 确保生成的测试用例覆盖主要功能和关键场景
+5. 所有换行符必须使用 \\n 转义，不要使用实际的换行符`
 }
 
 // 监听模板变化
@@ -1027,6 +1000,28 @@ onMounted(async () => {
     selectedProjectId.value = selectionStore.selectedProjectId
     await fetchModuleTree(selectionStore.selectedProjectId)
   }
+})
+
+// 添加计算属性
+const selectedModuleDisplay = computed(() => {
+  if (!selectedModulePath.value) return '请选择功能模块'
+  
+  // 查找选中的模块
+  const findModulePath = (modules, id) => {
+    for (const module of modules) {
+      if (module.id === id) {
+        return module.path
+      }
+      if (module.children) {
+        const path = findModulePath(module.children, id)
+        if (path) return path
+      }
+    }
+    return null
+  }
+  
+  const path = findModulePath(moduleOptions.value, selectedModulePath.value)
+  return path || '请选择功能模块'
 })
 </script>
 
