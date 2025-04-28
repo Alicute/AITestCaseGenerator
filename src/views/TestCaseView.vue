@@ -340,14 +340,23 @@ const fetchProjects = async () => {
 
 // 处理项目选择变化
 const handleProjectChange = async (projectId) => {
-  selectedProjectId.value = projectId;
-  selectedModuleId.value = null;
-  modules.value = [];
-  testCases.value = []; // 清空测试用例
+  if (!projectId) return
   
-  if (projectId) {
-    await fetchModules(projectId);
-    await fetchTestCases(); // 获取新项目的测试用例
+  try {
+    // 先清空当前数据
+    selectedModuleId.value = null
+    modules.value = []
+    testCases.value = []
+    
+    // 更新项目选择
+    const project = projectsList.value.find(p => p.id === projectId)
+    if (project) {
+      selectionStore.setSelectedProject(project)
+      await fetchModules(projectId)
+      await fetchTestCases()
+    }
+  } catch (error) {
+    ElMessage.error('切换项目时发生错误')
   }
 }
 
@@ -409,8 +418,21 @@ const fetchTestCases = async () => {
     const params = {
       page: pagination.value.current,
       limit: pagination.value.pageSize,
-      projectId: selectedProjectId.value,
-      ...filters.value
+      projectId: selectedProjectId.value
+    }
+
+    // 只在有值时才添加过滤参数
+    if (selectedModuleId.value) {
+      params.moduleId = selectedModuleId.value
+    }
+    if (filters.value.priority) {
+      params.priority = filters.value.priority
+    }
+    if (filters.value.type) {
+      params.type = filters.value.type
+    }
+    if (filters.value.status) {
+      params.status = filters.value.status
     }
 
     // 如果有搜索关键字，添加到查询参数
@@ -423,7 +445,6 @@ const fetchTestCases = async () => {
     if (response.success) {
       // 确保 response.data 是数组
       if (!Array.isArray(response.data)) {
-        console.warn('返回的数据格式不正确:', response.data)
         testCases.value = []
         pagination.value.total = 0
         return
@@ -440,7 +461,6 @@ const fetchTestCases = async () => {
       pagination.value.total = 0
     }
   } catch (error) {
-    console.error('获取测试用例错误:', error)
     ElMessage.error('获取测试用例时发生错误')
     testCases.value = []
     pagination.value.total = 0
@@ -665,18 +685,32 @@ const handleFileChange = async (file) => {
 
 // 生命周期钩子
 onMounted(async () => {
-  await fetchProjects()
-  
-  // 检查是否有项目
-  if (projectsList.value.length === 0) {
-    selectedProjectId.value = null
-    return
-  }
-  // 如果有项目列表且当前没有选中项目，则自动选中第一个项目
-  if (!selectedProjectId.value) {
-    selectedProjectId.value = projectsList.value[0].id
-  } else {
-    await handleProjectChange(selectedProjectId.value)
+  try {
+    await fetchProjects()
+    
+    // 检查是否有项目
+    if (projectsList.value.length === 0) {
+      selectedProjectId.value = null
+      return
+    }
+    
+    // 如果有项目列表且当前没有选中项目，则自动选中第一个项目
+    if (!selectedProjectId.value) {
+      selectedProjectId.value = projectsList.value[0].id
+      await handleProjectChange(projectsList.value[0].id)
+    } else {
+      // 如果store中有选中的项目，验证它是否有效
+      const validProject = projectsList.value.find(p => p.id === selectedProjectId.value)
+      if (validProject) {
+        await handleProjectChange(selectedProjectId.value)
+      } else {
+        // 如果store中的项目无效，选择第一个项目
+        selectedProjectId.value = projectsList.value[0].id
+        await handleProjectChange(projectsList.value[0].id)
+      }
+    }
+  } catch (error) {
+    ElMessage.error('初始化页面时发生错误')
   }
 })
 

@@ -292,10 +292,14 @@ const testCasesPerFunction = ref(3)
 
 // 选择的项目和模块
 const selectedProjectId = computed({
-  get: () => selectionStore.selectedProjectId,
+  get: () => {
+    return selectionStore.selectedProjectId
+  },
   set: (value) => {
+
     if (value) {
       const project = projects.value.find(p => p.id === value)
+
       if (project) {
         selectionStore.setSelectedProject(project)
       }
@@ -430,25 +434,30 @@ const fetchProjects = async () => {
     const response = await api.project.getProjects()
     if (response.success) {
       projects.value = response.data
-      
+
+
       // 如果路由中有项目ID，自动选择
       const routeProjectId = route.query.projectId
+
       if (routeProjectId) {
         // 确保项目ID是数值类型
         selectedProjectId.value = typeof routeProjectId === 'string' ? parseInt(routeProjectId) : routeProjectId
+
         handleProjectChange(selectedProjectId.value)
+
       }
     } else {
-      ElMessage.error(response.message || '获取项目列表失败')
+      selectedProjectId.value = projects.value[0].id
+      handleProjectChange(selectedProjectId.value)
     }
   } catch (error) {
-    console.error('获取项目列表错误:', error)
     ElMessage.error('获取项目列表时发生错误')
   }
 }
 
 // 获取模块树
 const fetchModuleTree = async (projectId) => {
+
   if (!projectId) return
   
   loading.value = true
@@ -526,14 +535,25 @@ const handleProjectChange = (projectId) => {
 // 模块变更处理
 const handleModuleChange = async (moduleId) => {
   if (moduleId) {
+    // 根据级联选择器的值查找模块
     const module = findModuleById(moduleOptions.value, moduleId)
     if (module) {
+      // 清空当前功能点
+      moduleFunctions.value = []
+      selectedFunctions.value = []
+      
+      // 更新选中的模块ID和路径
+      selectedModuleId.value = moduleId
       selectionStore.setSelectedModule({
         id: moduleId,
         name: module.label,
         path: selectedModulePath.value
       })
+      
+      // 加载模块描述和功能点
       await loadModuleDescription()
+    } else {
+      console.error('未找到模块:', moduleId)
     }
   }
 }
@@ -995,6 +1015,11 @@ onMounted(async () => {
   
   // 如果有项目列表且当前没有选中项目，则自动选中第一个项目
   if (!selectedProjectId.value) {
+    console.log('AIGeneration - 自动选择第一个项目 - 项目列表:', projects.value)
+  console.log('AIGeneration - 自动选择第一个项目 - 第一个项目的索引和ID:', {
+    index: 0,
+    id: projects.value[0].id
+  })
     selectedProjectId.value = projects.value[0].id
     await handleProjectChange(projects.value[0].id)
   } else if (selectionStore.selectedProjectId) {

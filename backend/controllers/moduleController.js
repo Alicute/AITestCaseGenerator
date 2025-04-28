@@ -348,7 +348,7 @@ exports.getModuleFunctions = async (req, res) => {
  */
 exports.getModuleTree = async (req, res) => {
   try {
-    const { projectId } = req.query;
+    const { projectId, _t } = req.query; // 添加_t时间戳参数，用于防止缓存
     
     // 如果没有提供projectId，返回空数组而不是错误
     if (!projectId) {
@@ -379,11 +379,17 @@ exports.getModuleTree = async (req, res) => {
       attributes: ['id', 'name', 'description', 'level', 'path', 'parentId', 'projectId', 'createdAt', 'updatedAt', 'functionCount', 'testCaseCount']
     });
 
+    // 记录日志，显示获取到的模块数据
+    console.log(`获取到项目ID${projectId}的${modules.length}个模块, 时间戳: ${_t || '无'}`);
+
     // 构建树形结构
     const buildTree = (modules, parentId = null) => {
       const tree = [];
       modules.forEach(module => {
-        if (module.parentId === parentId) {
+        // 处理parentId为null或0的情况
+        const moduleParentId = module.parentId === 0 ? null : module.parentId;
+        
+        if (moduleParentId === parentId) {
           const children = buildTree(modules, module.id);
           if (children.length) {
             module.dataValues.children = children;
@@ -396,10 +402,16 @@ exports.getModuleTree = async (req, res) => {
 
     const moduleTree = buildTree(modules);
     
+    // 添加缓存控制头，确保前端始终获取最新数据
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
     res.json({
       success: true,
       count: modules.length,
-      data: moduleTree
+      data: moduleTree,
+      timestamp: _t || Date.now() // 返回时间戳，方便前端判断数据新鲜度
     });
   } catch (error) {
     console.error('获取模块树错误:', error);

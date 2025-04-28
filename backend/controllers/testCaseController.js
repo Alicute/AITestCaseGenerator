@@ -42,9 +42,7 @@ exports.getTestCases = async (req, res) => {
         { 
           model: Module, 
           attributes: ['id', 'name', 'path']
-        },
-        { model: User, as: 'creator', attributes: ['username'] },
-        { model: User, as: 'executor', attributes: ['username'] }
+        }
       ],
       attributes: [
         'id',
@@ -213,8 +211,7 @@ exports.getTestCasesByProject = async (req, res) => {
       where,
       include: [
         { model: Module, as: 'module', attributes: ['name', 'path'] },
-        { model: User, as: 'creator', attributes: ['username'] },
-        { model: User, as: 'executor', attributes: ['username'] }
+        { model: User, as: 'creator', attributes: ['username'] , foreignKey: 'createdBy' },
       ],
       offset,
       limit,

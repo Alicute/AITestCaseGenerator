@@ -182,10 +182,8 @@ exports.deleteProject = async (req, res) => {
       where: { moduleId: moduleIds } // 使用模块ID数组
     });
     
-    // 4. 删除项目下的所有模块
-    await Module.destroy({
-      where: { projectId: req.params.id }
-    });
+    // 4. 递归删除项目下的所有模块（包括子模块）
+    await deleteModulesRecursively(req.params.id);
     
     // 5. 删除项目成员关联记录
     const { ProjectMember } = require('../models/index');
@@ -210,6 +208,56 @@ exports.deleteProject = async (req, res) => {
   }
 };
 
+// 递归删除模块及其子模块
+async function deleteModulesRecursively(projectId) {
+  // 查找项目下的所有模块
+  const modules = await Module.findAll({
+    where: { projectId },
+    attributes: ['id', 'parentId']
+  });
+
+  // 创建一个映射，用于存储模块及其子模块
+  const moduleMap = new Map();
+  modules.forEach(module => {
+    if (!moduleMap.has(module.id)) {
+      moduleMap.set(module.id, {
+        id: module.id,
+        parentId: module.parentId,
+        children: []
+      });
+    }
+  });
+
+  // 构建模块树
+  const moduleTree = [];
+  modules.forEach(module => {
+    const currentModule = moduleMap.get(module.id);
+    if (module.parentId === null || !moduleMap.has(module.parentId)) {
+      moduleTree.push(currentModule);
+    } else {
+      const parentModule = moduleMap.get(module.parentId);
+      parentModule.children.push(currentModule);
+    }
+  });
+
+  // 递归删除模块
+  for (const module of moduleTree) {
+    await deleteModuleAndChildren(module);
+  }
+}
+
+// 递归删除模块及其所有子模块
+async function deleteModuleAndChildren(module) {
+  // 先删除所有子模块
+  for (const child of module.children) {
+    await deleteModuleAndChildren(child);
+  }
+
+  // 删除当前模块
+  await Module.destroy({
+    where: { id: module.id }
+  });
+}
 /**
  * @desc    获取项目模板
  * @route   GET /api/v1/projects/templates

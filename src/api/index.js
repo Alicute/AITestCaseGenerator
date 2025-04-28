@@ -67,8 +67,13 @@ export const moduleAPI = {
   },
   
   // 获取模块树
-  getModuleTree(projectId) {
-    return api.get('/modules/tree', { params: { projectId } })
+  getModuleTree(projectId, timestamp) {
+    const params = { projectId };
+    // 如果提供了时间戳参数，添加到请求中，用于避免缓存
+    if (timestamp) {
+      params._t = timestamp;
+    }
+    return api.get('/modules/tree', { params })
   },
   
   // 获取单个模块详情

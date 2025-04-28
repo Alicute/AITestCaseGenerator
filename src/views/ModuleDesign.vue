@@ -527,24 +527,60 @@ const goToCreateProject = () => {
 }
 
 // 获取模块树数据
-const fetchModuleTree = async () => {
+const fetchModuleTree = async (forceRefresh = false) => {
   loading.value = true
   try {
-    // 使用API方法获取模块树
-    const response = await api.module.getModuleTree(projectId.value)
+    // 使用API方法获取模块树，增加时间戳参数避免缓存
+    const timestamp = forceRefresh ? Date.now() : undefined;
+    
+    const response = await api.module.getModuleTree(projectId.value, timestamp)
 
     if (response.success) {
+      
+      // 确保UI更新前先清空数据
+      moduleTree.value = [];
+      await nextTick();
+      
+      // 重新构建模块树
       moduleTree.value = buildModuleTree(response.data)
+      
       // 如果有模块，默认选中第一个
       if (moduleTree.value.length > 0) {
-        currentModule.value = moduleTree.value[0]
-        fetchModuleFunctions(currentModule.value.id)
-        fetchModuleTestCases(currentModule.value.id)
+        // 定义一个辅助函数，检查模块是否存在于树中
+        const moduleExists = (modules, id) => {
+          for (const module of modules) {
+            if (module.id === id) {
+              return true;
+            }
+            if (module.children && module.children.length > 0) {
+              if (moduleExists(module.children, id)) {
+                return true;
+              }
+            }
+          }
+          return false;
+        };
+        
+        // 如果当前没有选中的模块或者选中的模块不存在于新的树中，则选择第一个
+        if (!currentModule.value || !moduleExists(moduleTree.value, currentModule.value.id)) {
+          currentModule.value = moduleTree.value[0]
+          fetchModuleFunctions(currentModule.value.id)
+          fetchModuleTestCases(currentModule.value.id)
+        } else {
+          // 刷新当前选中模块的功能点和测试用例
+          fetchModuleFunctions(currentModule.value.id)
+          fetchModuleTestCases(currentModule.value.id)
+        }
 
         // 如果之前没有展开的节点，默认展开第一个根节点
         if (expandedKeys.value.length === 0) {
-          expandedKeys.value.push(currentModule.value.id)
+          expandedKeys.value.push(moduleTree.value[0].id)
         }
+      } else {
+        // 如果没有模块，清空当前模块选择
+        currentModule.value = null;
+        moduleFunctions.value = [];
+        moduleTestCases.value = [];
       }
     } else {
       ElMessage.error(response.message || '获取模块树失败')
@@ -552,6 +588,11 @@ const fetchModuleTree = async () => {
   } catch (error) {
     console.error('获取模块树错误:', error)
     ElMessage.error('获取模块树时发生错误')
+    // 出错时也清空数据，防止显示陈旧数据
+    moduleTree.value = [];
+    currentModule.value = null;
+    moduleFunctions.value = [];
+    moduleTestCases.value = [];
   } finally {
     loading.value = false
   }
@@ -559,6 +600,24 @@ const fetchModuleTree = async () => {
 
 // 构建模块树结构（从扁平结构转换为嵌套结构）
 const buildModuleTree = (modules) => {
+  // 后端已经返回了嵌套结构，如果数据已经有children字段，直接使用返回的数据
+  // 检查第一项是否已经包含children字段
+  if (modules.length > 0 && modules.some(module => module.children)) {
+    
+    // 确保所有根模块默认展开
+    modules.forEach(module => {
+      if (module.children && module.children.length > 0) {
+        if (!expandedKeys.value.includes(module.id)) {
+          expandedKeys.value.push(module.id)
+        }
+      }
+    })
+    
+    return modules;
+  }
+  
+  // 如果没有嵌套结构，使用原来的逻辑进行转换
+  console.log('从扁平结构构建模块树')
   const moduleMap = {}
   const rootModules = []
 
@@ -583,6 +642,15 @@ const buildModuleTree = (modules) => {
     } else {
       // 没有父模块，是根模块
       rootModules.push(moduleMap[module.id])
+    }
+  })
+
+  // 确保所有根模块默认展开
+  rootModules.forEach(module => {
+    if (module.children && module.children.length > 0) {
+      if (!expandedKeys.value.includes(module.id)) {
+        expandedKeys.value.push(module.id)
+      }
     }
   })
 
@@ -680,6 +748,13 @@ watch(
 const handleNodeClick = (data) => {
   // 保存当前展开状态，防止被覆盖
   const wasAllExpanded = isAllExpanded.value
+
+  // 如果节点有子节点，确保它被展开
+  if (data.children && data.children.length > 0) {
+    if (!expandedKeys.value.includes(data.id)) {
+      expandedKeys.value.push(data.id)
+    }
+  }
 
   // 原有的节点点击逻辑
   currentModule.value = data
@@ -840,17 +915,69 @@ const addModule = async () => {
       const newModuleId = response.data.id
       const parentId = newModule.value.parentId
 
-      // 刷新模块树
-      await fetchModuleTree()
+      // 完全刷新模块树，强制从服务器重新加载
+      moduleTree.value = []
+      await fetchModuleTree(true) // 强制刷新，避免缓存问题
 
-      // 找到新创建的模块，并设置为当前选中
-      if (newModuleId) {
-        // 如果是子模块，确保父节点展开
-        if (parentId && !expandedKeys.value.includes(parentId)) {
+      // 等待DOM更新
+      await nextTick()
+
+      // 如果是子模块，确保父节点展开
+      if (parentId) {
+        // 确保父节点展开
+        if (!expandedKeys.value.includes(parentId)) {
           expandedKeys.value.push(parentId)
+          
+          // 如果使用Element Plus树组件，手动展开父节点
+          if (moduleTreeRef.value && moduleTreeRef.value.store) {
+            const parentNode = moduleTreeRef.value.store.nodesMap[parentId]
+            if (parentNode && !parentNode.expanded) {
+              parentNode.expand()
+            }
+          }
         }
-
-        // 查找并选中新模块
+        
+        // 等待展开动画完成
+        setTimeout(() => {
+          // 递归查找并选中新添加的模块
+          const findAndSelectModule = (modules) => {
+            for (const module of modules) {
+              if (module.id === newModuleId) {
+                currentModule.value = module
+                fetchModuleFunctions(module.id)
+                fetchModuleTestCases(module.id)
+                return true
+              }
+              if (module.children && module.children.length > 0) {
+                if (findAndSelectModule(module.children)) {
+                  return true
+                }
+              }
+            }
+            return false
+          }
+          
+          // 如果在树中找不到新模块，直接从API获取
+          if (!findAndSelectModule(moduleTree.value)) {
+            console.log('未在树中找到新添加的模块，尝试直接获取模块信息');
+            api.module.getModule(newModuleId)
+              .then(response => {
+                if (response.success) {
+                  currentModule.value = response.data;
+                  fetchModuleFunctions(newModuleId);
+                  fetchModuleTestCases(newModuleId);
+                  
+                  // 模块获取成功后，再次刷新模块树，确保UI同步
+                  setTimeout(() => fetchModuleTree(true), 500);
+                }
+              })
+              .catch(error => {
+                console.error('获取新模块信息失败:', error);
+              });
+          }
+        }, 300); // 给予足够的时间让树结构更新
+      } else {
+        // 如果是根模块，直接查找
         const findAndSelectModule = (modules) => {
           for (const module of modules) {
             if (module.id === newModuleId) {
@@ -859,16 +986,28 @@ const addModule = async () => {
               fetchModuleTestCases(module.id)
               return true
             }
-            if (module.children && module.children.length > 0) {
-              if (findAndSelectModule(module.children)) {
-                return true
-              }
-            }
           }
           return false
         }
-
-        findAndSelectModule(moduleTree.value)
+        
+        if (!findAndSelectModule(moduleTree.value)) {
+          console.log('未在树中找到新添加的根模块，尝试直接获取模块信息');
+          // 如果在树中找不到，直接从API获取
+          api.module.getModule(newModuleId)
+            .then(response => {
+              if (response.success) {
+                currentModule.value = response.data;
+                fetchModuleFunctions(newModuleId);
+                fetchModuleTestCases(newModuleId);
+                
+                // 模块获取成功后，再次刷新模块树，确保UI同步
+                setTimeout(() => fetchModuleTree(true), 500);
+              }
+            })
+            .catch(error => {
+              console.error('获取新模块信息失败:', error);
+            });
+        }
       }
     } else {
       ElMessage.error(response.message || '添加模块失败')
@@ -1180,6 +1319,9 @@ const parseMarkdownModules = (markdownText) => {
   let currentLevel = 0
   let currentFunction = null
   let isReadingDescription = false
+  let isReadingModuleDescription = false
+  let currentChildModule = null
+  let lastProcessedLine = ''
 
   // 分割文本为行
   const lines = markdownText.split('\n')
@@ -1192,7 +1334,9 @@ const parseMarkdownModules = (markdownText) => {
       // 顶级标题，不作为模块处理
       currentLevel = 1
       currentModule = null
+      currentChildModule = null
       isReadingDescription = false
+      isReadingModuleDescription = false
     } else if (line.startsWith('## ')) {
       // 二级标题，作为根模块
       const moduleName = line.substring(3).trim()
@@ -1206,12 +1350,14 @@ const parseMarkdownModules = (markdownText) => {
       }
       moduleTree.push(currentModule)
       currentLevel = 2
+      currentChildModule = null
       isReadingDescription = false
+      isReadingModuleDescription = false
     } else if (line.startsWith('### ')) {
       // 三级标题，作为子模块
-      if (currentLevel === 2 && currentModule) {
+      if (currentLevel ) {
         const moduleName = line.substring(4).trim()
-        const childModule = {
+        currentChildModule = {
           name: moduleName,
           description: '',
           parentId: null,
@@ -1219,43 +1365,81 @@ const parseMarkdownModules = (markdownText) => {
           children: [],
           functions: []
         }
-        currentModule.children.push(childModule)
+        currentModule.children.push(currentChildModule)
       }
       currentLevel = 3
       isReadingDescription = false
+      isReadingModuleDescription = false
     } else if (line.startsWith('- ')) {
       // 列表项作为功能点
       const functionName = line.substring(2).trim()
-      if (functionName && currentModule) {
+      if (functionName) {
         currentFunction = {
           name: functionName,
           description: '',
           priority: 'medium'
         }
-        if (!currentModule.functions) {
-          currentModule.functions = []
+        // 根据当前级别决定功能点属于哪个模块
+        if (currentLevel === 3 && currentChildModule) {
+          if (!currentChildModule.functions) {
+            currentChildModule.functions = []
+          }
+          currentChildModule.functions.push(currentFunction)
+        } else if (currentLevel === 2 && currentModule) {
+          if (!currentModule.functions) {
+            currentModule.functions = []
+          }
+          currentModule.functions.push(currentFunction)
         }
-        currentModule.functions.push(currentFunction)
         isReadingDescription = false
+        isReadingModuleDescription = false
       }
     } else if (line.startsWith('> ')) {
-      // 引用块作为功能点描述
-      if (currentFunction) {
-        const descriptionLine = line.substring(2).trim()
+      // 引用块作为描述
+      const descriptionLine = line.substring(2).trim()
+      
+      // 检查上一行是否是标题
+      if (lastProcessedLine.startsWith('## ') || lastProcessedLine.startsWith('### ')) {
+        // 如果是标题后的描述，添加到对应的模块
+        if (currentLevel === 2 && currentModule) {
+          if (currentModule.description) {
+            currentModule.description += '\n' + descriptionLine
+          } else {
+            currentModule.description = descriptionLine
+          }
+          isReadingModuleDescription = true
+        } else if (currentLevel === 3 && currentChildModule) {
+          if (currentChildModule.description) {
+            currentChildModule.description += '\n' + descriptionLine
+          } else {
+            currentChildModule.description = descriptionLine
+          }
+          isReadingModuleDescription = true
+        }
+      } else if (currentFunction) {
+        // 如果是功能点的描述
         if (currentFunction.description) {
-          // 如果已经有描述，添加换行
           currentFunction.description += '\n' + descriptionLine
         } else {
           currentFunction.description = descriptionLine
         }
         isReadingDescription = true
       }
-    } else if (isReadingDescription && line) {
+    } else if (line) {
       // 继续读取描述内容（支持多行）
-      if (currentFunction) {
+      if (isReadingDescription && currentFunction) {
         currentFunction.description += '\n' + line
+      } else if (isReadingModuleDescription) {
+        if (currentLevel === 3 && currentChildModule) {
+          currentChildModule.description += '\n' + line
+        } else if (currentLevel === 2 && currentModule) {
+          currentModule.description += '\n' + line
+        }
       }
     }
+
+    // 保存当前处理的行，用于下一轮判断
+    lastProcessedLine = line
   }
 
   return moduleTree
