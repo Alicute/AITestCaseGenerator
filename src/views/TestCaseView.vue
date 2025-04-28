@@ -142,6 +142,9 @@
                       <el-option label="功能测试" value="功能测试" />
                       <el-option label="性能测试" value="性能测试" />
                       <el-option label="安全测试" value="安全测试" />
+                      <el-option label="边界测试" value="边界测试" />
+                      <el-option label="异常测试" value="异常测试" />
+                      <el-option label="UI测试" value="UI测试" />
                       <el-option label="其他" value="其他" />
                     </el-select>
                   </el-form-item>
@@ -204,10 +207,11 @@
                   <td>{{ testCase.maintainer }}</td>
                   <td>
                     <el-tag v-if="testCase.type === '功能测试'" type="primary">功能测试</el-tag>
-                    <el-tag v-else-if="testCase.type === '性能测试'" type="warning"
-                      >性能测试</el-tag
-                    >
+                    <el-tag v-else-if="testCase.type === '性能测试'" type="warning">性能测试</el-tag>
                     <el-tag v-else-if="testCase.type === '安全测试'" type="danger">安全测试</el-tag>
+                    <el-tag v-else-if="testCase.type === '边界测试'" type="success">边界测试</el-tag>
+                    <el-tag v-else-if="testCase.type === '异常测试'" type="danger">异常测试</el-tag>
+                    <el-tag v-else-if="testCase.type === 'UI测试'" type="info">UI测试</el-tag>
                     <el-tag v-else type="info">其他</el-tag>
                   </td>
                   <td>
