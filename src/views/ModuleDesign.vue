@@ -139,34 +139,29 @@
         <div class="module-content">
           <el-card v-if="currentModule">
             <div class="content-header">
-              <h2>{{ currentModule.name }}</h2>
-              <div class="content-actions">
-                <el-button type="primary" @click="editModule">编辑模块</el-button>
+              <div class="module-info">
+                <h2 class="module-title">{{ currentModule.name }}</h2>
+                <div class="basic-info">
+                  <div class="info-item">
+                    <span class="item-label">创建日期：</span>
+                    <span class="item-value">{{ formatDate(currentModule.createdAt) }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="item-label">测试用例数量：</span>
+                    <span class="item-value">{{ currentModule.testCaseCount || 0 }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="item-label">描述：</span>
+                    <span class="item-value">{{ currentModule.description || '无描述' }}</span>
+                  </div>
+                  <div class="info-item">
+                    <el-button type="primary" @click="editModule">编辑模块</el-button>
+                  </div>
+                </div>
               </div>
             </div>
 
             <el-tabs v-model="activeTab" class="module-tabs">
-              <el-tab-pane label="基本信息" name="info">
-                <div class="info-section">
-                  <div class="info-item">
-                    <div class="item-label">模块名称:</div>
-                    <div class="item-value">{{ currentModule.name }}</div>
-                  </div>
-                  <div class="info-item">
-                    <div class="item-label">创建日期:</div>
-                    <div class="item-value">{{ formatDate(currentModule.createdAt) }}</div>
-                  </div>
-                  <div class="info-item">
-                    <div class="item-label">测试用例数量:</div>
-                    <div class="item-value">{{ currentModule.testCaseCount || 0 }}</div>
-                  </div>
-                  <div class="info-item">
-                    <div class="item-label">描述:</div>
-                    <div class="item-value">{{ currentModule.description || '无描述' }}</div>
-                  </div>
-                </div>
-              </el-tab-pane>
-
               <el-tab-pane label="功能点" name="functions">
                 <div class="function-list">
                   <div v-if="moduleFunctions.length === 0" class="empty-functions">
@@ -190,28 +185,20 @@
                       <el-table-column prop="priority" label="优先级" width="120">
                         <template #default="scope">
                           <el-tag v-if="scope.row.priority === 'high'" type="danger">高</el-tag>
-                          <el-tag v-else-if="scope.row.priority === 'medium'" type="warning"
-                            >中</el-tag
-                          >
-                          <el-tag v-else-if="scope.row.priority === 'low'" type="success"
-                            >低</el-tag
-                          >
+                          <el-tag v-else-if="scope.row.priority === 'medium'" type="warning">中</el-tag>
+                          <el-tag v-else-if="scope.row.priority === 'low'" type="success">低</el-tag>
                         </template>
                       </el-table-column>
                       <el-table-column label="操作" width="180">
                         <template #default="scope">
                           <el-button size="small" @click="editFunction(scope.row)">编辑</el-button>
-                          <el-button size="small" type="danger" @click="deleteFunction(scope.row)"
-                            >删除</el-button
-                          >
+                          <el-button size="small" type="danger" @click="deleteFunction(scope.row)">删除</el-button>
                         </template>
                       </el-table-column>
                     </el-table>
 
                     <div class="function-actions">
-                      <el-button type="primary" @click="showAddFunctionDialog"
-                        >添加功能点</el-button
-                      >
+                      <el-button type="primary" @click="showAddFunctionDialog">添加功能点</el-button>
                     </div>
                   </template>
                 </div>
@@ -234,30 +221,22 @@
                     <el-table-column prop="priority" label="优先级" width="120">
                       <template #default="scope">
                         <el-tag v-if="scope.row.priority === 'high'" type="danger">高</el-tag>
-                        <el-tag v-else-if="scope.row.priority === 'medium'" type="warning"
-                          >中</el-tag
-                        >
+                        <el-tag v-else-if="scope.row.priority === 'medium'" type="warning">中</el-tag>
                         <el-tag v-else-if="scope.row.priority === 'low'" type="success">低</el-tag>
                       </template>
                     </el-table-column>
                     <el-table-column prop="status" label="状态" width="120">
                       <template #default="scope">
                         <el-tag v-if="scope.row.status === 'passed'" type="success">通过</el-tag>
-                        <el-tag v-else-if="scope.row.status === 'failed'" type="danger"
-                          >失败</el-tag
-                        >
+                        <el-tag v-else-if="scope.row.status === 'failed'" type="danger">失败</el-tag>
                         <el-tag v-else type="info">未执行</el-tag>
                       </template>
                     </el-table-column>
                     <el-table-column label="操作" width="220">
                       <template #default="scope">
                         <el-button size="small" @click="viewTestCase(scope.row)">查看</el-button>
-                        <el-button size="small" type="primary" @click="editTestCase(scope.row)"
-                          >编辑</el-button
-                        >
-                        <el-button size="small" type="danger" @click="deleteTestCase(scope.row)"
-                          >删除</el-button
-                        >
+                        <el-button size="small" type="primary" @click="editTestCase(scope.row)">编辑</el-button>
+                        <el-button size="small" type="danger" @click="deleteTestCase(scope.row)">删除</el-button>
                       </template>
                     </el-table-column>
                   </el-table>
@@ -410,7 +389,7 @@ const fileList = ref([])
 
 // 当前选中的模块
 const currentModule = ref(null)
-const activeTab = ref('info')
+const activeTab = ref('functions')
 
 // 模块数据树
 const moduleTree = ref([])
@@ -1762,42 +1741,54 @@ onMounted(async () => {
 }
 
 .content-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #ebeef5;
 }
 
-.content-header h2 {
-  margin: 0;
+.module-info {
+  width: 100%;
 }
 
-.module-tabs {
-  height: calc(100% - 60px);
+.module-title {
+  margin: 0 0 15px 0;
+  color: #303133;
+  text-align: left;
+  font-size: 20px;
 }
 
-.info-section {
-  padding: 10px 0;
+.basic-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .info-item {
   display: flex;
   align-items: flex-start;
-  margin-bottom: 15px;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .item-label {
-  display: inline-block;
-  width: auto;
-  white-space: nowrap;
-  margin-right: 5px;
-  font-weight: bold;
   color: #606266;
+  margin-right: 4px;
+  min-width: 100px;
+  text-align: left;
 }
 
 .item-value {
-  flex: 0 auto;
-  display: inline-block;
+  color: #303133;
+  flex: 1;
+  text-align: left;
+}
+
+.content-actions {
+  margin-left: 20px;
+}
+
+.module-tabs {
+  height: calc(100% - 180px);
 }
 
 .function-list,
