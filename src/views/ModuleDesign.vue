@@ -104,6 +104,7 @@
               highlight-current
               :default-expanded-keys="expandedKeys"
               :current-node-key="currentModule?.id"
+              class="module-tree"
             >
               <template #default="{ node, data }">
                 <div class="custom-tree-node">
@@ -1705,8 +1706,16 @@ onMounted(async () => {
   min-width: 250px;
 }
 
-.module-tree {
+.module-tree-card {
   height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.module-tree {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
 }
 
 .tree-header {
@@ -1736,15 +1745,15 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   font-size: 14px;
-  padding: 8px 0;
+  padding-right: 8px;
 }
 
 .node-actions {
-  visibility: hidden;
+  display: none;
 }
 
 .custom-tree-node:hover .node-actions {
-  visibility: visible;
+  display: inline-block;
 }
 
 .module-content {
@@ -1842,5 +1851,18 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.module-tree::-webkit-scrollbar {
+  width: 6px;
+}
+
+.module-tree::-webkit-scrollbar-thumb {
+  background-color: #909399;
+  border-radius: 3px;
+}
+
+.module-tree::-webkit-scrollbar-track {
+  background-color: #f5f7fa;
 }
 </style>
