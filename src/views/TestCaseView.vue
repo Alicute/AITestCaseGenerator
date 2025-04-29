@@ -102,19 +102,21 @@
               <el-row :gutter="20">
                 <el-col :span="8">
                   <el-form-item label="模块:">
-                    <el-select
-                      v-model="selectedModuleId"
+                    <el-cascader
+                      v-model="selectedModulePath"
+                      :options="moduleOptions"
+                      :props="{ 
+                        checkStrictly: false,
+                        emitPath: true,
+                        value: 'value',
+                        label: 'label',
+                        children: 'children'
+                      }"
                       placeholder="选择模块"
                       clearable
                       @change="handleModuleChange"
-                    >
-                      <el-option
-                        v-for="module in modules"
-                        :key="module.id"
-                        :label="module.name"
-                        :value="module.id"
-                      />
-                    </el-select>
+                      style="width: 100%"
+                    />
                   </el-form-item>
                 </el-col>
                 <el-col :span="8">
@@ -201,7 +203,7 @@
                   <td>
                     <el-checkbox v-model="testCase.selected" @change="handleItemSelectChange" />
                   </td>
-                  <td>{{ testCase.module }}</td>
+                  <td>{{ getModulePath(testCase.moduleId) }}</td>
                   <td></td>
                   <td>{{ testCase.title }}</td>
                   <td>{{ testCase.maintainer }}</td>
@@ -369,7 +371,11 @@ const goToCreateProject = () => {
   router.push('/projects')
 }
 
-// 获取模块列表
+// 在 script setup 部分添加新的响应式变量
+const moduleOptions = ref([])
+const selectedModulePath = ref([])
+
+// 修改获取模块列表方法
 const fetchModules = async (projectId) => {
   if (!projectId) return
 
@@ -378,8 +384,19 @@ const fetchModules = async (projectId) => {
     const response = await api.module.getModuleTree(projectId)
 
     if (response.success) {
-      // 将树形结构扁平化，以便在过滤器中显示
-      modules.value = flattenModules(response.data)
+      // 直接使用后端返回的树形结构
+      moduleOptions.value = response.data.map(module => ({
+        value: module.id,
+        label: module.name,
+        children: module.children?.map(child => ({
+          value: child.id,
+          label: child.name,
+          children: child.children?.map(grandChild => ({
+            value: grandChild.id,
+            label: grandChild.name
+          })) || []
+        })) || []
+      }))
     } else {
       ElMessage.error(response.message || '获取模块列表失败')
     }
@@ -389,23 +406,6 @@ const fetchModules = async (projectId) => {
   } finally {
     loading.value = false
   }
-}
-
-// 将树形模块结构扁平化
-const flattenModules = (moduleTree, result = []) => {
-  moduleTree.forEach((module) => {
-    result.push({
-      id: module.id,
-      name: module.name,
-      parentId: module.parentId
-    })
-
-    if (module.children && module.children.length > 0) {
-      flattenModules(module.children, result)
-    }
-  })
-
-  return result
 }
 
 // 获取测试用例列表
@@ -418,14 +418,12 @@ const fetchTestCases = async () => {
 
   loading.value = true
   try {
-    // 构建查询参数
     const params = {
       page: pagination.value.current,
       limit: pagination.value.pageSize,
       projectId: selectedProjectId.value
     }
 
-    // 只在有值时才添加过滤参数
     if (selectedModuleId.value) {
       params.moduleId = selectedModuleId.value
     }
@@ -439,7 +437,6 @@ const fetchTestCases = async () => {
       params.status = filters.value.status
     }
 
-    // 如果有搜索关键字，添加到查询参数
     if (searchQuery.value) {
       params.search = searchQuery.value
     }
@@ -447,7 +444,6 @@ const fetchTestCases = async () => {
     const response = await api.testCase.getTestCases(params)
 
     if (response.success) {
-      // 确保 response.data 是数组
       if (!Array.isArray(response.data)) {
         testCases.value = []
         pagination.value.total = 0
@@ -456,7 +452,7 @@ const fetchTestCases = async () => {
 
       testCases.value = response.data.map((testCase) => ({
         ...testCase,
-        moduleName: modules.value.find((m) => m.id === testCase.moduleId)?.name || '未知模块'
+        moduleId: testCase.moduleId // 确保保留 moduleId
       }))
       pagination.value.total = response.total || response.data.length
     } else {
@@ -555,7 +551,7 @@ const exportTestCases = () => {
 
     // 准备数据行
     const rows = testCases.value.map((testCase) => [
-      testCase.module,
+      getModulePath(testCase.moduleId), // 使用完整的模块路径
       "",
       testCase.title,
       testCase.maintainer,
@@ -581,7 +577,7 @@ const exportTestCases = () => {
 
     // 设置列宽
     const colWidths = [
-      { wch: 10 }, // 模块
+      { wch: 20 }, // 模块 - 增加宽度以适应完整路径
       { wch: 8 }, // 编号
       { wch: 30 }, // 标题
       { wch: 10 }, // 维护人
@@ -877,12 +873,18 @@ const saveSelectedTestCases = async () => {
   }
 }
 
-const handleModuleChange = async (moduleId) => {
-  selectedModuleId.value = moduleId;
-  testCases.value = []; // 清空测试用例
-  
-  if (moduleId) {
-    await fetchTestCases(); // 获取新模块的测试用例
+// 添加模块选择变更处理方法
+const handleModuleChange = (path) => {
+  if (path && path.length > 0) {
+    // 获取最后一个选中的模块ID
+    selectedModuleId.value = path[path.length - 1]
+    // 重置到第一页并重新加载测试用例
+    pagination.value.current = 1
+    fetchTestCases()
+  } else {
+    // 清空选择时重置模块ID
+    selectedModuleId.value = null
+    fetchTestCases()
   }
 }
 
@@ -918,6 +920,26 @@ const deleteSelectedTestCases = async () => {
     console.error('删除测试用例错误:', error)
     ElMessage.error(error.message || '删除测试用例时发生错误')
   }
+}
+
+// 在 script setup 部分添加获取模块路径的方法
+const getModulePath = (moduleId) => {
+  if (!moduleId) return ''
+  
+  const findModulePath = (modules, id, path = []) => {
+    for (const module of modules) {
+      if (module.value === id) {
+        return [...path, module.label].join('/')
+      }
+      if (module.children && module.children.length > 0) {
+        const result = findModulePath(module.children, id, [...path, module.label])
+        if (result) return result
+      }
+    }
+    return null
+  }
+  
+  return findModulePath(moduleOptions.value, moduleId) || ''
 }
 </script>
 
@@ -1063,8 +1085,8 @@ tr:hover {
 }
 
 /* 设置列宽 */
-th:nth-child(1) { width: 3%; } /* 复选框 */
-th:nth-child(2) { width: 5%; } /* 模块 */
+th:nth-child(1) { width: 1%; } /* 复选框 */
+th:nth-child(2) { width: 7%; } /* 模块 */
 th:nth-child(3) { width: 3%; } /* 编号 */
 th:nth-child(4) { width: 10%; } /* 标题 */
 th:nth-child(5) { width: 3%; } /* 维护人 */
@@ -1082,6 +1104,7 @@ th:nth-child(16) { width: 3%; } /* 备注 */
 
 /* 为长文本列添加特殊样式 */
 td:nth-child(4), /* 标题 */
+td:nth-child(2), /* 模块 */
 td:nth-child(12), /* 前置条件 */
 td:nth-child(13), /* 步骤描述 */
 td:nth-child(14), /* 预期结果 */
@@ -1093,7 +1116,6 @@ td:nth-child(16) { /* 备注 */
 
 /* 为短文本列添加样式 */
 td:nth-child(1), /* 复选框 */
-td:nth-child(2), /* 模块 */
 td:nth-child(3), /* 编号 */
 td:nth-child(5), /* 维护人 */
 td:nth-child(6), /* 用例类型 */
