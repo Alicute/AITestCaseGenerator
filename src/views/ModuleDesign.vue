@@ -163,10 +163,12 @@
 
             <el-tabs v-model="activeTab" class="module-tabs">
               <el-tab-pane label="功能点" name="functions">
+                <div class="function-actions">
+                      <el-button type="primary" @click="showAddFunctionDialog">添加功能点</el-button>
+                    </div>
                 <div class="function-list">
                   <div v-if="moduleFunctions.length === 0" class="empty-functions">
                     <el-empty description="暂无功能点数据" />
-                    <el-button type="primary" @click="showAddFunctionDialog">添加功能点</el-button>
                   </div>
 
                   <template v-else>
@@ -197,14 +199,15 @@
                       </el-table-column>
                     </el-table>
 
-                    <div class="function-actions">
-                      <el-button type="primary" @click="showAddFunctionDialog">添加功能点</el-button>
-                    </div>
                   </template>
                 </div>
               </el-tab-pane>
 
               <el-tab-pane label="测试用例" name="testcases">
+                <div class="testcase-actions">
+                    <el-button type="primary" @click="goToAIGenerate">AI生成测试用例</el-button>
+                    <el-button @click="goToTestCases">查看全部测试用例</el-button>
+                  </div>
                 <div class="testcase-list">
                   <el-empty
                     v-if="moduleTestCases.length === 0"
@@ -241,10 +244,7 @@
                     </el-table-column>
                   </el-table>
 
-                  <div class="testcase-actions">
-                    <el-button type="primary" @click="goToAIGenerate">AI生成测试用例</el-button>
-                    <el-button @click="goToTestCases">查看全部测试用例</el-button>
-                  </div>
+
                 </div>
               </el-tab-pane>
             </el-tabs>
