@@ -46,7 +46,7 @@ const TestCase = sequelize.define('TestCase', {
     defaultValue: '未执行'
   },
   type: {
-    type: DataTypes.ENUM('功能测试', '性能测试', '安全测试', '边界测试', '异常测试', 'UI测试', '其他'),
+    type: DataTypes.ENUM('功能测试', '性能测试', '配置相关', '安装部署', '接口测试', '安全相关', '兼容性测试', 'UI测试', '其他'),
     defaultValue: '功能测试'
   },
   maintainer: {

@@ -81,7 +81,11 @@
               </el-col>
               <el-col :span="12">
                 <el-form-item label="用例类型" prop="caseType">
-                  <el-select v-model="testCaseData.caseType" placeholder="请选择用例类型" style="width: 100%">
+                  <el-select
+                    v-model="testCaseData.caseType"
+                    placeholder="选择类型"
+                    clearable
+                  >
                     <el-option label="功能测试" value="功能测试" />
                     <el-option label="性能测试" value="性能测试" />
                     <el-option label="配置相关" value="配置相关" />

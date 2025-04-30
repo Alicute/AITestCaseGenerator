@@ -143,9 +143,11 @@
                     >
                       <el-option label="功能测试" value="功能测试" />
                       <el-option label="性能测试" value="性能测试" />
-                      <el-option label="安全测试" value="安全测试" />
-                      <el-option label="边界测试" value="边界测试" />
-                      <el-option label="异常测试" value="异常测试" />
+                      <el-option label="配置相关" value="配置相关" />
+                      <el-option label="安装部署" value="安装部署" />
+                      <el-option label="接口测试" value="接口测试" />
+                      <el-option label="安全相关" value="安全相关" />
+                      <el-option label="兼容性测试" value="兼容性测试" />
                       <el-option label="UI测试" value="UI测试" />
                       <el-option label="其他" value="其他" />
                     </el-select>

@@ -103,7 +103,7 @@ async function initDatabase() {
                 expectedResult TEXT NOT NULL,
                 priority ENUM('P0', 'P1', 'P2', 'P3', 'P4') NOT NULL DEFAULT 'P1',
                 status ENUM('未执行', '执行中', '通过', '失败') NOT NULL DEFAULT '未执行',
-                type ENUM('功能测试', '性能测试', '安全测试', '边界测试', '异常测试', 'UI测试', '其他') NOT NULL DEFAULT '功能测试',
+                type ENUM('功能测试', '性能测试', '配置相关', '安装部署', '接口测试', '安全相关', '兼容性测试', 'UI测试', '其他') NOT NULL DEFAULT '功能测试',
                 maintainer VARCHAR(100),
                 testType VARCHAR(50),
                 estimatedHours DECIMAL(10,2),

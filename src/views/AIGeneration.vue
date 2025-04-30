@@ -98,11 +98,12 @@
               :max="10" 
               @change="updatePromptContent"
               size="small"
+              class="highlight-number"
             />
           </div>
         </div>
         
-        <div class="template-selector">
+        <!-- <div class="template-selector">
           <el-radio-group v-model="selectedTemplate" class="template-radio-group">
             <el-radio-button :value="'standard'">标准测试</el-radio-button>
             <el-radio-button :value="'functional'">功能测试</el-radio-button>
@@ -110,7 +111,7 @@
             <el-radio-button :value="'exception'">异常测试</el-radio-button>
             <el-radio-button :value="'custom'">自定义...</el-radio-button>
           </el-radio-group>
-        </div>
+        </div> -->
         
         <div class="prompt-editor">
           <el-form-item label="编辑提示词:">
@@ -583,10 +584,6 @@ const updatePromptContent = () => {
     .filter(desc => desc)
     .join('\n')
   
-  const testType = selectedTemplate.value === 'standard' ? '功能测试' : 
-                  selectedTemplate.value === 'functional' ? '功能测试' : 
-                  selectedTemplate.value === 'boundary' ? '边界测试' : '异常测试'
-  
   promptContent.value = `系统背景介绍：
 X射线数字成像系统是一款集图像采集、图像处理、图像管理为一体的应用系统。主要用于工业无损探伤检测的数字化应用，实现对数字影像的采集、处理、存储、查询、评定，方便后期分析调阅，协助进行更高效、便捷的工业检测。
 
@@ -599,11 +596,11 @@ ${functionDescriptions}
 
 1. 测试用例标题格式：功能点/场景-具体操作/条件-预期结果/验证点
 2. 每个测试用例必须包含：
-   - 前置条件：使用数字编号列出所有必要的前置条件
-   - 测试步骤：使用数字编号详细描述每个步骤，每个步骤用换行符分隔
-   - 预期结果：与测试步骤一一对应，描述每个步骤的预期结果
-   - 优先级：根据测试用例的重要程度，选择P1、P2、P3、P4
-   - 类型：根据测试用例的类型，选择功能测试、性能测试、安全测试、边界测试、异常测试、UI测试
+   - 前置条件(preconditions)：使用数字编号列出所有必要的前置条件
+   - 测试步骤(steps)：使用数字编号详细描述每个步骤，每个步骤用换行符分隔
+   - 预期结果(expectedResults)：与测试步骤一一对应，不要多也不要少，描述每个步骤的预期结果
+   - 优先级(priority)：根据测试用例的重要程度，选择P1、P2、P3、P4
+   - 类型(type)：根据测试用例的类型，选择：功能测试、性能测试、配置相关、安装部署、接口测试、安全相关、兼容性测试、UI测试、其他
 请以如下JSON格式输出测试用例，确保包含所有必要字段：
 
 {
@@ -613,9 +610,9 @@ ${functionDescriptions}
       "id": "",
       "title": "功能点/场景-具体操作/条件-预期结果/验证点",
       "maintainer": "程亮",
-      "type": "${testType}",
+      "type": "",
       "priority": "P1",
-      "testType": "",
+      "testType": "手动",
       "estimatedHours": "",
       "remainingHours": "",
       "relatedItems": "",
@@ -683,69 +680,6 @@ const generateTestCases = async () => {
   } catch (error) {
     console.error('生成测试用例错误:', error)
     ElMessage.error('生成测试用例时发生错误')
-    
-    // 临时使用模拟数据进行测试
-    generationResult.value = `测试用例 1: 验证模块基本功能
-前置条件:
-- 系统已正常运行
-- 用户已登录系统
-- 用户具有足够权限
-
-步骤:
-1. 导航到${selectedModuleName.value}模块
-2. 验证界面元素是否正确显示
-3. 执行基本操作
-4. 检查操作结果
-
-预期结果:
-- 界面元素正确显示
-- 操作成功执行
-- 系统反馈正确的结果
-- 数据正确保存
-
------------------------------
-
-测试用例 2: 输入验证测试
-前置条件:
-- 系统已正常运行
-- 用户已登录系统
-
-步骤:
-1. 导航到${selectedModuleName.value}模块
-2. 在输入框中输入无效数据
-3. 尝试提交表单
-4. 检查系统反馈
-
-预期结果:
-- 系统应显示适当的错误消息
-- 表单不应被提交
-- 无效数据不应被保存
-
------------------------------
-
-测试用例 3: 权限控制测试
-前置条件:
-- 系统已正常运行
-- 用户已登录系统
-- 用户没有操作权限
-
-步骤:
-1. 导航到${selectedModuleName.value}模块
-2. 尝试执行受限操作
-3. 观察系统反应
-
-预期结果:
-- 系统应阻止操作执行
-- 显示适当的权限不足提示
-- 记录访问尝试`
-    
-    // 解析测试用例
-    parsedTestCases.value = parseTestCases(generationResult.value)
-    
-    // 默认选中所有测试用例
-    parsedTestCases.value.forEach(tc => {
-      tc.selected = true
-    })
   } finally {
     generating.value = false
   }
@@ -1212,7 +1146,8 @@ const selectedModuleDisplay = computed(() => {
 
 .count-label {
   color: #606266;
-  font-size: 14px;
+  font-size: 16px;
+  font-weight: bold;
 }
 
 .prompt-actions .el-button {
@@ -1233,5 +1168,13 @@ const selectedModuleDisplay = computed(() => {
   margin-top: 3px;
   line-height: 1.4;
   max-width: 500px;
+}
+
+.highlight-number :deep(.el-input-number__decrease),
+.highlight-number :deep(.el-input-number__increase),
+.highlight-number :deep(.el-input__inner) {
+  color: #f56c6c;
+  font-weight: bold;
+  font-size: 16px;
 }
 </style>
