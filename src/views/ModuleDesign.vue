@@ -7,7 +7,8 @@
           <el-breadcrumb-item>
             <el-dropdown @command="handleProjectChange" trigger="click">
               <span class="el-dropdown-link">
-                {{ getCurrentProjectName() }} <el-icon class="el-icon--right"><arrow-down /></el-icon>
+                {{ getCurrentProjectName() }}
+                <el-icon class="el-icon--right"><arrow-down /></el-icon>
               </span>
               <template #dropdown>
                 <el-dropdown-menu>
@@ -31,211 +32,95 @@
 
       <div v-else class="module-container">
         <!-- 左侧模块树 -->
-        <div class="module-tree-container">
-          <el-card class="module-tree">
-            <div v-if="!projectId" class="no-project-warning">
-              <el-alert
-                title="未选择项目"
-                type="warning"
-                :closable="false"
-                description=""
-                show-icon
-              />
-              <div class="project-selector">
-                <el-select
-                  v-model="selectedProjectId"
-                  placeholder="选择项目"
-                  style="width: 100%; margin-top: 10px"
-                  @change="handleProjectChange"
-                >
-                  <el-option
-                    v-for="project in projectsList"
-                    :key="project.id"
-                    :label="project.name"
-                    :value="project.id"
-                  >
-                    <span>{{ project.name }}</span>
-                  </el-option>
-                </el-select>
-                <el-button
-                  type="primary"
-                  size="small"
-                  style="margin-top: 10px; width: 100%"
-                  @click="goToCreateProject"
-                >
-                  创建新项目
-                </el-button>
+        <div class="module-tree">
+          <div class="tree-actions">
+            <el-button type="primary" @click="showAddRootModuleDialog">添加根模块</el-button>
+            <el-button @click="toggleExpandAll">{{ isAllExpanded ? '折叠' : '展开' }}</el-button>
+            <el-button @click="importDialogVisible = true">导入模块</el-button>
+          </div>
+          
+          <el-tree
+            ref="moduleTreeRef"
+            :data="moduleTree"
+            :props="defaultProps"
+            @node-click="handleNodeClick"
+            node-key="id"
+            :expand-on-click-node="false"
+            highlight-current
+            :default-expanded-keys="expandedKeys"
+          >
+            <template #default="{ node, data }">
+              <div class="custom-tree-node">
+                <span>{{ node.label }}</span>
+                <span class="node-actions">
+                  <el-button size="small" @click.stop="appendNode(data)">添加</el-button>
+                  <el-button size="small" type="danger" @click.stop="removeNode(node, data)">删除</el-button>
+                </span>
               </div>
-            </div>
-            <div class="tree-header">
-              <div class="primary-action">
-                <el-button size="small" type="primary" @click="showAddRootModuleDialog">
-                  <el-icon><plus /></el-icon>
-                  添加根模块
-                </el-button>
-              </div>
-              <div class="secondary-actions">
-                <el-button size="small" @click="toggleExpandAll">
-                  <el-icon>
-                    <Folder v-if="!isAllExpanded" />
-                    <FolderOpened v-else />
-                  </el-icon>
-                  {{ isAllExpanded ? '折叠' : '展开' }}
-                </el-button>
-                <el-button size="small" @click="showImportDialog">导入</el-button>
-                <el-button size="small" @click="exportModules">导出</el-button>
-              </div>
-            </div>
-
-            <div v-if="moduleTree.length === 0" class="empty-tree">
-              <el-empty description="暂无模块数据，请使用上方的添加根模块按钮创建新模块" />
-            </div>
-
-            <el-tree
-              ref="moduleTreeRef"
-              v-else
-              :data="moduleTree"
-              :props="defaultProps"
-              @node-click="handleNodeClick"
-              @node-expand="handleNodeExpand"
-              @node-collapse="handleNodeCollapse"
-              node-key="id"
-              :expand-on-click-node="false"
-              highlight-current
-              :default-expanded-keys="expandedKeys"
-              :current-node-key="currentModule?.id"
-              class="module-tree"
-            >
-              <template #default="{ node, data }">
-                <div class="custom-tree-node">
-                  <span>{{ node.label }}</span>
-                  <span class="node-actions">
-                    <el-button
-                      size="small"
-                      type="primary"
-                      plain
-                      circle
-                      @click.stop="appendNode(data)"
-                    >
-                      <el-icon><plus /></el-icon>
-                    </el-button>
-                    <el-button
-                      size="small"
-                      type="danger"
-                      plain
-                      circle
-                      @click.stop="removeNode(node, data)"
-                    >
-                      <el-icon><delete /></el-icon>
-                    </el-button>
-                  </span>
-                </div>
-              </template>
-            </el-tree>
-          </el-card>
+            </template>
+          </el-tree>
         </div>
 
         <!-- 右侧内容区 -->
         <div class="module-content">
-          <el-card v-if="currentModule">
-            <div class="content-header">
-              <div class="module-info">
-                <h2 class="module-title">{{ currentModule.name }}</h2>
-                <div class="basic-info">
-                  <div class="info-item">
-                    <span class="item-label">创建日期：</span>
-                    <span class="item-value">{{ formatDate(currentModule.createdAt) }}</span>
-                  </div>
-                  <div class="info-item">
-                    <span class="item-label">测试用例数量：</span>
-                    <span class="item-value">{{ currentModule.testCaseCount || 0 }}</span>
-                  </div>
-                  <div class="info-item">
-                    <span class="item-label">描述：</span>
-                    <span class="item-value">{{ currentModule.description || '无描述' }}</span>
-                  </div>
-                  <div class="info-item">
-                    <el-button type="primary" @click="editModule">编辑模块</el-button>
-                  </div>
-                </div>
-              </div>
+          <div v-if="currentModule">
+            <div class="module-header">
+              <h2>{{ currentModule.name }}</h2>
+              <p v-if="currentModule.description" class="module-description">{{ currentModule.description }}</p>
             </div>
-
-            <el-tabs v-model="activeTab" class="module-tabs">
-              <el-tab-pane label="功能点" name="functions">
-                <div class="function-actions">
-                      <el-button type="primary" @click="showAddFunctionDialog">添加功能点</el-button>
-                    </div>
-                <div class="function-list">
-                  <div v-if="moduleFunctions.length === 0" class="empty-functions">
-                    <el-empty description="暂无功能点数据" />
+            <div class="module-actions">
+              <el-button type="primary" @click="editModule">编辑模块</el-button>
+            </div>
+            
+            <div class="tabs-section">
+              <el-tabs v-model="activeTab">
+                <el-tab-pane label="功能点" name="functions">
+                  <div class="tab-actions">
+                    <el-button type="primary" @click="showAddFunctionDialog">添加功能点</el-button>
                   </div>
-
-                  <template v-else>
-                    <el-table
-                      :data="moduleFunctions"
-                      style="width: 100%"
-                      height="569px"
-                      :row-key="(row) => row.id"
-                      :default-sort="{ prop: 'priority', order: 'ascending' }"
-                      :resize-observer="false"
-                      table-layout="fixed"
-                      :scrollbar-always-on="true"
-                    >
-                      <el-table-column prop="name" label="功能点名称" />
-                      <el-table-column prop="description" label="描述" />
-                      <el-table-column prop="priority" label="优先级" width="120">
-                        <template #default="scope">
-                          <el-tag v-if="scope.row.priority === 'high'" type="danger">高</el-tag>
-                          <el-tag v-else-if="scope.row.priority === 'medium'" type="warning">中</el-tag>
-                          <el-tag v-else-if="scope.row.priority === 'low'" type="success">低</el-tag>
-                        </template>
-                      </el-table-column>
-                      <el-table-column label="操作" width="180">
-                        <template #default="scope">
-                          <el-button size="small" @click="editFunction(scope.row)">编辑</el-button>
-                          <el-button size="small" type="danger" @click="deleteFunction(scope.row)">删除</el-button>
-                        </template>
-                      </el-table-column>
-                    </el-table>
-
-                  </template>
-                </div>
-              </el-tab-pane>
-
-              <el-tab-pane label="测试用例" name="testcases">
-                <div class="testcase-actions">
-                    <el-button type="primary" @click="goToAIGenerate">AI生成测试用例</el-button>
-                    <el-button @click="goToTestCases">查看全部测试用例</el-button>
-                  </div>
-                <div class="testcase-list">
-                  <el-empty
-                    v-if="moduleTestCases.length === 0"
-                    description="暂无测试用例，请先添加或生成测试用例"
-                  ></el-empty>
-                  <el-table
-                    v-else
-                    :data="moduleTestCases"
-                    style="width: 100%;height: 569px; overflow: auto;"
-                    table-layout="fixed"
-                    :resize-observer="false"
-                  >
-                    <el-table-column prop="title" label="测试用例名称" />
-                    <el-table-column prop="priority" label="优先级" width="120">
+                  
+                  <el-table :data="moduleFunctions" border height="400">
+                    <el-table-column prop="name" label="功能点名称" />
+                    <el-table-column prop="description" label="描述" />
+                    <el-table-column prop="priority" label="优先级" width="100">
                       <template #default="scope">
                         <el-tag v-if="scope.row.priority === 'high'" type="danger">高</el-tag>
                         <el-tag v-else-if="scope.row.priority === 'medium'" type="warning">中</el-tag>
                         <el-tag v-else-if="scope.row.priority === 'low'" type="success">低</el-tag>
                       </template>
                     </el-table-column>
-                    <el-table-column prop="status" label="状态" width="120">
+                    <el-table-column label="操作" width="200">
+                      <template #default="scope">
+                        <el-button size="small" @click="editFunction(scope.row)">编辑</el-button>
+                        <el-button size="small" type="danger" @click="deleteFunction(scope.row)">删除</el-button>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                </el-tab-pane>
+
+                <el-tab-pane label="测试用例" name="testcases">
+                  <div class="tab-actions">
+                    <el-button type="primary" @click="goToAIGenerate">AI生成测试用例</el-button>
+                    <el-button @click="goToTestCases">查看全部测试用例</el-button>
+                  </div>
+                  
+                  <el-table :data="moduleTestCases" border height="400">
+                    <el-table-column prop="title" label="测试用例名称" />
+                    <el-table-column prop="priority" label="优先级" width="100">
+                      <template #default="scope">
+                        <el-tag v-if="scope.row.priority === 'high'" type="danger">高</el-tag>
+                        <el-tag v-else-if="scope.row.priority === 'medium'" type="warning">中</el-tag>
+                        <el-tag v-else-if="scope.row.priority === 'low'" type="success">低</el-tag>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="status" label="状态" width="100">
                       <template #default="scope">
                         <el-tag v-if="scope.row.status === 'passed'" type="success">通过</el-tag>
                         <el-tag v-else-if="scope.row.status === 'failed'" type="danger">失败</el-tag>
                         <el-tag v-else type="info">未执行</el-tag>
                       </template>
                     </el-table-column>
-                    <el-table-column label="操作" width="220">
+                    <el-table-column label="操作" width="300">
                       <template #default="scope">
                         <el-button size="small" @click="viewTestCase(scope.row)">查看</el-button>
                         <el-button size="small" type="primary" @click="editTestCase(scope.row)">编辑</el-button>
@@ -243,13 +128,10 @@
                       </template>
                     </el-table-column>
                   </el-table>
-
-
-                </div>
-              </el-tab-pane>
-            </el-tabs>
-          </el-card>
-
+                </el-tab-pane>
+              </el-tabs>
+            </div>
+          </div>
           <el-empty v-else description="请选择一个模块查看详情"></el-empty>
         </div>
       </div>
@@ -369,9 +251,8 @@
 import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, Folder, FolderOpened, ArrowDown } from '@element-plus/icons-vue'
+import { ArrowDown } from '@element-plus/icons-vue'
 import MainLayout from '@/components/layout/MainLayout.vue'
-// 导入API而不是直接使用axios
 import api from '@/api'
 
 const router = useRouter()
@@ -393,6 +274,7 @@ const activeTab = ref('functions')
 
 // 模块数据树
 const moduleTree = ref([])
+const moduleTreeRef = ref(null)
 const defaultProps = {
   children: 'children',
   label: 'name'
@@ -500,11 +382,6 @@ watch(projectsList, (newProjects) => {
     }
   }
 }, { immediate: true })
-
-// 跳转到创建项目页面
-const goToCreateProject = () => {
-  router.push('/projects')
-}
 
 // 获取模块树数据
 const fetchModuleTree = async (forceRefresh = false) => {
@@ -747,25 +624,6 @@ const handleNodeClick = (data) => {
   }
 }
 
-// 节点展开事件处理
-const handleNodeExpand = (data) => {
-  if (!expandedKeys.value.includes(data.id)) {
-    expandedKeys.value.push(data.id)
-  }
-  // 不要在这里修改isAllExpanded
-}
-
-// 节点折叠事件处理
-const handleNodeCollapse = (data) => {
-  const index = expandedKeys.value.indexOf(data.id)
-  if (index !== -1) {
-    expandedKeys.value.splice(index, 1)
-  }
-  // 不要在这里修改isAllExpanded
-}
-// 添加一个ref
-// 添加树组件的ref
-const moduleTreeRef = ref(null)
 // 展开/折叠所有节点
 const toggleExpandAll = () => {
   console.log('当前状态:', isAllExpanded.value)
@@ -1283,11 +1141,6 @@ const deleteTestCase = (testCase) => {
 }
 
 // 导入/导出相关
-const showImportDialog = () => {
-  importDialogVisible.value = true
-  fileList.value = []
-}
-
 const handleFileChange = (file) => {
   fileList.value = [file]
 }
@@ -1577,18 +1430,6 @@ const importModules = async () => {
   }
 }
 
-// 移除假数据，使用实际API调用
-const exportModules = async () => {
-  try {
-    // 实际实现导出逻辑
-    // 此处需要实现实际的导出API并整合
-    ElMessage.warning('导出功能需要实现相应的API')
-  } catch (error) {
-    console.error('导出模块错误:', error)
-    ElMessage.error('导出模块时发生错误')
-  }
-}
-
 // 导航
 const goToAIGenerate = () => {
   const moduleId = currentModule.value?.id
@@ -1599,13 +1440,6 @@ const goToAIGenerate = () => {
 const goToTestCases = () => {
   const moduleId = currentModule.value?.id
   router.push(`/testcases?moduleId=${moduleId}`)
-}
-
-// 格式化日期
-const formatDate = (dateString) => {
-  if (!dateString) return '-'
-  const date = new Date(dateString)
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
 // 组件挂载时加载数据
@@ -1648,83 +1482,63 @@ onMounted(async () => {
 
 <style scoped>
 .module-design {
-  width: 100%;
-  height: 100%;
-}
-
-.breadcrumb {
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.project-name {
-  font-weight: bold;
-}
-
-.project-dropdown {
-  margin-left: 10px;
-}
-
-.el-dropdown-link {
-  cursor: pointer;
-  color: #409EFF;
-  display: flex;
-  align-items: center;
+  padding: 20px;
 }
 
 .module-container {
   display: flex;
   gap: 20px;
-  height: calc(100vh - 180px);
-}
-
-.module-tree-container {
-  width: 300px;
-  min-width: 250px;
-}
-
-.module-tree-card {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+  margin-top: 20px;
 }
 
 .module-tree {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px;
+  width: 300px;
 }
 
-.tree-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.module-content {
+  flex: 1;
+}
+
+.module-header {
+  text-align: left;
+  margin-bottom: 20px;
+}
+
+.module-header h2 {
+  margin-bottom: 10px;
+}
+
+.module-description {
+  color: #666;
   margin-bottom: 15px;
 }
 
-.primary-action {
-  margin-right: auto;
+.module-actions {
+  text-align: left;
+  margin-bottom: 20px;
 }
 
-.secondary-actions {
-  display: flex;
-  gap: 0;
-  flex-wrap: nowrap;
+.tabs-section {
+  margin-top: 20px;
 }
 
-.secondary-actions .el-button + .el-button {
-  margin-left: -1px; /* 负边距使按钮重叠边框 */
+.tab-actions {
+  text-align: left;
+  margin-bottom: 15px;
+}
+
+.el-table {
+  margin-top: 10px;
+}
+
+.tree-actions {
+  margin-bottom: 10px;
 }
 
 .custom-tree-node {
-  flex: 1;
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  font-size: 14px;
-  padding-right: 8px;
+  width: 100%;
 }
 
 .node-actions {
@@ -1733,127 +1547,5 @@ onMounted(async () => {
 
 .custom-tree-node:hover .node-actions {
   display: inline-block;
-}
-
-.module-content {
-  flex: 1;
-  overflow: hidden;
-}
-
-.content-header {
-  margin-bottom: 20px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid #ebeef5;
-}
-
-.module-info {
-  width: 100%;
-}
-
-.module-title {
-  margin: 0 0 15px 0;
-  color: #303133;
-  text-align: left;
-  font-size: 20px;
-}
-
-.basic-info {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.info-item {
-  display: flex;
-  align-items: flex-start;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.item-label {
-  color: #606266;
-  margin-right: 4px;
-  min-width: 100px;
-  text-align: left;
-}
-
-.item-value {
-  color: #303133;
-  flex: 1;
-  text-align: left;
-}
-
-.content-actions {
-  margin-left: 20px;
-}
-
-.module-tabs {
-  height: calc(100% - 180px);
-}
-
-.function-list,
-.testcase-list {
-  margin-top: 10px;
-}
-
-.function-actions,
-.testcase-actions {
-  margin-top: 20px;
-  display: flex;
-  gap: 10px;
-}
-
-.loading-container {
-  width: 100%;
-  padding: 20px;
-}
-
-.empty-tree,
-.empty-functions {
-  text-align: center;
-  padding: 20px 0;
-}
-
-.import-container {
-  padding: 20px 0;
-}
-
-/* 确保对话框内的表单项有合适的间距 */
-.el-form-item {
-  margin-bottom: 20px;
-}
-
-.no-project-warning {
-  margin-bottom: 20px;
-}
-
-.project-selector {
-  margin-top: 15px;
-  margin-bottom: 15px;
-}
-
-.form-tip {
-  font-size: 12px;
-  color: #909399;
-  margin-top: 5px;
-}
-
-.project-selector-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.module-tree::-webkit-scrollbar {
-  width: 6px;
-}
-
-.module-tree::-webkit-scrollbar-thumb {
-  background-color: #909399;
-  border-radius: 3px;
-}
-
-.module-tree::-webkit-scrollbar-track {
-  background-color: #f5f7fa;
 }
 </style>
