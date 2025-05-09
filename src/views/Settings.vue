@@ -35,6 +35,10 @@
               <el-icon><magic-stick /></el-icon>
               <span>高级</span>
             </el-menu-item>
+            <el-menu-item index="rules">
+              <el-icon><Document /></el-icon>
+              <span>规则</span>
+            </el-menu-item>
           </el-menu>
         </div>
         
@@ -306,6 +310,114 @@
               <el-button type="primary" @click="saveAdvancedSettings">保存设置</el-button>
             </div>
           </div>
+          <!-- 规则页面 -->
+          <div v-if="activeMenu === 'rules'" class="setting-section">
+            <div class="section-title" style="display:flex;align-items:center;gap:16px;">
+              <span>规则</span>
+              <el-button size="small" @click="copyRulesContent" type="primary">复制</el-button>
+            </div>
+            <div class="placeholder-content" style="width:100%;text-align:left;">
+              <pre ref="rulesPreRef" style="white-space:pre-wrap;word-break:break-all;max-width:100%;background:#f8f8f8;padding:16px;border-radius:6px;overflow:auto;">
+# 测试项目框架创建公约
+
+为了确保生成功能清单的结构一致性和可读性，请遵循以下约定：
+
+## 1. 项目名称
+- 所有功能清单的文档应以一级标题 `#` 开头，后面跟随项目名称。
+  
+  示例：
+  ```
+  # 项目名称
+  ```
+
+## 2. 一级模块
+- 每个一级模块应使用二级标题 `##` 表示，后面跟随模块名称。
+  
+  示例：
+  ```
+  ## 一级模块名称
+  ```
+
+## 3. 三级模块
+- 每个二级模块应使用三级标题 `###` 表示，后面跟随子模块名称。
+  
+  示例：
+  ```
+  ### 三级模块名称
+  ```
+
+## 4. 功能点
+- 在每个二级模块下，使用无序列表 `-` 列出该模块的功能点。每个功能点应简洁明了，描述该功能的核心内容。
+  
+  示例：
+  ```
+  - 功能点1
+  - 功能点2
+  ```
+## 5. 功能点描述
+- 在每个功能点下方使用> 列表标识功能点描述
+- 若是在每个标题下方使用> 列表标识模块描述
+## 6. 示例结构
+以下是一个完整的示例结构，供参考：
+
+```
+# 项目名称
+
+## 一级模块名称
+
+### 二级模块名称
+- 功能点1
+- 功能点2
+
+### 另一个二级模块名称
+- 功能点3
+- 功能点4
+```
+
+
+
+### 目标
+- 让每个功能点描述具体、可落地、可理解、可追溯，便于产品、开发、测试等多角色理解和追踪。
+
+### 核心原则
+- **具体**：描述要明确，避免"支持XXX"或"可以YYY"这种泛泛表述。
+- **可落地**：描述要能指导开发实现和测试验证。
+- **可理解**：描述要让非专业人员也能明白功能的业务含义和边界。
+- **可追溯**：描述要能与需求、设计、测试用例等环节一一对应。
+
+### 描述结构建议
+- 功能点名称：简明扼要
+- 功能点描述：  
+  - 主要目标/用途  
+  - 典型场景/边界/限制  
+  - 主要交互/反馈/数据要求  
+  - （如有）权限/异常/批量/多端等补充
+
+### 常用提示词/句式
+- "用户可以……，系统应……"
+- "当……时，系统应……"
+- "支持……，并且……"
+- "……操作需有……反馈"
+- "……时需校验……"
+- "……可通过……方式进行"
+- "……结果可……"
+- "……支持批量……"
+- "……需二次确认/权限校验/异常处理"
+- "……支持多种格式/多端/多角色/多场景"
+
+### 示例
+- 用户可以通过输入账号和密码登录系统，系统需校验账号有效性和密码正确性，登录失败时有明确提示。
+- 文件可通过右键菜单进行重命名，重命名时需校验同目录下文件名唯一，操作结果有反馈。
+- 图像处理面板可调节亮度、对比度、伽马值，调整结果实时预览，支持恢复默认。
+- 用户可多选文件进行批量导出，导出过程有整体结果反馈，导出路径和文件名可自定义。
+
+
+
+
+请大家在创建功能清单模块大纲时遵循以上公约，以确保文档的统一性和可维护性。谢谢大家的配合！
+              </pre>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -336,6 +448,7 @@ const userStore = useUserStore();
 const usersList = ref([]);
 const userDialogTitle = ref('添加用户');
 const searchQuery = ref('');
+const rulesPreRef = ref(null);
 
 // 用户表单数据
 const userForm = reactive({
@@ -635,6 +748,17 @@ const saveStorageSettings = () => {
 // 保存高级设置
 const saveAdvancedSettings = () => {
   ElMessage.success('高级设置已保存');
+};
+
+const copyRulesContent = () => {
+  if (rulesPreRef.value) {
+    const text = rulesPreRef.value.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      ElMessage.success('规则内容已复制到剪贴板');
+    }).catch(() => {
+      ElMessage.error('复制失败');
+    });
+  }
 };
 </script>
 

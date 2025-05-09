@@ -590,12 +590,12 @@ const updatePromptContent = () => {
 
     ${currentProjectDescription.value}
 
+模块描述：${currentModuleDescription.value}
+
 请为"${selectedModuleName.value}"模块生成测试用例，主要功能点包括：
 ${functionDescriptions}
 
-模块描述：${currentModuleDescription.value}
-
-请生成以下格式的测试用例，每个功能点至少生成${testCasesPerFunction.value}个测试用例，此此若功能点描述较多，则拆分描述点，按照描述点内容生成不少于${testCasesPerFunction.value}个测试用例：
+请生成以下格式的测试用例，每个功能点至少生成${testCasesPerFunction.value}个测试用例，若功能点描述较多，则拆分描述点，按照功能点/描述点内容进行细化，单个细化点生成不少于${testCasesPerFunction.value}个测试用例：
 
 1. 测试用例标题格式：功能点/场景-具体操作/条件-预期结果/验证点
 2. 每个测试用例必须包含：
