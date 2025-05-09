@@ -489,12 +489,14 @@ const fetchModuleTree = async (projectId) => {
     loading.value = false
   }
 }
+const currentProjectDescription = ref('') // 用于缓存当前选中项目的描述
 
 // 项目变更处理
 const handleProjectChange = (projectId) => {
   if (projectId) {
     const project = projects.value.find(p => p.id === projectId)
     if (project) {
+      currentProjectDescription.value = project.description || ''
       selectionStore.setSelectedProject(project)
       fetchModuleTree(projectId)
     }
@@ -585,14 +587,15 @@ const updatePromptContent = () => {
     .join('\n')
   
   promptContent.value = `系统背景介绍：
-X射线数字成像系统是一款集图像采集、图像处理、图像管理为一体的应用系统。主要用于工业无损探伤检测的数字化应用，实现对数字影像的采集、处理、存储、查询、评定，方便后期分析调阅，协助进行更高效、便捷的工业检测。
+
+    ${currentProjectDescription.value}
 
 请为"${selectedModuleName.value}"模块生成测试用例，主要功能点包括：
 ${functionDescriptions}
 
 模块描述：${currentModuleDescription.value}
 
-请生成以下格式的测试用例，每个功能点至少生成${testCasesPerFunction.value}个测试用例：
+请生成以下格式的测试用例，每个功能点至少生成${testCasesPerFunction.value}个测试用例，此此若功能点描述较多，则拆分描述点，按照描述点内容生成不少于${testCasesPerFunction.value}个测试用例：
 
 1. 测试用例标题格式：功能点/场景-具体操作/条件-预期结果/验证点
 2. 每个测试用例必须包含：
@@ -922,11 +925,6 @@ onMounted(async () => {
   
   // 如果有项目列表且当前没有选中项目，则自动选中第一个项目
   if (!selectedProjectId.value) {
-    console.log('AIGeneration - 自动选择第一个项目 - 项目列表:', projects.value)
-  console.log('AIGeneration - 自动选择第一个项目 - 第一个项目的索引和ID:', {
-    index: 0,
-    id: projects.value[0].id
-  })
     selectedProjectId.value = projects.value[0].id
     await handleProjectChange(projects.value[0].id)
   } else if (selectionStore.selectedProjectId) {
