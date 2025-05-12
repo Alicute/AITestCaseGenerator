@@ -198,6 +198,7 @@
                   <th>预期结果</th>
                   <th>关注人</th>
                   <th>备注</th>
+                  <th style="width: 90px;">操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -207,9 +208,26 @@
                   </td>
                   <td>{{ getModulePath(testCase.moduleId) }}</td>
                   <td></td>
-                  <td>{{ testCase.title }}</td>
-                  <td>{{ testCase.maintainer }}</td>
-                  <td>
+                  <td v-if="editingRowId === testCase.id">
+                    <el-input v-model="editCache.title" size="small" placeholder="请输入标题" />
+                  </td>
+                  <td v-else>{{ testCase.title }}</td>
+                  <td v-if="editingRowId === testCase.id">
+                    <el-input v-model="editCache.maintainer" size="small" placeholder="维护人" />
+                  </td>
+                  <td v-else>{{ testCase.maintainer }}</td>
+                  <td v-if="editingRowId === testCase.id">
+                    <el-select v-model="editCache.type" size="small">
+                      <el-option label="功能测试" value="功能测试" />
+                      <el-option label="性能测试" value="性能测试" />
+                      <el-option label="安全测试" value="安全测试" />
+                      <el-option label="边界测试" value="边界测试" />
+                      <el-option label="异常测试" value="异常测试" />
+                      <el-option label="UI测试" value="UI测试" />
+                      <el-option label="其他" value="其他" />
+                    </el-select>
+                  </td>
+                  <td v-else>
                     <el-tag v-if="testCase.type === '功能测试'" type="primary">功能测试</el-tag>
                     <el-tag v-else-if="testCase.type === '性能测试'" type="warning">性能测试</el-tag>
                     <el-tag v-else-if="testCase.type === '安全测试'" type="danger">安全测试</el-tag>
@@ -218,22 +236,68 @@
                     <el-tag v-else-if="testCase.type === 'UI测试'" type="info">UI测试</el-tag>
                     <el-tag v-else type="info">其他</el-tag>
                   </td>
-                  <td>
-                    <el-tag v-if="testCase.priority === 'P0'" type="danger">高</el-tag>
-                    <el-tag v-else-if="testCase.priority === 'P1'" type="danger">高</el-tag>
+                  <td v-if="editingRowId === testCase.id">
+                    <el-select v-model="editCache.priority" size="small">
+                      <el-option label="高" value="P0" />
+                      <el-option label="高" value="P1" />
+                      <el-option label="中" value="P2" />
+                      <el-option label="低" value="P3" />
+                    </el-select>
+                  </td>
+                  <td v-else>
+                    <el-tag v-if="testCase.priority === 'P0' || testCase.priority === 'P1'" type="danger">高</el-tag>
                     <el-tag v-else-if="testCase.priority === 'P2'" type="warning">中</el-tag>
                     <el-tag v-else-if="testCase.priority === 'P3'" type="success">低</el-tag>
                     <el-tag v-else type="info"></el-tag>
                   </td>
-                  <td>{{ testCase.testType }}</td>
-                  <td>{{ testCase.estimatedHours }}</td>
-                  <td>{{ testCase.remainingHours }}</td>
-                  <td>{{ testCase.relatedItems }}</td>
-                  <td>{{ testCase.preconditions }}</td>
-                  <td>{{ testCase.steps }}</td>
-                  <td>{{ testCase.expectedResults }}</td>
-                  <td>{{ testCase.followers }}</td>
-                  <td>{{ testCase.notes }}</td>
+                  <td v-if="editingRowId === testCase.id">
+                    <el-select v-model="editCache.testType" size="small">
+                      <el-option label="手动" value="手动" />
+                      <el-option label="自动" value="自动" />
+                    </el-select>
+                  </td>
+                  <td v-else>{{ testCase.testType }}</td>
+                  <td v-if="editingRowId === testCase.id">
+                    <el-input v-model="editCache.estimatedHours" size="small" placeholder="预估工时" />
+                  </td>
+                  <td v-else>{{ testCase.estimatedHours }}</td>
+                  <td v-if="editingRowId === testCase.id">
+                    <el-input v-model="editCache.remainingHours" size="small" placeholder="剩余工时" />
+                  </td>
+                  <td v-else>{{ testCase.remainingHours }}</td>
+                  <td v-if="editingRowId === testCase.id">
+                    <el-input v-model="editCache.relatedItems" size="small" placeholder="关联工作项" />
+                  </td>
+                  <td v-else>{{ testCase.relatedItems }}</td>
+                  <td v-if="editingRowId === testCase.id">
+                    <el-input v-model="editCache.preconditions" size="small" type="textarea" autosize placeholder="前置条件" />
+                  </td>
+                  <td v-else>{{ testCase.preconditions }}</td>
+                  <td v-if="editingRowId === testCase.id">
+                    <el-input v-model="editCache.steps" size="small" type="textarea" autosize placeholder="步骤描述" />
+                  </td>
+                  <td v-else>{{ testCase.steps }}</td>
+                  <td v-if="editingRowId === testCase.id">
+                    <el-input v-model="editCache.expectedResults" size="small" type="textarea" autosize placeholder="预期结果" />
+                  </td>
+                  <td v-else>{{ testCase.expectedResults }}</td>
+                  <td v-if="editingRowId === testCase.id">
+                    <el-input v-model="editCache.followers" size="small" placeholder="关注人" />
+                  </td>
+                  <td v-else>{{ testCase.followers }}</td>
+                  <td v-if="editingRowId === testCase.id">
+                    <el-input v-model="editCache.notes" size="small" placeholder="备注" />
+                  </td>
+                  <td v-else>{{ testCase.notes }}</td>
+                  <td>
+                    <template v-if="editingRowId === testCase.id">
+                      <el-button size="small" type="primary" @click="saveEdit(testCase)">保存</el-button>
+                      <el-button size="small" @click="cancelEdit">取消</el-button>
+                    </template>
+                    <template v-else>
+                      <el-button size="small" @click="startEdit(testCase)">编辑</el-button>
+                    </template>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -274,7 +338,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
@@ -943,6 +1007,48 @@ const getModulePath = (moduleId) => {
   
   return findModulePath(moduleOptions.value, moduleId) || ''
 }
+
+// 单行编辑相关
+const editingRowId = ref(null)
+const editCache = reactive({})
+
+const startEdit = (testCase) => {
+  editingRowId.value = testCase.id
+  Object.assign(editCache, JSON.parse(JSON.stringify(testCase)))
+}
+const cancelEdit = () => {
+  editingRowId.value = null
+  Object.keys(editCache).forEach(key => delete editCache[key])
+}
+const saveEdit = async (testCase) => {
+  try {
+    const updateData = {
+      title: editCache.title,
+      maintainer: editCache.maintainer,
+      type: editCache.type,
+      priority: editCache.priority,
+      testType: editCache.testType,
+      estimatedHours: editCache.estimatedHours,
+      remainingHours: editCache.remainingHours,
+      relatedItems: editCache.relatedItems,
+      precondition: editCache.preconditions,
+      steps: editCache.steps,
+      expectedResult: editCache.expectedResults,
+      followers: editCache.followers,
+      notes: editCache.notes
+    }
+    const response = await api.testCase.updateTestCase(testCase.id, updateData)
+    if (response.success) {
+      Object.assign(testCase, editCache)
+      ElMessage.success('保存成功')
+      cancelEdit()
+    } else {
+      ElMessage.error(response.message || '保存失败')
+    }
+  } catch (error) {
+    ElMessage.error('保存失败')
+  }
+}
 </script>
 
 <style scoped>
@@ -1049,6 +1155,7 @@ const getModulePath = (moduleId) => {
 .table-wrapper {
   flex: 1;
   overflow-y: auto;
+
   margin: 15px 0;
 }
 
@@ -1068,6 +1175,7 @@ td {
   height: auto;
   min-height: 40px;
   vertical-align: top;
+
 }
 
 th {
@@ -1092,13 +1200,13 @@ th:nth-child(2) { width: 7%; } /* 模块 */
 th:nth-child(3) { width: 3%; } /* 编号 */
 th:nth-child(4) { width: 10%; } /* 标题 */
 th:nth-child(5) { width: 3%; } /* 维护人 */
-th:nth-child(6) { width: 6%; } /* 用例类型 */
+th:nth-child(6) { width: 7%; } /* 用例类型 */
 th:nth-child(7) { width: 4%; } /* 重要程度 */
 th:nth-child(8) { width: 4%; } /* 测试类型 */
 th:nth-child(9) { width: 4%; } /* 预估工时 */
 th:nth-child(10) { width: 4%; } /* 剩余工时 */
 th:nth-child(11) { width: 4%; } /* 关联工作项 */
-th:nth-child(12) { width: 13%; } /* 前置条件 */
+th:nth-child(12) { width: 12%; } /* 前置条件 */
 th:nth-child(13) { width: 17%; } /* 步骤描述 */
 th:nth-child(14) { width: 17%; } /* 预期结果 */
 th:nth-child(15) { width: 3%; } /* 关注人 */
