@@ -130,7 +130,7 @@
       <el-card class="section-card">
         <template #header>
           <div class="card-header">
-            <span>AI设置</span>
+            <span>AI设置 | 直接使用kimi的深度思考功能生成即可，免费且够用！</span>
             <el-link type="primary" @click="showAdvancedSettings = !showAdvancedSettings">
               {{ showAdvancedSettings ? '隐藏高级选项' : '显示高级选项' }}
             </el-link>
@@ -181,7 +181,7 @@
           size="large" 
           @click="generateTestCases"
           :loading="generating"
-          :disabled="!currentModuleDescription"
+          :disabled="true"
         >
           生成测试用例
         </el-button>
