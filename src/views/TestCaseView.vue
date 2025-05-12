@@ -184,18 +184,18 @@
                     <el-checkbox v-model="allSelected" @change="handleSelectAll" />
                   </th>
                   <th>模块</th>
-                  <th>编号</th>
+                  <th style="width: 4%;">编号</th>
                   <th>标题</th>
                   <th>维护人</th>
                   <th>用例类型</th>
                   <th>重要程度</th>
                   <th>测试类型</th>
-                  <th>预估工时</th>
-                  <th>剩余工时</th>
-                  <th>关联工作项</th>
                   <th>前置条件</th>
                   <th>步骤描述</th>
                   <th>预期结果</th>
+                  <th>预估工时</th>
+                  <th>剩余工时</th>
+                  <th>关联工作项</th>
                   <th>关注人</th>
                   <th>备注</th>
                   <th style="width: 90px;">操作</th>
@@ -209,15 +209,15 @@
                   <td>{{ getModulePath(testCase.moduleId) }}</td>
                   <td></td>
                   <td v-if="editingRowId === testCase.id">
-                    <el-input v-model="editCache.title" size="small" placeholder="请输入标题" />
+                    <el-input v-model="editCache.title" size="small" type="textarea" autosize placeholder="请输入标题" />
                   </td>
                   <td v-else>{{ testCase.title }}</td>
                   <td v-if="editingRowId === testCase.id">
-                    <el-input v-model="editCache.maintainer" size="small" placeholder="维护人" />
+                    <el-input v-model="editCache.maintainer" size="small" type="textarea" placeholder="维护人" />
                   </td>
                   <td v-else>{{ testCase.maintainer }}</td>
                   <td v-if="editingRowId === testCase.id">
-                    <el-select v-model="editCache.type" size="small">
+                    <el-select v-model="editCache.type" size="small" style="min-width: 120px;">
                       <el-option label="功能测试" value="功能测试" />
                       <el-option label="性能测试" value="性能测试" />
                       <el-option label="安全测试" value="安全测试" />
@@ -237,7 +237,7 @@
                     <el-tag v-else type="info">其他</el-tag>
                   </td>
                   <td v-if="editingRowId === testCase.id">
-                    <el-select v-model="editCache.priority" size="small">
+                    <el-select v-model="editCache.priority" size="small" style="min-width: 120px;">
                       <el-option label="高" value="P0" />
                       <el-option label="高" value="P1" />
                       <el-option label="中" value="P2" />
@@ -251,24 +251,12 @@
                     <el-tag v-else type="info"></el-tag>
                   </td>
                   <td v-if="editingRowId === testCase.id">
-                    <el-select v-model="editCache.testType" size="small">
+                    <el-select v-model="editCache.testType" size="small" style="min-width: 120px;">
                       <el-option label="手动" value="手动" />
                       <el-option label="自动" value="自动" />
                     </el-select>
                   </td>
                   <td v-else>{{ testCase.testType }}</td>
-                  <td v-if="editingRowId === testCase.id">
-                    <el-input v-model="editCache.estimatedHours" size="small" placeholder="预估工时" />
-                  </td>
-                  <td v-else>{{ testCase.estimatedHours }}</td>
-                  <td v-if="editingRowId === testCase.id">
-                    <el-input v-model="editCache.remainingHours" size="small" placeholder="剩余工时" />
-                  </td>
-                  <td v-else>{{ testCase.remainingHours }}</td>
-                  <td v-if="editingRowId === testCase.id">
-                    <el-input v-model="editCache.relatedItems" size="small" placeholder="关联工作项" />
-                  </td>
-                  <td v-else>{{ testCase.relatedItems }}</td>
                   <td v-if="editingRowId === testCase.id">
                     <el-input v-model="editCache.preconditions" size="small" type="textarea" autosize placeholder="前置条件" />
                   </td>
@@ -282,6 +270,18 @@
                   </td>
                   <td v-else>{{ testCase.expectedResults }}</td>
                   <td v-if="editingRowId === testCase.id">
+                    <el-input v-model="editCache.estimatedHours" size="small" placeholder="预估工时" />
+                  </td>
+                  <td v-else>{{ testCase.estimatedHours }}</td>
+                  <td v-if="editingRowId === testCase.id">
+                    <el-input v-model="editCache.remainingHours" size="small" placeholder="剩余工时" />
+                  </td>
+                  <td v-else>{{ testCase.remainingHours }}</td>
+                  <td v-if="editingRowId === testCase.id">
+                    <el-input v-model="editCache.relatedItems" size="small" placeholder="关联工作项" />
+                  </td>
+                  <td v-else>{{ testCase.relatedItems }}</td>
+                  <td v-if="editingRowId === testCase.id">
                     <el-input v-model="editCache.followers" size="small" placeholder="关注人" />
                   </td>
                   <td v-else>{{ testCase.followers }}</td>
@@ -291,8 +291,10 @@
                   <td v-else>{{ testCase.notes }}</td>
                   <td>
                     <template v-if="editingRowId === testCase.id">
-                      <el-button size="small" type="primary" @click="saveEdit(testCase)">保存</el-button>
-                      <el-button size="small" @click="cancelEdit">取消</el-button>
+                      <div class="edit-actions">
+                        <el-button size="small" type="primary" @click="saveEdit(testCase)">保存</el-button>
+                        <el-button size="small" @click="cancelEdit">取消</el-button>
+                      </div>
                     </template>
                     <template v-else>
                       <el-button size="small" @click="startEdit(testCase)">编辑</el-button>
@@ -653,9 +655,9 @@ const exportTestCases = () => {
       { wch: 10 }, // 预估工时
       { wch: 10 }, // 剩余工时
       { wch: 15 }, // 关联工作项
-      { wch: 30 }, // 前置条件
-      { wch: 40 }, // 步骤描述
-      { wch: 40 }, // 预期结果
+      { wch: 15 }, // 前置条件
+      { wch: 15 }, // 步骤描述
+      { wch: 15 }, // 预期结果
       { wch: 10 }, // 关注人
       { wch: 20 } // 备注
     ]
@@ -1197,27 +1199,27 @@ tr:hover {
 /* 设置列宽 */
 th:nth-child(1) { width: 1%; } /* 复选框 */
 th:nth-child(2) { width: 7%; } /* 模块 */
-th:nth-child(3) { width: 3%; } /* 编号 */
+th:nth-child(3) { width: 4%; } /* 编号 */
 th:nth-child(4) { width: 10%; } /* 标题 */
 th:nth-child(5) { width: 3%; } /* 维护人 */
 th:nth-child(6) { width: 7%; } /* 用例类型 */
 th:nth-child(7) { width: 4%; } /* 重要程度 */
 th:nth-child(8) { width: 4%; } /* 测试类型 */
-th:nth-child(9) { width: 4%; } /* 预估工时 */
-th:nth-child(10) { width: 4%; } /* 剩余工时 */
-th:nth-child(11) { width: 4%; } /* 关联工作项 */
-th:nth-child(12) { width: 12%; } /* 前置条件 */
-th:nth-child(13) { width: 17%; } /* 步骤描述 */
-th:nth-child(14) { width: 17%; } /* 预期结果 */
+th:nth-child(9) { width: 15%; } /* 前置条件 */
+th:nth-child(10) { width: 15%; } /* 步骤描述 */
+th:nth-child(11) { width: 15%; } /* 预期结果 */
+th:nth-child(12) { width: 4%; } /* 预估工时 */
+th:nth-child(13) { width: 4%; } /* 剩余工时 */
+th:nth-child(14) { width: 4%; } /* 关联工作项 */
 th:nth-child(15) { width: 3%; } /* 关注人 */
 th:nth-child(16) { width: 3%; } /* 备注 */
 
 /* 为长文本列添加特殊样式 */
 td:nth-child(4), /* 标题 */
 td:nth-child(2), /* 模块 */
-td:nth-child(12), /* 前置条件 */
-td:nth-child(13), /* 步骤描述 */
-td:nth-child(14), /* 预期结果 */
+td:nth-child(9), /* 前置条件 */
+td:nth-child(10), /* 步骤描述 */
+td:nth-child(11), /* 预期结果 */
 td:nth-child(16) { /* 备注 */
   white-space: pre-wrap;
   word-break: break-word;
@@ -1231,9 +1233,9 @@ td:nth-child(5), /* 维护人 */
 td:nth-child(6), /* 用例类型 */
 td:nth-child(7), /* 重要程度 */
 td:nth-child(8), /* 测试类型 */
-td:nth-child(9), /* 预估工时 */
-td:nth-child(10), /* 剩余工时 */
-td:nth-child(11), /* 关联工作项 */
+td:nth-child(12), /* 预估工时 */
+td:nth-child(13), /* 剩余工时 */
+td:nth-child(14), /* 关联工作项 */
 td:nth-child(15) { /* 关注人 */
   white-space: nowrap;
   overflow: hidden;
@@ -1262,5 +1264,21 @@ tr.unsaved:hover {
 /* 修改表格行样式 */
 tr {
   transition: background-color 0.3s ease;
+}
+
+/* 为操作列按钮顶部对齐 */
+td:last-child {
+  vertical-align: top !important;
+  padding-top: 0 !important;
+}
+td:last-child .edit-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 2px;
+}
+td:last-child .el-button {
+  margin: 0 !important;
 }
 </style>
