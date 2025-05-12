@@ -474,7 +474,6 @@ const buildModuleTree = (modules) => {
   }
   
   // 如果没有嵌套结构，使用原来的逻辑进行转换
-  console.log('从扁平结构构建模块树')
   const moduleMap = {}
   const rootModules = []
 
