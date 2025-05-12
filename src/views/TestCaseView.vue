@@ -270,23 +270,23 @@
                   </td>
                   <td v-else>{{ testCase.expectedResults }}</td>
                   <td v-if="editingRowId === testCase.id">
-                    <el-input v-model="editCache.estimatedHours" size="small" placeholder="预估工时" />
+                    <el-input v-model="editCache.estimatedHours" size="small" type="textarea" autosize placeholder="预估工时" />
                   </td>
                   <td v-else>{{ testCase.estimatedHours }}</td>
                   <td v-if="editingRowId === testCase.id">
-                    <el-input v-model="editCache.remainingHours" size="small" placeholder="剩余工时" />
+                    <el-input v-model="editCache.remainingHours" size="small" type="textarea" autosize placeholder="剩余工时" />
                   </td>
                   <td v-else>{{ testCase.remainingHours }}</td>
                   <td v-if="editingRowId === testCase.id">
-                    <el-input v-model="editCache.relatedItems" size="small" placeholder="关联工作项" />
+                    <el-input v-model="editCache.relatedItems" size="small" type="textarea" autosize placeholder="关联工作项" />
                   </td>
                   <td v-else>{{ testCase.relatedItems }}</td>
                   <td v-if="editingRowId === testCase.id">
-                    <el-input v-model="editCache.followers" size="small" placeholder="关注人" />
+                    <el-input v-model="editCache.followers" size="small" type="textarea" autosize placeholder="关注人" />
                   </td>
                   <td v-else>{{ testCase.followers }}</td>
                   <td v-if="editingRowId === testCase.id">
-                    <el-input v-model="editCache.notes" size="small" placeholder="备注" />
+                    <el-input v-model="editCache.notes" size="small" type="textarea" autosize placeholder="备注" />
                   </td>
                   <td v-else>{{ testCase.notes }}</td>
                   <td>
