@@ -238,17 +238,18 @@
                   </td>
                   <td v-if="editingRowId === testCase.id">
                     <el-select v-model="editCache.priority" size="small" style="min-width: 120px;">
-                      <el-option label="高" value="P0" />
-                      <el-option label="高" value="P1" />
-                      <el-option label="中" value="P2" />
-                      <el-option label="低" value="P3" />
+                      <el-option label="P1" value="P1" />
+                      <el-option label="P2" value="P2" />
+                      <el-option label="P3" value="P3" />
+                      <el-option label="P4" value="P4" />
                     </el-select>
                   </td>
                   <td v-else>
-                    <el-tag v-if="testCase.priority === 'P0' || testCase.priority === 'P1'" type="danger">高</el-tag>
-                    <el-tag v-else-if="testCase.priority === 'P2'" type="warning">中</el-tag>
-                    <el-tag v-else-if="testCase.priority === 'P3'" type="success">低</el-tag>
-                    <el-tag v-else type="info"></el-tag>
+                    <el-tag v-if="testCase.priority === 'P1'" type="danger">{{ testCase.priority }}</el-tag>
+                    <el-tag v-else-if="testCase.priority === 'P2'" type="warning">{{ testCase.priority }}</el-tag>
+                    <el-tag v-else-if="testCase.priority === 'P3'" type="success">{{ testCase.priority }}</el-tag>
+                    <el-tag v-else-if="testCase.priority === 'P4'" type="info">{{ testCase.priority }}</el-tag>
+                    <el-tag v-else type="info">{{ testCase.priority }}</el-tag>
                   </td>
                   <td v-if="editingRowId === testCase.id">
                     <el-select v-model="editCache.testType" size="small" style="min-width: 120px;">
@@ -297,7 +298,10 @@
                       </div>
                     </template>
                     <template v-else>
-                      <el-button size="small" @click="startEdit(testCase)">编辑</el-button>
+                      <div class="edit-actions">
+                        <el-button size="small" @click="startEdit(testCase)">编辑</el-button>
+                        <el-button size="small" type="danger" @click="deleteSingleTestCase(testCase)">删除</el-button>
+                      </div>
                     </template>
                   </td>
                 </tr>
@@ -1049,6 +1053,28 @@ const saveEdit = async (testCase) => {
     }
   } catch (error) {
     ElMessage.error('保存失败')
+  }
+}
+
+// 在<script setup>中添加单行删除方法
+const deleteSingleTestCase = async (testCase) => {
+  try {
+    if (!testCase.id) {
+      // 未保存的直接从列表移除
+      testCases.value = testCases.value.filter(tc => tc !== testCase)
+      ElMessage.success('已移除未保存的测试用例')
+      return
+    }
+    // 已保存的需要后端删除
+    const response = await api.testCase.batchDeleteTestCases({ testCaseIds: [testCase.id] })
+    if (response.success) {
+      testCases.value = testCases.value.filter(tc => tc.id !== testCase.id)
+      ElMessage.success('删除成功')
+    } else {
+      ElMessage.error(response.message || '删除失败')
+    }
+  } catch (error) {
+    ElMessage.error('删除失败')
   }
 }
 </script>
