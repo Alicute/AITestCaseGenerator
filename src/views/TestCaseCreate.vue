@@ -104,7 +104,6 @@
               <el-col :span="12">
                 <el-form-item label="重要程度" prop="priority">
                   <el-select v-model="testCaseData.priority" placeholder="请选择重要程度" style="width: 100%">
-                    <el-option label="P0" value="P0" />
                     <el-option label="P1" value="P1" />
                     <el-option label="P2" value="P2" />
                     <el-option label="P3" value="P3" />

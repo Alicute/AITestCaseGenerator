@@ -85,6 +85,7 @@
               clearable
               @clear="handleSearchClear"
               @input="handleSearchInput"
+              @keyup.enter="searchTestCases"
               class="search-input"
             >
               <template #prefix>
@@ -219,12 +220,14 @@
                   <td v-if="editingRowId === testCase.id">
                     <el-select v-model="editCache.type" size="small" style="min-width: 120px;">
                       <el-option label="功能测试" value="功能测试" />
-                      <el-option label="性能测试" value="性能测试" />
-                      <el-option label="安全测试" value="安全测试" />
-                      <el-option label="边界测试" value="边界测试" />
-                      <el-option label="异常测试" value="异常测试" />
-                      <el-option label="UI测试" value="UI测试" />
-                      <el-option label="其他" value="其他" />
+                    <el-option label="性能测试" value="性能测试" />
+                    <el-option label="配置相关" value="配置相关" />
+                    <el-option label="安装部署" value="安装部署" />
+                    <el-option label="接口测试" value="接口测试" />
+                    <el-option label="安全相关" value="安全相关" />
+                    <el-option label="兼容性测试" value="兼容性测试" />
+                    <el-option label="UI测试" value="UI测试" />
+                    <el-option label="其他" value="其他" />
                     </el-select>
                   </td>
                   <td v-else>
@@ -299,7 +302,7 @@
                     </template>
                     <template v-else>
                       <div class="edit-actions">
-                        <el-button size="small" @click="startEdit(testCase)">编辑</el-button>
+                        <el-button size="small" type="primary" @click="startEdit(testCase)">编辑</el-button>
                         <el-button size="small" type="danger" @click="deleteSingleTestCase(testCase)">删除</el-button>
                       </div>
                     </template>
@@ -346,7 +349,7 @@
 <script setup>
 import { ref, computed, onMounted, watch, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import MainLayout from '@/components/layout/MainLayout.vue'
 import api from '@/api'
@@ -1065,6 +1068,16 @@ const deleteSingleTestCase = async (testCase) => {
       ElMessage.success('已移除未保存的测试用例')
       return
     }
+    // 已保存的需要弹窗确认
+    await ElMessageBox.confirm(
+      '确定要删除该测试用例吗？此操作不可撤销！',
+      '删除确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
     // 已保存的需要后端删除
     const response = await api.testCase.batchDeleteTestCases({ testCaseIds: [testCase.id] })
     if (response.success) {
@@ -1074,6 +1087,8 @@ const deleteSingleTestCase = async (testCase) => {
       ElMessage.error(response.message || '删除失败')
     }
   } catch (error) {
+    // 如果是取消，不提示错误
+    if (error === 'cancel') return
     ElMessage.error('删除失败')
   }
 }
@@ -1216,6 +1231,8 @@ th {
   white-space: normal;  /* 改为 normal */
   word-break: break-word;  /* 添加这行 */
   padding: 8px 4px;  /* 可以调整内边距 */
+  padding-left: 10px;
+  padding-right: 0;
 }
 
 tr:hover {
@@ -1301,7 +1318,7 @@ td:last-child .edit-actions {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 8px;
+  gap: 20px;
   margin-top: 2px;
 }
 td:last-child .el-button {
