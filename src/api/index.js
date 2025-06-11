@@ -2,7 +2,7 @@ import axios from 'axios'
 
 // 创建axios实例
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api/v1',
+  baseURL: 'http://localhost:9090/api/v1',
   timeout: 15000
 })
 

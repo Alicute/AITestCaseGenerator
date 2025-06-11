@@ -10,7 +10,7 @@ const { User } = require('./models');
 
 // 创建Express应用
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 9090;
 
 // 中间件
 app.use(express.json());
