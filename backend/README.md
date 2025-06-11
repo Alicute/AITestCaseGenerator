@@ -16,7 +16,7 @@
 3. **配置环境变量:**
    * 在 `backend` 目录下，复制 `.env.example` 文件（如果存在）或从头创建一个名为 `.env` 的文件。
    * 填写必要的配置值，特别是：
-     * `PORT`: 服务器运行端口 (默认: 5000)。
+     * `PORT`: 服务器运行端口 (默认: 9090。
      * `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_DIALECT`: 数据库连接详情 (已配置为 MySQL)。
      * `DB_SYNC`: 初始时可设为 `true` 以便 Sequelize 模型同步数据库结构，之后在生产环境或为求稳定可设为 `false`。**请谨慎使用。**
      * `JWT_SECRET`: 用于签发 JSON Web Tokens 的强密钥。**请务必修改默认值。**
