@@ -333,7 +333,7 @@
           type="textarea"
           v-model="jsonInput"
           placeholder="请粘贴 JSON 内容"
-          rows="10"
+          rows="20"
         />
         <template #footer>
           <span class="dialog-footer">
@@ -806,6 +806,31 @@ watch(selectedProjectId, (newValue) => {
 })
 
 
+/**
+ * 在一个树形结构的模块选项中，根据模块名称递归查找模块ID。
+ * @param {Array} moduleOptions - 模块选项的树形数组，每个选项应有 label, value, 和可选的 children 属性。
+ * @param {string} moduleName - 需要查找的模块名称。
+ * @returns {number|string|null} - 匹配到的模块ID；如果未找到则返回 null。
+ */
+ const findModuleIdByName = (moduleOptions, moduleName) => {
+  // 遍历当前层级的模块
+  for (const option of moduleOptions) {
+    // 如果名称匹配，返回当前模块的ID (value)
+    if (option.label === moduleName) {
+      return option.value;
+    }
+    // 如果有子模块，则递归进入子模块中查找
+    if (option.children && option.children.length > 0) {
+      const foundId = findModuleIdByName(option.children, moduleName);
+      // 如果在子模块中找到了，立即返回结果
+      if (foundId) {
+        return foundId;
+      }
+    }
+  }
+  // 如果遍历完所有模块及其子模块都未找到，返回 null
+  return null;
+};
 
 // 打开加载 JSON 对话框
 const openLoadJsonDialog = () => {
@@ -817,10 +842,15 @@ const loadJson = () => {
   try {
     const jsonData = JSON.parse(jsonInput.value)
     if (jsonData.testCases && Array.isArray(jsonData.testCases)) {
+
       // 处理导入的测试用例数据
-      const importedTestCases = jsonData.testCases.map(testCase => ({
+      const importedTestCases = jsonData.testCases.map(testCase => {
+        const moduleId = findModuleIdByName(moduleOptions.value, testCase.module); 
+
+        return{        
         id: testCase.id || '',
         module: testCase.module,
+        moduleId: moduleId, 
         title: testCase.title,
         maintainer: testCase.maintainer || '',
         type: testCase.type || '功能测试',
@@ -835,9 +865,10 @@ const loadJson = () => {
         followers: testCase.followers || '',
         notes: testCase.notes || '',
         selected: true, // 默认选中
-        isImported: true // 添加标记表示这是导入的测试用例
-      }))
+        isImported: true // 添加标记表示这是导入的测试用例}
 
+      };
+    });
       // 将导入的测试用例添加到现有列表的最前面
       testCases.value = [...importedTestCases, ...testCases.value]
       allSelected.value = true // 设置全选状态
@@ -885,18 +916,21 @@ const saveSelectedTestCases = async () => {
     if (newTestCases.length > 0) {
       // 将模块名称转换为模块ID
       const testCasesWithModuleId = newTestCases.map(testCase => {
-        // 尝试精确匹配
-        let module = modules.value.find(m => m.name === testCase.module)
-        
-        // 如果精确匹配失败，尝试模糊匹配（去掉空格和特殊字符）
-        if (!module) {
-          const normalizedModuleName = testCase.module.replace(/\s+/g, '').toLowerCase()
-          module = modules.value.find(m => 
+        let moduleId = null;
+        if (typeof testCase.module === 'string' && testCase.module.trim() !== '') {
+          moduleId = findModuleIdByName(moduleOptions.value, testCase.module);
+        }
+
+        // 取消模糊匹配，因为moduleid已经足够精确，不需要再进行模糊匹配
+        /*
+        if (!moduleId) {
+          const normalizedModuleName = testCase.moduleId.replace(/\s+/g, '').toLowerCase()
+          moduleId = modules.value.find(m => 
             m.name.replace(/\s+/g, '').toLowerCase() === normalizedModuleName
           )
         }
-
-        if (!module) {
+*/
+        if (!moduleId) {
           console.warn(`未找到模块: ${testCase.module}`, {
             testCase,
             availableModules: modules.value.map(m => m.name)
@@ -905,7 +939,7 @@ const saveSelectedTestCases = async () => {
 
         return {
           ...testCase,
-          moduleId: module ? module.id : null,
+          moduleId: moduleId,
           projectId: selectedProjectId.value,
           status: 'waiting',
           type: testCase.type || '功能测试',
@@ -916,19 +950,15 @@ const saveSelectedTestCases = async () => {
       // 检查是否有未找到对应模块的测试用例
       const invalidTestCases = testCasesWithModuleId.filter(tc => !tc.moduleId)
       if (invalidTestCases.length > 0) {
-        const invalidModuleNames = [...new Set(invalidTestCases.map(tc => tc.module))]
-        const availableModules = modules.value.map(m => m.name)
-        ElMessage.warning({
-          message: `以下模块未找到：${invalidModuleNames.join(', ')}`,
-          description: `可用模块：${availableModules.join(', ')}`
-        })
-        return
+        const invalidModuleNames = [...new Set(invalidTestCases.map(tc => tc.module).filter(name => name))];
+        ElMessage.error(`以下模块：${invalidModuleNames.join(', ')} 未找到，无法保存！`);
+        return;
       }
 
       const response = await api.testCase.batchCreateTestCases({
         projectId: selectedProjectId.value,
         testCases: testCasesWithModuleId
-      })
+      });
 
       if (!response.success) {
         throw new Error(response.message || '保存测试用例失败')
