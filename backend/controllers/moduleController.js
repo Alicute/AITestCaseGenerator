@@ -373,8 +373,7 @@ exports.getModuleTree = async (req, res) => {
     const modules = await Module.findAll({
       where: { projectId },
       order: [
-        ['level', 'ASC'],
-        ['name', 'ASC']
+        ['createdAt', 'ASC']
       ],
       attributes: ['id', 'name', 'description', 'level', 'path', 'parentId', 'projectId', 'createdAt', 'updatedAt', 'functionCount', 'testCaseCount']
     });
