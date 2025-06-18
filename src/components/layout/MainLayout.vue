@@ -47,10 +47,10 @@
             <el-icon><magic-stick /></el-icon>
             <span>AI生成</span>
           </el-menu-item>
-          <el-menu-item index="/import-export">
+          <!-- <el-menu-item index="/import-export">
             <el-icon><upload /></el-icon>
             <span>导入导出</span>
-          </el-menu-item>
+          </el-menu-item> -->
           <el-menu-item index="/settings">
             <el-icon><setting /></el-icon>
             <span>设置</span>

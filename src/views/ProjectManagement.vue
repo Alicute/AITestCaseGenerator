@@ -32,14 +32,14 @@
         </div>
       </el-card>
 
-      <h2 class="template-title">项目模板</h2>
+      <!-- <h2 class="template-title">项目模板</h2>
       <div class="template-container">
         <div class="template-card" v-for="template in projectTemplates" :key="template.id" @click="useProjectTemplate(template)">
           <div class="template-icon">{{ template.icon }}</div>
           <div class="template-name">{{ template.name }}</div>
           <div class="template-desc">{{ template.description }}</div>
         </div>
-      </div>
+      </div> -->
 
       <!-- 创建项目对话框 -->
       <el-dialog v-model="createProjectDialogVisible" title="创建新项目" width="500px">
@@ -65,14 +65,20 @@
       </el-dialog>
 
       <!-- 编辑项目对话框 -->
-      <el-dialog v-model="editProjectDialogVisible" title="编辑项目" width="500px">
+      <el-dialog v-model="editProjectDialogVisible" title="编辑项目" width="1000px">
         <el-form :model="editingProject" label-width="120px">
           <el-form-item label="项目名称">
             <el-input v-model="editingProject.name" placeholder="请输入项目名称" />
           </el-form-item>
           <el-form-item label="项目描述">
-            <el-input v-model="editingProject.description" type="textarea" placeholder="请输入项目描述" />
-          </el-form-item>
+  <el-input
+    v-model="editingProject.description"
+    type="textarea"
+    placeholder="请输入项目描述"
+    :rows="20" 
+  />
+</el-form-item>
+
         </el-form>
         <template #footer>
           <span class="dialog-footer">

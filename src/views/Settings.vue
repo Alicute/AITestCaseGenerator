@@ -1,7 +1,6 @@
 <template>
   <main-layout>
     <div class="settings-container">
-      <h1 class="settings-title">系统设置</h1>
       
       <div class="settings-layout">
         <!-- 侧边菜单 -->
@@ -763,9 +762,7 @@ const copyRulesContent = () => {
 </script>
 
 <style scoped>
-.settings-container {
-  padding: 20px;
-}
+
 
 .settings-title {
   font-size: 24px;
