@@ -130,7 +130,7 @@
       <el-card class="section-card">
         <template #header>
           <div class="card-header">
-            <span>AI设置 | 直接使用kimi的深度思考功能生成即可，免费且够用！</span>
+            <span style="color: red;">AI设置 | 直接使用kimi的深度思考功能生成即可，免费且够用！</span>
             <el-link type="primary" @click="showAdvancedSettings = !showAdvancedSettings">
               {{ showAdvancedSettings ? '隐藏高级选项' : '显示高级选项' }}
             </el-link>
@@ -818,19 +818,40 @@ const confirmSaveTestCases = async () => {
 }
 
 // 复制到剪贴板
-const copyToClipboard = () => {
+const copyToClipboard = async () => {
   if (!generationResult.value) {
     ElMessage.warning('没有可复制的内容')
     return
   }
   
-  navigator.clipboard.writeText(generationResult.value)
-    .then(() => {
-      ElMessage.success('已复制到剪贴板')
-    })
-    .catch(() => {
-      ElMessage.error('复制失败')
-    })
+  try {
+    // 优先使用 Clipboard API，因为它更现代、更安全
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(generationResult.value);
+      ElMessage.success('已复制到剪贴板');
+    } else {
+      // 如果 Clipboard API 不可用，则使用旧的 document.execCommand 方法作为备用
+      const textArea = document.createElement('textarea');
+      textArea.value = generationResult.value;
+      // 确保 textarea 在视窗外，并且是临时的
+      textArea.style.position = 'absolute';
+      textArea.style.left = '-9999px';
+      document.body.appendChild(textArea);
+      textArea.select();
+      
+      const success = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      
+      if (success) {
+        ElMessage.success('已复制到剪贴板 (备用模式)');
+      } else {
+        throw new Error('备用复制方法执行失败');
+      }
+    }
+  } catch (err) {
+    console.error('复制失败:', err);
+    ElMessage.error('复制失败，请检查浏览器权限或手动复制');
+  }
 }
 
 // 重置表单
@@ -886,21 +907,42 @@ const handleCurrentChange = (val) => {
   pagination.value.currentPage = val
 }
 
-// 添加复制提示词方法
-const copyPromptContent = () => {
+// 复制提示词
+const copyPromptContent = async () => {
   if (!promptContent.value) {
-    ElMessage.warning('没有可复制的内容')
-    return
+    ElMessage.warning('提示词内容为空，无法复制');
+    return;
   }
-  
-  navigator.clipboard.writeText(promptContent.value)
-    .then(() => {
-      ElMessage.success('提示词已复制到剪贴板')
-    })
-    .catch(() => {
-      ElMessage.error('复制失败')
-    })
-}
+
+  try {
+    // 优先使用 Clipboard API，因为它更现代、更安全
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(promptContent.value);
+      ElMessage.success('提示词已成功复制到剪贴板');
+    } else {
+      // 如果 Clipboard API 不可用，则使用旧的 document.execCommand 方法作为备用
+      const textArea = document.createElement('textarea');
+      textArea.value = promptContent.value;
+      // 确保 textarea 在视窗外，并且是临时的
+      textArea.style.position = 'absolute';
+      textArea.style.left = '-9999px';
+      document.body.appendChild(textArea);
+      textArea.select();
+      
+      const success = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      
+      if (success) {
+        ElMessage.success('提示词已成功复制到剪贴板 (备用模式)');
+      } else {
+        throw new Error('备用复制方法执行失败');
+      }
+    }
+  } catch (err) {
+    console.error('复制提示词失败:', err);
+    ElMessage.error('复制失败，请检查浏览器权限或手动复制');
+  }
+};
 
 // 监听项目列表变化
 watch(projects, (newProjects) => {
