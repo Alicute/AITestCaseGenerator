@@ -100,6 +100,8 @@
               size="small"
               class="highlight-number"
             />
+          <a href="https://www.kimi.com/" target="_blank" style="color: black; text-decoration: underline;">跳转到Kimi</a>
+
           </div>
         </div>
         
@@ -130,8 +132,7 @@
       <el-card class="section-card">
         <template #header>
           <div class="card-header">
-            <span style="color: red;">AI设置 | 直接使用kimi的深度思考功能生成即可，免费且够用！</span><a  target="_blank" href="https://www.kimi.com/" style="color: blue; text-decoration: underline;">Kimi</a>
-
+            <span style="color: red;">AI设置 | 直接使用kimi的深度思考功能生成即可，免费且够用！</span>
             <el-link type="primary" @click="showAdvancedSettings = !showAdvancedSettings">
               {{ showAdvancedSettings ? '隐藏高级选项' : '显示高级选项' }}
             </el-link>
