@@ -30,7 +30,7 @@
         <el-skeleton :rows="10" animated />
       </div>
 
-      <div v-else class="module-container">
+      <div v-else class="module-container-flex">
         <!-- 左侧模块树 -->
         <div class="module-tree">
           <div class="tree-actions">
@@ -38,7 +38,7 @@
             <el-button @click="toggleExpandAll">{{ isAllExpanded ? '折叠' : '展开' }}</el-button>
             <el-button @click="importDialogVisible = true">导入模块</el-button>
           </div>
-          
+          <div class="tree-scroll-area">
           <el-tree
             ref="moduleTreeRef"
             :data="moduleTree"
@@ -47,6 +47,7 @@
             node-key="id"
             :expand-on-click-node="false"
             highlight-current
+            :current-node-key="currentModule && currentModule.id"
             :default-expanded-keys="expandedKeys"
           >
             <template #default="{ node, data }">
@@ -60,9 +61,10 @@
             </template>
           </el-tree>
         </div>
+        </div>
 
         <!-- 右侧内容区 -->
-        <div class="module-content">
+        <div class="module-detail">
           <div v-if="currentModule">
             <div class="module-header">
               <h2>{{ currentModule.name }}</h2>
@@ -600,8 +602,25 @@ watch(
   },
   { deep: true }
 )
+
+
+
+// 保存滚动位置
+let lastScrollTop = 0;
+
+const saveScroll = () => {
+  const scrollArea = document.querySelector('.tree-scroll-area');
+  if (scrollArea) lastScrollTop = scrollArea.scrollTop;
+};
+
+const restoreScroll = () => {
+  const scrollArea = document.querySelector('.tree-scroll-area');
+  if (scrollArea) scrollArea.scrollTop = lastScrollTop;
+};
+
 // 节点点击事件
 const handleNodeClick = (data) => {
+  saveScroll(); // 先记录滚动条位置
   // 保存当前展开状态，防止被覆盖
   const wasAllExpanded = isAllExpanded.value
 
@@ -616,6 +635,14 @@ const handleNodeClick = (data) => {
   currentModule.value = data
   fetchModuleFunctions(data.id)
   fetchModuleTestCases(data.id)
+  nextTick(() => {
+    if (moduleTreeRef.value) {
+      moduleTreeRef.value.setCurrentKey(data.id);
+      setTimeout(() => {
+        restoreScroll(); // 恢复滚动条位置
+      }, 50);
+    }
+  });
 
   // 如果之前是全部展开状态，确保维持此状态
   if (wasAllExpanded && !isAllExpanded.value) {
@@ -1546,5 +1573,59 @@ onMounted(async () => {
 
 .custom-tree-node:hover .node-actions {
   display: inline-block;
+}
+
+.module-container-flex {
+  display: flex;
+  gap: 20px;
+  margin-top: 20px;
+  height: 100%;
+  min-height: 0;
+}
+.module-tree {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  border-right: 1px solid #eee;
+  background: #fff;
+}
+.tree-scroll-area {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+.module-detail {
+  flex: 1 1 0;
+  padding: 24px 24px 24px 32px;
+  overflow: auto;
+  min-width: 0;
+}
+
+.module-container-flex {
+  display: flex;
+  gap: 20px;
+  margin-top: 20px;
+  height: calc(100vh - 100px); /* 或100%，确保有高度 */
+  min-height: 0;
+}
+.module-tree {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  border-right: 1px solid #eee;
+  background: #fff;
+}
+.tree-actions {
+  flex-shrink: 0;
+}
+.tree-scroll-area {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  /* 关键：必须有高度，flex: 1 1 0 + min-height: 0 */
 }
 </style>
