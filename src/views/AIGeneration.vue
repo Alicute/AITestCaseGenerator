@@ -594,10 +594,12 @@ const updatePromptContent = () => {
 
 模块描述：${currentModuleDescription.value}
 
-请为"${selectedModuleName.value}"模块生成测试用例，主要功能点包括：
+请为"${selectedModuleName.value}"模块生成测试用例，主要功能点包括，括号内为功能点的细化描述：
 ${functionDescriptions}
 
-请生成以下格式的测试用例，每个功能点至少生成${testCasesPerFunction.value}个测试用例，若功能点描述较多，则拆分描述点，按照功能点/描述点内容进行细化，单个细化点生成不少于${testCasesPerFunction.value}个测试用例：
+请生成以下格式的测试用例，每个功能点至少生成${testCasesPerFunction.value}个测试用例，若功能点描述较多，则拆分描述点，
+按照功能点/描述点内容进行细化，单个细化点生成不少于${testCasesPerFunction.value}个测试用例，
+因此总的用例数至少为功能点数乘以细分点数：
 
 1. 测试用例标题格式：功能点/场景-具体操作/条件-预期结果/验证点
 2. 每个测试用例必须包含：
@@ -635,7 +637,9 @@ ${functionDescriptions}
 2. preconditions、steps、expectedResults字段必须使用数字编号
 3. 每个测试用例必须完整包含所有字段
 4. 确保生成的测试用例覆盖主要功能和关键场景
-5. 所有换行符必须使用 \\n 转义，不要使用实际的换行符`
+5. 所有换行符必须使用 \\n 转义，不要使用实际的换行符
+6. 前置条件、步骤描述和预期结果的描述要求内容简洁专业，不要出现重复的描述，不要出现冗余的描述，不要出现重复的步骤，不要出现重复的预期结果
+7. 针对异常使用功能导致出现的提示、警告或者针对功能本身，使用确定性语气词，不要有可能、或、如等不确定的词语`
 }
 
 // 监听模板变化

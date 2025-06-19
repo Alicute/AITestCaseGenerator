@@ -142,7 +142,7 @@
       <el-dialog
         v-model="addModuleDialogVisible"
         :title="editingModule ? '编辑模块' : '添加模块'"
-        width="500px"
+        width="800px"
       >
         <el-form :model="newModule" label-width="120px">
           <el-form-item label="模块名称" required>
@@ -166,6 +166,7 @@
               v-model="newModule.description"
               type="textarea"
               placeholder="请输入模块描述"
+              rows="10"
             />
           </el-form-item>
         </el-form>
@@ -187,7 +188,7 @@
       <el-dialog
         v-model="addFunctionDialogVisible"
         :title="editingFunction ? '编辑功能点' : '添加功能点'"
-        width="500px"
+        width="800px"
       >
         <el-form :model="newFunction" label-width="120px">
           <el-form-item label="功能点名称">
@@ -198,6 +199,7 @@
               v-model="newFunction.description"
               type="textarea"
               placeholder="请输入功能描述"
+              rows="10"
             />
           </el-form-item>
           <el-form-item label="优先级">
