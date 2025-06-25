@@ -2,7 +2,7 @@
   <main-layout>
     <div class="main-content">
       <!-- 项目选择区域 -->
-      <div class="project-selection" :class="{ 'centered': !selectedProjectId }">
+      <div class="project-selection" :class="{ centered: !selectedProjectId }">
         <el-select
           v-model="selectedProjectId"
           placeholder="请选择一个项目"
@@ -37,7 +37,6 @@
               <el-skeleton-item variant="text" style="width: 40%" />
             </template>
           </el-skeleton>
-
         </div>
       </div>
 
@@ -56,6 +55,11 @@
           <el-button type="success" @click="goToAIGenerate">AI生成测试用例</el-button>
           <el-button @click="exportTestCases">导出</el-button>
           <el-button @click="exportTestCases_zentao">导出禅道</el-button>
+          <el-tooltip :content="tooltipText" raw-content placement="bottom-start">
+            <template #default>
+              <el-button @click="refreshZentaoMap">刷新禅道模块映射</el-button>
+            </template>
+          </el-tooltip>
           <el-button @click="goToModuleDesign">查看模块设计</el-button>
           <el-button @click="openLoadJsonDialog">加载JSON</el-button>
           <el-upload
@@ -107,7 +111,7 @@
                     <el-cascader
                       v-model="selectedModulePath"
                       :options="moduleOptions"
-                      :props="{ 
+                      :props="{
                         checkStrictly: false,
                         emitPath: true,
                         value: 'value',
@@ -182,11 +186,11 @@
             <table id="testCaseTable">
               <thead>
                 <tr>
-                  <th style="width: 3%;">
+                  <th style="width: 3%">
                     <el-checkbox v-model="allSelected" @change="handleSelectAll" />
                   </th>
                   <th>模块</th>
-                  <th style="width: 4%;">编号</th>
+                  <th style="width: 4%">编号</th>
                   <th>标题</th>
                   <th>维护人</th>
                   <th>用例类型</th>
@@ -200,48 +204,67 @@
                   <th>关联工作项</th>
                   <th>关注人</th>
                   <th>备注</th>
-                  <th style="width: 90px;">操作</th>
+                  <th style="width: 90px">操作</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="testCase in filteredTestCases" :key="testCase.id" :class="{ 'unsaved': !testCase.id }">
+                <tr
+                  v-for="testCase in filteredTestCases"
+                  :key="testCase.id"
+                  :class="{ unsaved: !testCase.id }"
+                >
                   <td>
                     <el-checkbox v-model="testCase.selected" @change="handleItemSelectChange" />
                   </td>
                   <td>{{ getModulePath(testCase.moduleId) }}</td>
                   <td></td>
                   <td v-if="editingRowId === testCase.id">
-                    <el-input v-model="editCache.title" size="small" type="textarea" autosize placeholder="请输入标题" />
+                    <el-input
+                      v-model="editCache.title"
+                      size="small"
+                      type="textarea"
+                      autosize
+                      placeholder="请输入标题"
+                    />
                   </td>
                   <td v-else>{{ testCase.title }}</td>
                   <td v-if="editingRowId === testCase.id">
-                    <el-input v-model="editCache.maintainer" size="small" type="textarea" placeholder="维护人" />
+                    <el-input
+                      v-model="editCache.maintainer"
+                      size="small"
+                      type="textarea"
+                      placeholder="维护人"
+                    />
                   </td>
                   <td v-else>{{ testCase.maintainer }}</td>
                   <td v-if="editingRowId === testCase.id">
-                    <el-select v-model="editCache.type" size="small" style="min-width: 120px;">
+                    <el-select v-model="editCache.type" size="small" style="min-width: 120px">
                       <el-option label="功能测试" value="功能测试" />
-                    <el-option label="性能测试" value="性能测试" />
-                    <el-option label="配置相关" value="配置相关" />
-                    <el-option label="安装部署" value="安装部署" />
-                    <el-option label="接口测试" value="接口测试" />
-                    <el-option label="安全相关" value="安全相关" />
-                    <el-option label="兼容性测试" value="兼容性测试" />
-                    <el-option label="UI测试" value="UI测试" />
-                    <el-option label="其他" value="其他" />
+                      <el-option label="性能测试" value="性能测试" />
+                      <el-option label="配置相关" value="配置相关" />
+                      <el-option label="安装部署" value="安装部署" />
+                      <el-option label="接口测试" value="接口测试" />
+                      <el-option label="安全相关" value="安全相关" />
+                      <el-option label="兼容性测试" value="兼容性测试" />
+                      <el-option label="UI测试" value="UI测试" />
+                      <el-option label="其他" value="其他" />
                     </el-select>
                   </td>
                   <td v-else>
                     <el-tag v-if="testCase.type === '功能测试'" type="primary">功能测试</el-tag>
-                    <el-tag v-else-if="testCase.type === '性能测试'" type="warning">性能测试</el-tag>
+                    <el-tag v-else-if="testCase.type === '性能测试'" type="warning"
+                      >性能测试</el-tag
+                    >
                     <el-tag v-else-if="testCase.type === '安全测试'" type="danger">安全测试</el-tag>
-                    <el-tag v-else-if="testCase.type === '边界测试'" type="success">边界测试</el-tag>
+                    <el-tag v-else-if="testCase.type === '边界测试'" type="success"
+                      >边界测试</el-tag
+                    >
                     <el-tag v-else-if="testCase.type === '异常测试'" type="danger">异常测试</el-tag>
                     <el-tag v-else-if="testCase.type === 'UI测试'" type="info">UI测试</el-tag>
                     <el-tag v-else type="info">其他</el-tag>
                   </td>
                   <td v-if="editingRowId === testCase.id">
-                    <el-select v-model="editCache.priority" size="small" style="min-width: 120px;">
+                    <el-select v-model="editCache.priority" size="small" style="min-width: 120px">
                       <el-option label="P1" value="P1" />
                       <el-option label="P2" value="P2" />
                       <el-option label="P3" value="P3" />
@@ -249,62 +272,127 @@
                     </el-select>
                   </td>
                   <td v-else>
-                    <el-tag v-if="testCase.priority === 'P1'" type="danger">{{ testCase.priority }}</el-tag>
-                    <el-tag v-else-if="testCase.priority === 'P2'" type="warning">{{ testCase.priority }}</el-tag>
-                    <el-tag v-else-if="testCase.priority === 'P3'" type="success">{{ testCase.priority }}</el-tag>
-                    <el-tag v-else-if="testCase.priority === 'P4'" type="info">{{ testCase.priority }}</el-tag>
+                    <el-tag v-if="testCase.priority === 'P1'" type="danger">{{
+                      testCase.priority
+                    }}</el-tag>
+                    <el-tag v-else-if="testCase.priority === 'P2'" type="warning">{{
+                      testCase.priority
+                    }}</el-tag>
+                    <el-tag v-else-if="testCase.priority === 'P3'" type="success">{{
+                      testCase.priority
+                    }}</el-tag>
+                    <el-tag v-else-if="testCase.priority === 'P4'" type="info">{{
+                      testCase.priority
+                    }}</el-tag>
                     <el-tag v-else type="info">{{ testCase.priority }}</el-tag>
                   </td>
                   <td v-if="editingRowId === testCase.id">
-                    <el-select v-model="editCache.testType" size="small" style="min-width: 120px;">
+                    <el-select v-model="editCache.testType" size="small" style="min-width: 120px">
                       <el-option label="手动" value="手动" />
                       <el-option label="自动" value="自动" />
                     </el-select>
                   </td>
                   <td v-else>{{ testCase.testType }}</td>
                   <td v-if="editingRowId === testCase.id">
-                    <el-input v-model="editCache.preconditions" size="small" type="textarea" autosize placeholder="前置条件" />
+                    <el-input
+                      v-model="editCache.preconditions"
+                      size="small"
+                      type="textarea"
+                      autosize
+                      placeholder="前置条件"
+                    />
                   </td>
                   <td v-else>{{ testCase.preconditions }}</td>
                   <td v-if="editingRowId === testCase.id">
-                    <el-input v-model="editCache.steps" size="small" type="textarea" autosize placeholder="步骤描述" />
+                    <el-input
+                      v-model="editCache.steps"
+                      size="small"
+                      type="textarea"
+                      autosize
+                      placeholder="步骤描述"
+                    />
                   </td>
                   <td v-else>{{ testCase.steps }}</td>
                   <td v-if="editingRowId === testCase.id">
-                    <el-input v-model="editCache.expectedResults" size="small" type="textarea" autosize placeholder="预期结果" />
+                    <el-input
+                      v-model="editCache.expectedResults"
+                      size="small"
+                      type="textarea"
+                      autosize
+                      placeholder="预期结果"
+                    />
                   </td>
                   <td v-else>{{ testCase.expectedResults }}</td>
                   <td v-if="editingRowId === testCase.id">
-                    <el-input v-model="editCache.estimatedHours" size="small" type="textarea" autosize placeholder="预估工时" />
+                    <el-input
+                      v-model="editCache.estimatedHours"
+                      size="small"
+                      type="textarea"
+                      autosize
+                      placeholder="预估工时"
+                    />
                   </td>
                   <td v-else>{{ testCase.estimatedHours }}</td>
                   <td v-if="editingRowId === testCase.id">
-                    <el-input v-model="editCache.remainingHours" size="small" type="textarea" autosize placeholder="剩余工时" />
+                    <el-input
+                      v-model="editCache.remainingHours"
+                      size="small"
+                      type="textarea"
+                      autosize
+                      placeholder="剩余工时"
+                    />
                   </td>
                   <td v-else>{{ testCase.remainingHours }}</td>
                   <td v-if="editingRowId === testCase.id">
-                    <el-input v-model="editCache.relatedItems" size="small" type="textarea" autosize placeholder="关联工作项" />
+                    <el-input
+                      v-model="editCache.relatedItems"
+                      size="small"
+                      type="textarea"
+                      autosize
+                      placeholder="关联工作项"
+                    />
                   </td>
                   <td v-else>{{ testCase.relatedItems }}</td>
                   <td v-if="editingRowId === testCase.id">
-                    <el-input v-model="editCache.followers" size="small" type="textarea" autosize placeholder="关注人" />
+                    <el-input
+                      v-model="editCache.followers"
+                      size="small"
+                      type="textarea"
+                      autosize
+                      placeholder="关注人"
+                    />
                   </td>
                   <td v-else>{{ testCase.followers }}</td>
                   <td v-if="editingRowId === testCase.id">
-                    <el-input v-model="editCache.notes" size="small" type="textarea" autosize placeholder="备注" />
+                    <el-input
+                      v-model="editCache.notes"
+                      size="small"
+                      type="textarea"
+                      autosize
+                      placeholder="备注"
+                    />
                   </td>
                   <td v-else>{{ testCase.notes }}</td>
                   <td>
                     <template v-if="editingRowId === testCase.id">
                       <div class="edit-actions">
-                        <el-button size="small" type="primary" @click="saveEdit(testCase)">保存</el-button>
+                        <el-button size="small" type="primary" @click="saveEdit(testCase)"
+                          >保存</el-button
+                        >
                         <el-button size="small" @click="cancelEdit">取消</el-button>
                       </div>
                     </template>
                     <template v-else>
                       <div class="edit-actions">
-                        <el-button size="small" type="primary" @click="startEdit(testCase)">编辑</el-button>
-                        <el-button size="small" type="danger" @click="deleteSingleTestCase(testCase)">删除</el-button>
+                        <el-button size="small" type="primary" @click="startEdit(testCase)"
+                          >编辑</el-button
+                        >
+                        <el-button
+                          size="small"
+                          type="danger"
+                          @click="deleteSingleTestCase(testCase)"
+                          >删除</el-button
+                        >
                       </div>
                     </template>
                   </td>
@@ -318,7 +406,7 @@
             <el-pagination
               v-model:current-page="pagination.current"
               v-model:page-size="pagination.pageSize"
-              :page-sizes="[10, 20, 50, 100,500,1000]"
+              :page-sizes="[10, 20, 50, 100, 500, 1000]"
               layout="total, sizes, prev, pager, next, jumper"
               :total="pagination.total"
               @size-change="handleSizeChange"
@@ -330,12 +418,7 @@
 
       <!-- 加载 JSON 对话框 -->
       <el-dialog v-model="loadJsonDialogVisible" title="加载 JSON" width="600px">
-        <el-input
-          type="textarea"
-          v-model="jsonInput"
-          placeholder="请粘贴 JSON 内容"
-          rows="20"
-        />
+        <el-input type="textarea" v-model="jsonInput" placeholder="请粘贴 JSON 内容" rows="20" />
         <template #footer>
           <span class="dialog-footer">
             <el-button @click="loadJson">加载</el-button>
@@ -360,6 +443,50 @@ import * as XLSX from 'xlsx'
 const router = useRouter()
 
 const selectionStore = useSelectionStore()
+// ---------------- 禅道模块映射 ----------------
+const zentaoPathMap = reactive({})
+const tooltipText   = ref('禅道模块映射未加载')
+
+/**
+ * 加载禅道模块映射文件并构建 path -> path(#id) 映射表
+ */
+const loadZentaoModules = async () => {
+  try {
+    tooltipText.value = '正在加载禅道模块映射…'
+    // 通过统一的 axios 实例调用后端，避免端口不一致问题
+    const flat = await api.zentao.getModules()
+
+    // 构建 id -> module 映射表
+    const idMap = {}
+    flat.forEach((m) => {
+      idMap[m.id] = m
+    })
+
+    // 清空旧映射
+    Object.keys(zentaoPathMap).forEach((k) => delete zentaoPathMap[k])
+
+    // 生成映射: "/父/子" -> "/父/子(#id)"
+    flat.forEach((m) => {
+      const segments = []
+      let cur = m
+      while (cur) {
+        segments.unshift(cur.name)
+        cur = idMap[cur.parentId]
+      }
+      const path = '/' + segments.join('/')
+      zentaoPathMap[path] = `${path}(#${m.id})`
+    })
+
+    tooltipText.value = `禅道模块映射已加载(${flat.length})`
+    const mappedLines = Object.values(zentaoPathMap)
+    tooltipText.value =
+    `禅道模块映射已加载${flat.length}条<br>` +
+    mappedLines.join('<br>')
+  } catch (err) {
+    console.error('加载禅道模块映射失败', err)
+    tooltipText.value = '禅道模块映射加载失败'
+  }
+}
 
 // 项目选择相关
 const selectedProjectId = computed({
@@ -375,7 +502,6 @@ const selectedProjectId = computed({
 })
 
 const projectsList = ref([])
-
 
 // 状态变量
 const loading = ref(true)
@@ -401,7 +527,7 @@ const filters = ref({
 
 const allSelected = ref(false)
 const hasSelectedItems = computed(() => {
-  return testCases.value.some(testCase => testCase.selected)
+  return testCases.value.some((testCase) => testCase.selected)
 })
 
 // 获取项目列表
@@ -419,19 +545,18 @@ const fetchProjects = async () => {
   }
 }
 
-
 // 处理项目选择变化
 const handleProjectChange = async (projectId) => {
   if (!projectId) return
-  
+
   try {
     // 先清空当前数据
     selectedModuleId.value = null
     modules.value = []
     testCases.value = []
-    
+
     // 更新项目选择
-    const project = projectsList.value.find(p => p.id === projectId)
+    const project = projectsList.value.find((p) => p.id === projectId)
     if (project) {
       selectionStore.setSelectedProject(project)
       await fetchModules(projectId)
@@ -461,17 +586,19 @@ const fetchModules = async (projectId) => {
 
     if (response.success) {
       // 直接使用后端返回的树形结构
-      moduleOptions.value = response.data.map(module => ({
+      moduleOptions.value = response.data.map((module) => ({
         value: module.id,
         label: module.name,
-        children: module.children?.map(child => ({
-          value: child.id,
-          label: child.name,
-          children: child.children?.map(grandChild => ({
-            value: grandChild.id,
-            label: grandChild.name
+        children:
+          module.children?.map((child) => ({
+            value: child.id,
+            label: child.name,
+            children:
+              child.children?.map((grandChild) => ({
+                value: grandChild.id,
+                label: grandChild.name
+              })) || []
           })) || []
-        })) || []
       }))
     } else {
       ElMessage.error(response.message || '获取模块列表失败')
@@ -548,9 +675,9 @@ const fetchTestCases = async () => {
 // 计算筛选后的测试用例列表
 const filteredTestCases = computed(() => {
   // 将测试用例分为两组：导入的和非导入的
-  const importedCases = testCases.value.filter(tc => tc.isImported)
-  const otherCases = testCases.value.filter(tc => !tc.isImported)
-  
+  const importedCases = testCases.value.filter((tc) => tc.isImported)
+  const otherCases = testCases.value.filter((tc) => !tc.isImported)
+
   // 返回合并后的数组，导入的测试用例在前
   return [...importedCases, ...otherCases]
 })
@@ -558,10 +685,6 @@ const filteredTestCases = computed(() => {
 // 加载 JSON 对话框相关
 const loadJsonDialogVisible = ref(false)
 const jsonInput = ref('')
-
-
-
-
 
 // 处理方法
 const applyFilters = () => {
@@ -628,7 +751,7 @@ const exportTestCases = () => {
     // 准备数据行
     const rows = testCases.value.map((testCase) => [
       getModulePath(testCase.moduleId), // 使用完整的模块路径
-      "",
+      '',
       testCase.title,
       testCase.maintainer,
       testCase.type,
@@ -700,7 +823,20 @@ const exportTestCases = () => {
     ElMessage.error('导出失败，请重试')
   }
 }
+const refreshZentaoMap = async () => {
+  try {
+    tooltipText.value = '正在刷新禅道模块映射…'
+    const json = await api.zentao.refreshModules()
+    if (!json.success) throw new Error(json.message || '刷新失败')
 
+    await loadZentaoModules()
+    ElMessage.success(`禅道模块映射已刷新，共 ${json.count} 条`)
+  } catch (err) {
+    console.error('刷新禅道模块映射失败', err)
+    ElMessage.error('刷新禅道模块映射失败')
+    tooltipText.value = '禅道模块映射刷新失败'
+  }
+}
 const exportTestCases_zentao = () => {
   if (testCases.value.length === 0) {
     ElMessage.warning('没有可导出的测试用例')
@@ -721,7 +857,7 @@ const exportTestCases_zentao = () => {
       '适用阶段',
       ' ',
       '类型可选值列表',
-      '阶段可选值列表',
+      '阶段可选值列表'
     ]
 
     // 准备数据行
@@ -729,9 +865,12 @@ const exportTestCases_zentao = () => {
     const rows = testCases.value.map((testCase) => {
       // 如果用例类型为“UI测试”，导出时改成“其他”
       const typeValue = testCase.type === 'UI测试' ? '其他' : testCase.type
-
+        // 替换成禅道的模块路径
       return [
-        '/' + getModulePath(testCase.moduleId), // 使用完整的模块路径
+        (() => {
+          const raw = '/' + getModulePath(testCase.moduleId)
+          return zentaoPathMap[raw] || raw
+        })(), // 使用完整的模块路径
         testCase.title,
         testCase.preconditions,
         testCase.steps,
@@ -739,11 +878,11 @@ const exportTestCases_zentao = () => {
 
         testCase.priority,
         ' ',
-        typeValue,          // ← 替换这里
+        typeValue, // ← 替换这里
         ' ',
         ' ',
         ' ',
-        ' ',
+        ' '
       ]
     })
 
@@ -751,7 +890,7 @@ const exportTestCases_zentao = () => {
     const wb = XLSX.utils.book_new()
 
     // 组合所有行：空行 + 表头 + 数据行
-    const allRows = [ headers, ...rows]
+    const allRows = [headers, ...rows]
     const ws = XLSX.utils.aoa_to_sheet(allRows)
 
     // 设置列宽
@@ -766,8 +905,7 @@ const exportTestCases_zentao = () => {
       { wch: 10 }, // 用例类型
       { wch: 10 }, // 适用阶段
       { wch: 20 }, // 类型可选值列表
-      { wch: 20 }, // 阶段可选值列表
-
+      { wch: 20 } // 阶段可选值列表
     ]
     ws['!cols'] = colWidths
 
@@ -793,14 +931,13 @@ const exportTestCases_zentao = () => {
     const fileName = `测试用例_${new Date().toISOString().split('T')[0]}.csv`
 
     // 导出文件
-    XLSX.writeFile(wb, fileName,{bookType:'csv'})
+    XLSX.writeFile(wb, fileName, { bookType: 'csv' })
     ElMessage.success('导出成功')
   } catch (error) {
     console.error('导出Excel错误:', error)
     ElMessage.error('导出失败，请重试')
   }
 }
-
 
 const goToAIGenerate = () => {
   router.push(`/ai-generate?projectId=${selectedProjectId.value}`)
@@ -828,7 +965,10 @@ const handleFileChange = async (file) => {
             maintainer: testCase.maintainer || '',
             type: testCase.type || '功能测试',
             priority: testCase.priority || 'P1',
-            testType: (testCase.testType === '手动' || testCase.testType === '自动') ? testCase.testType : '手动',
+            testType:
+              testCase.testType === '手动' || testCase.testType === '自动'
+                ? testCase.testType
+                : '手动',
             estimatedHours: testCase.estimatedHours || '',
             remainingHours: testCase.remainingHours || '',
             relatedItems: testCase.relatedItems || '',
@@ -864,20 +1004,22 @@ const handleFileChange = async (file) => {
 onMounted(async () => {
   try {
     await fetchProjects()
-    
+    // 加载禅道模块映射
+    await loadZentaoModules()
+
     // 检查是否有项目
     if (projectsList.value.length === 0) {
       selectedProjectId.value = null
       return
     }
-    
+
     // 如果有项目列表且当前没有选中项目，则自动选中第一个项目
     if (!selectedProjectId.value) {
       selectedProjectId.value = projectsList.value[0].id
       await handleProjectChange(projectsList.value[0].id)
     } else {
       // 如果store中有选中的项目，验证它是否有效
-      const validProject = projectsList.value.find(p => p.id === selectedProjectId.value)
+      const validProject = projectsList.value.find((p) => p.id === selectedProjectId.value)
       if (validProject) {
         await handleProjectChange(selectedProjectId.value)
       } else {
@@ -907,32 +1049,31 @@ watch(selectedProjectId, (newValue) => {
   }
 })
 
-
 /**
  * 在一个树形结构的模块选项中，根据模块名称递归查找模块ID。
  * @param {Array} moduleOptions - 模块选项的树形数组，每个选项应有 label, value, 和可选的 children 属性。
  * @param {string} moduleName - 需要查找的模块名称。
  * @returns {number|string|null} - 匹配到的模块ID；如果未找到则返回 null。
  */
- const findModuleIdByName = (moduleOptions, moduleName) => {
+const findModuleIdByName = (moduleOptions, moduleName) => {
   // 遍历当前层级的模块
   for (const option of moduleOptions) {
     // 如果名称匹配，返回当前模块的ID (value)
     if (option.label === moduleName) {
-      return option.value;
+      return option.value
     }
     // 如果有子模块，则递归进入子模块中查找
     if (option.children && option.children.length > 0) {
-      const foundId = findModuleIdByName(option.children, moduleName);
+      const foundId = findModuleIdByName(option.children, moduleName)
       // 如果在子模块中找到了，立即返回结果
       if (foundId) {
-        return foundId;
+        return foundId
       }
     }
   }
   // 如果遍历完所有模块及其子模块都未找到，返回 null
-  return null;
-};
+  return null
+}
 
 // 打开加载 JSON 对话框
 const openLoadJsonDialog = () => {
@@ -944,33 +1085,34 @@ const loadJson = () => {
   try {
     const jsonData = JSON.parse(jsonInput.value)
     if (jsonData.testCases && Array.isArray(jsonData.testCases)) {
-
       // 处理导入的测试用例数据
-      const importedTestCases = jsonData.testCases.map(testCase => {
-        const moduleId = findModuleIdByName(moduleOptions.value, testCase.module); 
+      const importedTestCases = jsonData.testCases.map((testCase) => {
+        const moduleId = findModuleIdByName(moduleOptions.value, testCase.module)
 
-        return{        
-        id: testCase.id || '',
-        module: testCase.module,
-        moduleId: moduleId, 
-        title: testCase.title,
-        maintainer: testCase.maintainer || '',
-        type: testCase.type || '功能测试',
-        priority: testCase.priority || 'P1',
-        testType: (testCase.testType === '手动' || testCase.testType === '自动') ? testCase.testType : '手动',
-        estimatedHours: testCase.estimatedHours || '',
-        remainingHours: testCase.remainingHours || '',
-        relatedItems: testCase.relatedItems || '',
-        preconditions: testCase.preconditions || '',
-        steps: testCase.steps || '',
-        expectedResults: testCase.expectedResults || '',
-        followers: testCase.followers || '',
-        notes: testCase.notes || '',
-        selected: true, // 默认选中
-        isImported: true // 添加标记表示这是导入的测试用例}
-
-      };
-    });
+        return {
+          id: testCase.id || '',
+          module: testCase.module,
+          moduleId: moduleId,
+          title: testCase.title,
+          maintainer: testCase.maintainer || '',
+          type: testCase.type || '功能测试',
+          priority: testCase.priority || 'P1',
+          testType:
+            testCase.testType === '手动' || testCase.testType === '自动'
+              ? testCase.testType
+              : '手动',
+          estimatedHours: testCase.estimatedHours || '',
+          remainingHours: testCase.remainingHours || '',
+          relatedItems: testCase.relatedItems || '',
+          preconditions: testCase.preconditions || '',
+          steps: testCase.steps || '',
+          expectedResults: testCase.expectedResults || '',
+          followers: testCase.followers || '',
+          notes: testCase.notes || '',
+          selected: true, // 默认选中
+          isImported: true // 添加标记表示这是导入的测试用例}
+        }
+      })
       // 将导入的测试用例添加到现有列表的最前面
       testCases.value = [...importedTestCases, ...testCases.value]
       allSelected.value = true // 设置全选状态
@@ -987,14 +1129,14 @@ const loadJson = () => {
 
 // 处理全选/取消全选
 const handleSelectAll = (val) => {
-  testCases.value.forEach(testCase => {
+  testCases.value.forEach((testCase) => {
     testCase.selected = val
   })
 }
 
 // 处理单个项目选择变化
 const handleItemSelectChange = () => {
-  allSelected.value = testCases.value.every(testCase => testCase.selected)
+  allSelected.value = testCases.value.every((testCase) => testCase.selected)
 }
 
 // 保存选中的测试用例
@@ -1004,7 +1146,7 @@ const saveSelectedTestCases = async () => {
     return
   }
 
-  const selectedTestCases = testCases.value.filter(testCase => testCase.selected)
+  const selectedTestCases = testCases.value.filter((testCase) => testCase.selected)
   if (selectedTestCases.length === 0) {
     ElMessage.warning('请选择要保存的测试用例')
     return
@@ -1012,22 +1154,22 @@ const saveSelectedTestCases = async () => {
 
   try {
     // 将测试用例分为两组：已存在的和新增的
-    const newTestCases = selectedTestCases.filter(testCase => !testCase.id)
+    const newTestCases = selectedTestCases.filter((testCase) => !testCase.id)
 
     // 处理新增的测试用例
     if (newTestCases.length > 0) {
       // 将模块名称转换为模块ID
-      const testCasesWithModuleId = newTestCases.map(testCase => {
-        let moduleId = null;
+      const testCasesWithModuleId = newTestCases.map((testCase) => {
+        let moduleId = null
         if (typeof testCase.module === 'string' && testCase.module.trim() !== '') {
-          moduleId = findModuleIdByName(moduleOptions.value, testCase.module);
+          moduleId = findModuleIdByName(moduleOptions.value, testCase.module)
         }
 
         // 取消模糊匹配，因为moduleid已经足够精确，不需要再进行模糊匹配
         /*
         if (!moduleId) {
           const normalizedModuleName = testCase.moduleId.replace(/\s+/g, '').toLowerCase()
-          moduleId = modules.value.find(m => 
+          moduleId = modules.value.find(m =>
             m.name.replace(/\s+/g, '').toLowerCase() === normalizedModuleName
           )
         }
@@ -1035,7 +1177,7 @@ const saveSelectedTestCases = async () => {
         if (!moduleId) {
           console.warn(`未找到模块: ${testCase.module}`, {
             testCase,
-            availableModules: modules.value.map(m => m.name)
+            availableModules: modules.value.map((m) => m.name)
           })
         }
 
@@ -1050,17 +1192,19 @@ const saveSelectedTestCases = async () => {
       })
 
       // 检查是否有未找到对应模块的测试用例
-      const invalidTestCases = testCasesWithModuleId.filter(tc => !tc.moduleId)
+      const invalidTestCases = testCasesWithModuleId.filter((tc) => !tc.moduleId)
       if (invalidTestCases.length > 0) {
-        const invalidModuleNames = [...new Set(invalidTestCases.map(tc => tc.module).filter(name => name))];
-        ElMessage.error(`以下模块：${invalidModuleNames.join(', ')} 未找到，无法保存！`);
-        return;
+        const invalidModuleNames = [
+          ...new Set(invalidTestCases.map((tc) => tc.module).filter((name) => name))
+        ]
+        ElMessage.error(`以下模块：${invalidModuleNames.join(', ')} 未找到，无法保存！`)
+        return
       }
 
       const response = await api.testCase.batchCreateTestCases({
         projectId: selectedProjectId.value,
         testCases: testCasesWithModuleId
-      });
+      })
 
       if (!response.success) {
         throw new Error(response.message || '保存测试用例失败')
@@ -1068,7 +1212,7 @@ const saveSelectedTestCases = async () => {
     }
 
     // 从列表中移除已保存的测试用例
-    testCases.value = testCases.value.filter(testCase => !testCase.selected)
+    testCases.value = testCases.value.filter((testCase) => !testCase.selected)
     allSelected.value = false
 
     ElMessage.success(`成功保存 ${selectedTestCases.length} 个测试用例`)
@@ -1097,20 +1241,20 @@ const handleModuleChange = (path) => {
 
 // 在 script setup 部分添加删除选中项的方法
 const deleteSelectedTestCases = async () => {
-  const selectedTestCases = testCases.value.filter(testCase => testCase.selected)
+  const selectedTestCases = testCases.value.filter((testCase) => testCase.selected)
   if (selectedTestCases.length === 0) {
     ElMessage.warning('请选择要删除的测试用例')
     return
   }
 
   // 区分已保存和未保存的测试用例
-  const savedTestCases = selectedTestCases.filter(testCase => testCase.id)
+  const savedTestCases = selectedTestCases.filter((testCase) => testCase.id)
 
   try {
     if (savedTestCases.length > 0) {
       // 删除已保存的测试用例
       const response = await api.testCase.batchDeleteTestCases({
-        testCaseIds: savedTestCases.map(testCase => testCase.id)
+        testCaseIds: savedTestCases.map((testCase) => testCase.id)
       })
 
       if (!response.success) {
@@ -1119,7 +1263,7 @@ const deleteSelectedTestCases = async () => {
     }
 
     // 从列表中移除所有选中的测试用例
-    testCases.value = testCases.value.filter(testCase => !testCase.selected)
+    testCases.value = testCases.value.filter((testCase) => !testCase.selected)
     allSelected.value = false
 
     ElMessage.success(`成功删除 ${selectedTestCases.length} 个测试用例`)
@@ -1132,7 +1276,7 @@ const deleteSelectedTestCases = async () => {
 // 在 script setup 部分添加获取模块路径的方法
 const getModulePath = (moduleId) => {
   if (!moduleId) return ''
-  
+
   const findModulePath = (modules, id, path = []) => {
     for (const module of modules) {
       if (module.value === id) {
@@ -1145,7 +1289,7 @@ const getModulePath = (moduleId) => {
     }
     return null
   }
-  
+
   return findModulePath(moduleOptions.value, moduleId) || ''
 }
 
@@ -1159,7 +1303,7 @@ const startEdit = (testCase) => {
 }
 const cancelEdit = () => {
   editingRowId.value = null
-  Object.keys(editCache).forEach(key => delete editCache[key])
+  Object.keys(editCache).forEach((key) => delete editCache[key])
 }
 const saveEdit = async (testCase) => {
   try {
@@ -1196,24 +1340,20 @@ const deleteSingleTestCase = async (testCase) => {
   try {
     if (!testCase.id) {
       // 未保存的直接从列表移除
-      testCases.value = testCases.value.filter(tc => tc !== testCase)
+      testCases.value = testCases.value.filter((tc) => tc !== testCase)
       ElMessage.success('已移除未保存的测试用例')
       return
     }
     // 已保存的需要弹窗确认
-    await ElMessageBox.confirm(
-      '确定要删除该测试用例吗？此操作不可撤销！',
-      '删除确认',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-      }
-    )
+    await ElMessageBox.confirm('确定要删除该测试用例吗？此操作不可撤销！', '删除确认', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
     // 已保存的需要后端删除
     const response = await api.testCase.batchDeleteTestCases({ testCaseIds: [testCase.id] })
     if (response.success) {
-      testCases.value = testCases.value.filter(tc => tc.id !== testCase.id)
+      testCases.value = testCases.value.filter((tc) => tc.id !== testCase.id)
       ElMessage.success('删除成功')
     } else {
       ElMessage.error(response.message || '删除失败')
@@ -1350,7 +1490,6 @@ td {
   height: auto;
   min-height: 40px;
   vertical-align: top;
-
 }
 
 th {
@@ -1360,9 +1499,9 @@ th {
   top: 0;
   font-weight: normal;
   font-size: 12px;
-  white-space: normal;  /* 改为 normal */
-  word-break: break-word;  /* 添加这行 */
-  padding: 8px 4px;  /* 可以调整内边距 */
+  white-space: normal; /* 改为 normal */
+  word-break: break-word; /* 添加这行 */
+  padding: 8px 4px; /* 可以调整内边距 */
   padding-left: 10px;
   padding-right: 0;
 }
@@ -1372,22 +1511,54 @@ tr:hover {
 }
 
 /* 设置列宽 */
-th:nth-child(1) { width: 1%; } /* 复选框 */
-th:nth-child(2) { width: 7%; } /* 模块 */
-th:nth-child(3) { width: 4%; } /* 编号 */
-th:nth-child(4) { width: 10%; } /* 标题 */
-th:nth-child(5) { width: 3%; } /* 维护人 */
-th:nth-child(6) { width: 7%; } /* 用例类型 */
-th:nth-child(7) { width: 4%; } /* 重要程度 */
-th:nth-child(8) { width: 4%; } /* 测试类型 */
-th:nth-child(9) { width: 15%; } /* 前置条件 */
-th:nth-child(10) { width: 15%; } /* 步骤描述 */
-th:nth-child(11) { width: 15%; } /* 预期结果 */
-th:nth-child(12) { width: 4%; } /* 预估工时 */
-th:nth-child(13) { width: 4%; } /* 剩余工时 */
-th:nth-child(14) { width: 4%; } /* 关联工作项 */
-th:nth-child(15) { width: 3%; } /* 关注人 */
-th:nth-child(16) { width: 3%; } /* 备注 */
+th:nth-child(1) {
+  width: 1%;
+} /* 复选框 */
+th:nth-child(2) {
+  width: 7%;
+} /* 模块 */
+th:nth-child(3) {
+  width: 4%;
+} /* 编号 */
+th:nth-child(4) {
+  width: 10%;
+} /* 标题 */
+th:nth-child(5) {
+  width: 3%;
+} /* 维护人 */
+th:nth-child(6) {
+  width: 7%;
+} /* 用例类型 */
+th:nth-child(7) {
+  width: 4%;
+} /* 重要程度 */
+th:nth-child(8) {
+  width: 4%;
+} /* 测试类型 */
+th:nth-child(9) {
+  width: 15%;
+} /* 前置条件 */
+th:nth-child(10) {
+  width: 15%;
+} /* 步骤描述 */
+th:nth-child(11) {
+  width: 15%;
+} /* 预期结果 */
+th:nth-child(12) {
+  width: 4%;
+} /* 预估工时 */
+th:nth-child(13) {
+  width: 4%;
+} /* 剩余工时 */
+th:nth-child(14) {
+  width: 4%;
+} /* 关联工作项 */
+th:nth-child(15) {
+  width: 3%;
+} /* 关注人 */
+th:nth-child(16) {
+  width: 3%;
+} /* 备注 */
 
 /* 为长文本列添加特殊样式 */
 td:nth-child(4), /* 标题 */
@@ -1395,7 +1566,8 @@ td:nth-child(2), /* 模块 */
 td:nth-child(9), /* 前置条件 */
 td:nth-child(10), /* 步骤描述 */
 td:nth-child(11), /* 预期结果 */
-td:nth-child(16) { /* 备注 */
+td:nth-child(16) {
+  /* 备注 */
   white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: break-word;
@@ -1411,7 +1583,8 @@ td:nth-child(8), /* 测试类型 */
 td:nth-child(12), /* 预估工时 */
 td:nth-child(13), /* 剩余工时 */
 td:nth-child(14), /* 关联工作项 */
-td:nth-child(15) { /* 关注人 */
+td:nth-child(15) {
+  /* 关注人 */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

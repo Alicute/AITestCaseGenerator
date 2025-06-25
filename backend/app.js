@@ -28,6 +28,7 @@ app.use('/api/v1/ai', require('./routes/ai'));
 app.use('/api/v1/settings', require('./routes/settings'));
 app.use('/api/v1/import-export', require('./routes/importExport'));
 app.use('/api/v1/stats', require('./routes/stats'));
+app.use('/api/v1/zentao', require('./routes/zentao'))
 
 // 根路由
 app.get('/', (req, res) => {
@@ -39,8 +40,7 @@ app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({
     success: false,
-    message: '服务器内部错误',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    message: '服务器内部错误'
   });
   next;
 });

@@ -30,7 +30,15 @@ api.interceptors.response.use(
     return Promise.reject(error)
   }
 )
-
+// 禅道模块 API
+export const zentaoAPI = {
+  getModules() {
+    return api.get('/zentao/modules')
+  },
+  refreshModules() {
+    return api.post('/zentao/modules/refresh')
+  }
+}
 // 项目相关API
 export const projectAPI = {
   // 获取项目列表
@@ -195,5 +203,6 @@ export default {
   function: functionAPI,
   testCase: testCaseAPI,
   user: userAPI,
-  stat: statAPI
+  stat: statAPI,
+  zentao: zentaoAPI
 } 
