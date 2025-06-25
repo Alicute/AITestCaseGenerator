@@ -39,6 +39,30 @@ export const zentaoAPI = {
     return api.post('/zentao/modules/refresh')
   }
 }
+
+// 设置相关API
+export const settingsAPI = {
+  // 获取系统设置
+  getSettings() {
+    return api.get('/settings')
+  },
+  
+  // 更新系统设置
+  updateSettings(data) {
+    return api.put('/settings', data)
+  },
+  
+  // 获取环境变量设置
+  getEnvironmentSettings() {
+    return api.get('/settings/environment')
+  },
+  
+  // 更新环境变量设置
+  updateEnvironmentSettings(data) {
+    return api.put('/settings/environment', data)
+  }
+}
+
 // 项目相关API
 export const projectAPI = {
   // 获取项目列表
@@ -204,5 +228,6 @@ export default {
   testCase: testCaseAPI,
   user: userAPI,
   stat: statAPI,
-  zentao: zentaoAPI
+  zentao: zentaoAPI,
+  settings: settingsAPI
 } 

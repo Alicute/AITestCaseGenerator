@@ -10,6 +10,10 @@
             class="settings-menu"
             @select="handleMenuChange"
           >
+          <el-menu-item index="environment">
+              <el-icon><Tools /></el-icon>
+              <span>禅道设置</span>
+            </el-menu-item>
             <el-menu-item index="general">
               <el-icon><setting /></el-icon>
               <span>通用设置</span>
@@ -30,6 +34,7 @@
               <el-icon><folder /></el-icon>
               <span>数据存储</span>
             </el-menu-item>
+
             <el-menu-item index="advanced">
               <el-icon><magic-stick /></el-icon>
               <span>高级</span>
@@ -300,6 +305,56 @@
             </div>
           </div>
           
+          <!-- 环境变量设置 -->
+          <div v-if="activeMenu === 'environment'" class="setting-section">
+            <h2 class="section-title">环境变量设置</h2>
+            
+            <el-form label-position="top" class="settings-form" v-loading="envLoading">
+              <el-form-item label="禅道URL">
+                <el-input
+                  v-model="envSettings.zentaoUrl"
+                  placeholder="请输入禅道系统URL"
+                  class="form-input"
+                />
+              </el-form-item>
+              
+              <el-form-item label="禅道Cookie">
+                <el-input
+                  v-model="envSettings.zentaoCookie"
+                  type="textarea"
+                  :rows="20"
+                  placeholder="请输入禅道Cookie"
+                  class="form-input"
+                />
+                <div class="input-description">
+                  Cookie用于API身份验证，请确保复制完整的Cookie值
+                </div>
+              </el-form-item>
+              
+              <!-- <el-divider content-position="left">其他环境变量</el-divider>
+              
+              <el-form-item label="JWT密钥">
+                <el-input
+                  v-model="envSettings.jwtSecret"
+                  type="password"
+                  show-password
+                  placeholder="用于JWT身份验证的密钥"
+                  class="form-input"
+                  disabled
+                />
+                <div class="input-description">
+                  <el-tag size="small" type="warning">仅管理员可见</el-tag>
+                  修改此值将使所有当前登录令牌失效
+                </div>
+              </el-form-item> -->
+              
+              <el-form-item>
+                <el-button type="primary" @click="saveEnvSettings" :loading="envSaving">保存设置</el-button>
+                <el-button @click="fetchEnvSettings" :disabled="envLoading">重新加载</el-button>
+              </el-form-item>
+            </el-form>
+          </div>
+          
           <!-- 高级设置 -->
           <div v-if="activeMenu === 'advanced'" class="setting-section">
             <h2 class="section-title">高级设置</h2>
@@ -428,6 +483,7 @@ import { ref, reactive, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useUserStore } from '../stores/user';
 import MainLayout from '@/components/layout/MainLayout.vue';
+import { settingsAPI } from '@/api';
 import {
   Setting,
   Connection,
@@ -436,7 +492,8 @@ import {
   MagicStick,
   Plus,
   Search,
-  Document
+  Document,
+  Tools
 } from '@element-plus/icons-vue';
 
 // 定义状态变量
@@ -626,11 +683,70 @@ onMounted(() => {
   }
 });
 
+// 环境变量设置
+const envSettings = reactive({
+  zentaoUrl: '',
+  zentaoCookie: '',
+  jwtSecret: '******'
+});
+const envLoading = ref(false);
+const envSaving = ref(false);
+
+// 获取环境变量设置
+const fetchEnvSettings = async () => {
+  try {
+    envLoading.value = true;
+    const result = await settingsAPI.getEnvironmentSettings();
+    
+    if (result.success) {
+      envSettings.zentaoUrl = result.data.ZENTAO_URL || '';
+      envSettings.zentaoCookie = result.data.ZENTAO_COOKIE || '';
+      
+      // 敏感信息处理
+      if (result.data.JWT_SECRET) {
+        envSettings.jwtSecret = '******'; // 不显示真实值
+      }
+    } else {
+      throw new Error(result.message || '获取环境变量失败');
+    }
+  } catch (error) {
+    console.error('获取环境变量错误', error);
+    ElMessage.error(error.message || '获取环境变量失败');
+  } finally {
+    envLoading.value = false;
+  }
+};
+
+// 保存环境变量设置
+const saveEnvSettings = async () => {
+  try {
+    envSaving.value = true;
+    
+    const result = await settingsAPI.updateEnvironmentSettings({
+      ZENTAO_URL: envSettings.zentaoUrl,
+      ZENTAO_COOKIE: envSettings.zentaoCookie
+    });
+    
+    if (result.success) {
+      ElMessage.success('环境变量设置已保存');
+    } else {
+      ElMessage.error(result.message || '保存环境变量失败');
+    }
+  } catch (error) {
+    console.error('保存环境变量错误', error);
+    ElMessage.error(error.response?.data?.message || error.message || '保存环境变量失败');
+  } finally {
+    envSaving.value = false;
+  }
+};
+
 // 监听菜单切换
 const handleMenuChange = (menu) => {
   activeMenu.value = menu;
   if (menu === 'users') {
     fetchUsers();
+  } else if (menu === 'environment') {
+    fetchEnvSettings();
   }
 };
 
@@ -832,5 +948,12 @@ const copyRulesContent = () => {
   align-items: center;
   justify-content: center;
   padding: 40px 0;
+}
+
+.input-description {
+  margin-top: 5px;
+  color: #909399;
+  font-size: 12px;
+  line-height: 1.4;
 }
 </style>
