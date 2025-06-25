@@ -55,6 +55,7 @@
           <el-button type="primary" @click="createTestCase">新建测试用例</el-button>
           <el-button type="success" @click="goToAIGenerate">AI生成测试用例</el-button>
           <el-button @click="exportTestCases">导出</el-button>
+          <el-button @click="exportTestCases_zentao">导出禅道</el-button>
           <el-button @click="goToModuleDesign">查看模块设计</el-button>
           <el-button @click="openLoadJsonDialog">加载JSON</el-button>
           <el-upload
@@ -699,6 +700,107 @@ const exportTestCases = () => {
     ElMessage.error('导出失败，请重试')
   }
 }
+
+const exportTestCases_zentao = () => {
+  if (testCases.value.length === 0) {
+    ElMessage.warning('没有可导出的测试用例')
+    return
+  }
+
+  try {
+    // 准备表头
+    const headers = [
+      '所属模块',
+      '用例标题',
+      '前置条件',
+      '步骤',
+      '预期',
+      '优先级',
+      '关键词',
+      '用例类型',
+      '适用阶段',
+      ' ',
+      '类型可选值列表',
+      '阶段可选值列表',
+    ]
+
+    // 准备数据行
+    // 准备数据行
+    const rows = testCases.value.map((testCase) => {
+      // 如果用例类型为“UI测试”，导出时改成“其他”
+      const typeValue = testCase.type === 'UI测试' ? '其他' : testCase.type
+
+      return [
+        '/' + getModulePath(testCase.moduleId), // 使用完整的模块路径
+        testCase.title,
+        testCase.preconditions,
+        testCase.steps,
+        testCase.expectedResults,
+
+        testCase.priority,
+        ' ',
+        typeValue,          // ← 替换这里
+        ' ',
+        ' ',
+        ' ',
+        ' ',
+      ]
+    })
+
+    // 创建工作簿
+    const wb = XLSX.utils.book_new()
+
+    // 组合所有行：空行 + 表头 + 数据行
+    const allRows = [ headers, ...rows]
+    const ws = XLSX.utils.aoa_to_sheet(allRows)
+
+    // 设置列宽
+    const colWidths = [
+      { wch: 20 }, // 所属模块
+      { wch: 30 }, // 用例标题
+      { wch: 20 }, // 前置条件
+      { wch: 20 }, // 步骤
+      { wch: 20 }, // 预期
+      { wch: 10 }, // 优先级
+      { wch: 10 }, // 关键词
+      { wch: 10 }, // 用例类型
+      { wch: 10 }, // 适用阶段
+      { wch: 20 }, // 类型可选值列表
+      { wch: 20 }, // 阶段可选值列表
+
+    ]
+    ws['!cols'] = colWidths
+
+    // 设置标题行样式（第二行）
+    const headerStyle = {
+      font: { bold: true, color: { rgb: 'FFFFFF' } },
+      fill: { fgColor: { rgb: '3498DB' } },
+      alignment: { horizontal: 'center', vertical: 'center' }
+    }
+
+    // 将样式应用到标题行（第二行）
+    const range = XLSX.utils.decode_range(ws['!ref'])
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      const cell = XLSX.utils.encode_cell({ r: 1, c: C }) // 第二行
+      if (!ws[cell]) continue
+      ws[cell].s = headerStyle
+    }
+
+    // 将工作表添加到工作簿
+    XLSX.utils.book_append_sheet(wb, ws, '测试用例')
+
+    // 生成文件名
+    const fileName = `测试用例_${new Date().toISOString().split('T')[0]}.csv`
+
+    // 导出文件
+    XLSX.writeFile(wb, fileName,{bookType:'csv'})
+    ElMessage.success('导出成功')
+  } catch (error) {
+    console.error('导出Excel错误:', error)
+    ElMessage.error('导出失败，请重试')
+  }
+}
+
 
 const goToAIGenerate = () => {
   router.push(`/ai-generate?projectId=${selectedProjectId.value}`)
