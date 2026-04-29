@@ -342,6 +342,47 @@ exports.getModuleFunctions = async (req, res) => {
 };
 
 /**
+ * @desc    重新计算所有模块的测试用例数量
+ * @route   POST /api/v1/modules/recalculate-counts
+ * @access  Private
+ */
+exports.recalculateTestCaseCounts = async (req, res) => {
+  try {
+    const { projectId } = req.body;
+
+    if (!projectId) {
+      return res.status(400).json({
+        success: false,
+        message: '请提供项目ID'
+      });
+    }
+
+    const modules = await Module.findAll({
+      where: { projectId }
+    });
+
+    for (const module of modules) {
+      const count = await TestCase.count({
+        where: { moduleId: module.id }
+      });
+      await module.update({ testCaseCount: count });
+    }
+
+    res.json({
+      success: true,
+      message: `已重新计算 ${modules.length} 个模块的测试用例数量`
+    });
+  } catch (error) {
+    console.error('重新计算测试用例数量错误:', error);
+    res.status(500).json({
+      success: false,
+      message: '服务器错误',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
  * @desc    获取项目的模块树
  * @route   GET /api/v1/modules/tree
  * @access  Private

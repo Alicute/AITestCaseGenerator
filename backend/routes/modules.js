@@ -1,34 +1,62 @@
 const express = require('express');
 const router = express.Router();
-const { 
-  getModules,
-  getModule, 
-  createModule, 
-  updateModule, 
-  deleteModule,
-  getModuleFunctions,
-  getModuleTree
-} = require('../controllers/moduleController');
 const { protect } = require('../middlewares/auth');
+const moduleController = require('../controllers/moduleController');
 
-// 所有模块路由都需要认证
-router.use(protect);
+/**
+ * @desc    获取模块列表
+ * @route   GET /api/v1/modules
+ * @access  Private
+ */
+router.get('/', protect, moduleController.getModules);
 
-// 获取模块列表（可按项目过滤）
-router.get('/', getModules);
+/**
+ * @desc    获取单个模块
+ * @route   GET /api/v1/modules/:id
+ * @access  Private
+ */
+router.get('/:id', protect, moduleController.getModule);
 
-// 获取模块树（使用与注释匹配的路径）
-router.get('/tree', getModuleTree);
+/**
+ * @desc    创建模块
+ * @route   POST /api/v1/modules
+ * @access  Private
+ */
+router.post('/', protect, moduleController.createModule);
 
-// 模块CRUD操作
-router.post('/', createModule);
+/**
+ * @desc    更新模块
+ * @route   PUT /api/v1/modules/:id
+ * @access  Private
+ */
+router.put('/:id', protect, moduleController.updateModule);
 
-// ID参数路由
-router.get('/:id', getModule);
-router.put('/:id', updateModule);
-router.delete('/:id', deleteModule);
+/**
+ * @desc    删除模块
+ * @route   DELETE /api/v1/modules/:id
+ * @access  Private
+ */
+router.delete('/:id', protect, moduleController.deleteModule);
 
-// 获取模块的功能点
-router.get('/:id/functions', getModuleFunctions);
+/**
+ * @desc    获取模块的功能点
+ * @route   GET /api/v1/modules/:id/functions
+ * @access  Private
+ */
+router.get('/:id/functions', protect, moduleController.getModuleFunctions);
 
-module.exports = router; 
+/**
+ * @desc    获取项目的模块树
+ * @route   GET /api/v1/modules/tree
+ * @access  Private
+ */
+router.get('/tree', protect, moduleController.getModuleTree);
+
+/**
+ * @desc    重新计算模块测试用例数量
+ * @route   POST /api/v1/modules/recalculate-counts
+ * @access  Private
+ */
+router.post('/recalculate-counts', protect, moduleController.recalculateTestCaseCounts);
+
+module.exports = router;
