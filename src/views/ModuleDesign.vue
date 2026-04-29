@@ -35,6 +35,7 @@
         <div class="module-tree">
           <div class="tree-actions">
             <el-button type="primary" @click="showAddRootModuleDialog">添加根模块</el-button>
+            <el-button type="success" @click="showAiGenerateDialog" :icon="MagicStick">AI生成模块</el-button>
             <el-button @click="toggleExpandAll">{{ isAllExpanded ? '折叠' : '展开' }}</el-button>
             <el-button @click="importDialogVisible = true">导入模块</el-button>
           </div>
@@ -228,13 +229,13 @@
             :auto-upload="false"
             :on-change="handleFileChange"
             :limit="1"
-            accept=".md,.markdown"
+            accept=".md,.markdown,.json"
           >
             <template #trigger>
               <el-button type="primary">选择文件</el-button>
             </template>
             <template #tip>
-              <div class="el-upload__tip">只能上传Markdown文件（.md/.markdown）</div>
+              <div class="el-upload__tip">支持 Markdown (.md/.markdown) 或 JSON (.json) 文件</div>
             </template>
           </el-upload>
         </div>
@@ -247,6 +248,115 @@
           </span>
         </template>
       </el-dialog>
+      <!-- AI生成模块对话框 -->
+      <el-dialog 
+        v-model="aiGenerateDialogVisible" 
+        title="AI 智能生成模块" 
+        width="900px"
+        :close-on-click-modal="false"
+        destroy-on-close
+      >
+        <div class="ai-generate-container">
+          <div class="input-section" v-if="!aiGeneratedResult">
+            <el-alert
+              title="输入业务背景或上传产品截图，AI将自动为您设计模块结构"
+              type="info"
+              show-icon
+              :closable="false"
+              style="margin-bottom: 15px"
+            />
+            
+            <el-form label-position="top">
+              <div class="ai-generate-form">
+          <div class="form-tip">
+             提示：AI配置请前往 "设置 -> AI设置" 进行全局配置。
+          </div>
+          <el-input
+            v-model="aiPrompt"
+            type="textarea"
+            :rows="4"
+            placeholder="请输入业务描述，例如：设计一个电商系统的注册登录模块，包含手机号注册、微信登录、找回密码等功能。"
+            class="mb-2"
+          />
+          
+          <el-form-item label="产品截图 (可选)">
+                <el-upload
+                  action="#"
+                  list-type="picture-card"
+                  :auto-upload="false"
+                  :on-change="handleAiImageChange"
+                  :on-remove="handleAiImageRemove"
+                  accept="image/*"
+                  :limit="3"
+                >
+                  <el-icon><Plus /></el-icon>
+                </el-upload>
+                <div class="form-tip">支持上传界面截图，帮助AI更准确理解功能结构 (最多3张)</div>
+              </el-form-item>
+          </div>
+         </el-form>
+          </div>
+          
+          <div class="result-section" v-else>
+            <div class="result-header">
+              <h3>生成结果预览</h3>
+              <div class="result-actions">
+                <el-button size="small" @click="aiGeneratedResult = null">重新生成</el-button>
+              </div>
+            </div>
+            
+            <div class="json-preview">
+              <!-- 使用简单的树形展示而非纯JSON -->
+              <el-tree
+                :data="aiGeneratedModuleTree"
+                :props="{ label: 'name', children: 'children' }"
+                default-expand-all
+              >
+                 <template #default="{ node, data }">
+                  <span class="custom-tree-node">
+                    <span>
+                      {{ node.label }}
+                      <el-tag size="small" v-if="data.functions && data.functions.length">{{ data.functions.length }}个功能点</el-tag>
+                    </span>
+                  </span>
+                </template>
+              </el-tree>
+            </div>
+            
+            <el-divider />
+            
+            <div class="raw-json-toggle">
+               <el-collapse>
+                <el-collapse-item title="查看原始 JSON 数据">
+                   <pre class="json-code">{{ JSON.stringify(aiGeneratedModuleTree, null, 2) }}</pre>
+                </el-collapse-item>
+               </el-collapse>
+            </div>
+          </div>
+        </div>
+        
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="aiGenerateDialogVisible = false">取消</el-button>
+            <el-button 
+              v-if="!aiGeneratedResult"
+              type="primary" 
+              @click="generateAiModules" 
+              :loading="aiGenerating"
+            >
+              开始生成 (Magic)
+            </el-button>
+             <el-button 
+              v-else
+              type="primary" 
+              @click="confirmImportAiModules" 
+              :loading="importLoading"
+            >
+              确认导入
+            </el-button>
+          </span>
+        </template>
+      </el-dialog>
     </div>
   </main-layout>
 </template>
@@ -255,7 +365,7 @@
 import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowDown } from '@element-plus/icons-vue'
+import { ArrowDown, MagicStick, Plus } from '@element-plus/icons-vue'
 import MainLayout from '@/components/layout/MainLayout.vue'
 import api from '@/api'
 
@@ -1401,6 +1511,94 @@ const processModules = async (modules, parentId = null) => {
   }
 }
 
+
+
+
+// AI 生成模块相关
+const aiGenerateDialogVisible = ref(false)
+const aiPrompt = ref('')
+const aiImages = ref([]) // 存储Base64格式的图片
+const aiGenerating = ref(false)
+const aiGeneratedResult = ref(null)
+const aiGeneratedModuleTree = ref([]) // 用于预览与导入
+
+
+// 显示AI生成对话框
+const showAiGenerateDialog = () => {
+  aiGenerateDialogVisible.value = true
+  aiPrompt.value = ''
+  aiImages.value = []
+  aiGeneratedResult.value = null
+  aiGeneratedModuleTree.value = []
+}
+
+// 处理图片选择
+const handleAiImageChange = (file) => {
+  const reader = new FileReader()
+  reader.readAsDataURL(file.raw)
+  reader.onload = () => {
+    aiImages.value.push(reader.result)
+  }
+}
+
+// 处理图片移除 (这里简化处理，实际需要匹配)
+const handleAiImageRemove = (file) => {
+  // 简单清空逻辑，因为 Base64 不好匹配
+  // 实际建议维护一个 fileList，最后再转 Base64
+  aiImages.value = [] 
+}
+
+// 调用AI生成
+const generateAiModules = async () => {
+   if(!aiPrompt.value && aiImages.value.length === 0){
+      ElMessage.warning('请输入业务描述或上传图片');
+      return;
+   }
+
+   aiGenerating.value = true;
+   try {
+      const response = await api.ai.generateModules({
+         prompt: aiPrompt.value,
+         images: aiImages.value
+      });
+
+      if(response.success){
+         aiGeneratedResult.value = response.data;
+         // 规范化数据为数组
+         aiGeneratedModuleTree.value = Array.isArray(response.data) ? response.data : [response.data];
+         ElMessage.success('生成成功，请预览确认');
+      } else {
+         ElMessage.error(response.message || '生成失败');
+      }
+   } catch (error) {
+      console.error('AI生成失败:', error);
+      ElMessage.error('AI生成请求发生错误');
+   } finally {
+      aiGenerating.value = false;
+   }
+}
+
+// 确认导入AI生成的模块
+const confirmImportAiModules = async () => {
+   if(aiGeneratedModuleTree.value.length === 0){
+      ElMessage.warning('没有可导入的数据');
+      return;
+   }
+   
+   importLoading.value = true;
+   try {
+      await importModuleTree(aiGeneratedModuleTree.value);
+      ElMessage.success('模块导入成功');
+      aiGenerateDialogVisible.value = false;
+      fetchModuleTree();
+   } catch (error) {
+      console.error('导入AI模块失败:', error);
+      ElMessage.error('导入失败');
+   } finally {
+      importLoading.value = false;
+   }
+}
+
 // 导入模块
 const importModules = async () => {
   if (fileList.value.length === 0) {
@@ -1416,15 +1614,32 @@ const importModules = async () => {
       return
     }
 
-    // 使用FileReader读取Markdown文件内容
+    // 使用FileReader读取文件内容
     const reader = new FileReader()
     reader.onload = async (e) => {
       try {
-        const markdownContent = e.target.result
-        const moduleTree = parseMarkdownModules(markdownContent)
+        const content = e.target.result
+        let moduleTree = []
+
+        if (file.name.toLowerCase().endsWith('.json')) {
+          try {
+            moduleTree = JSON.parse(content)
+            // 简单的结构校验
+            if (!Array.isArray(moduleTree)) {
+              throw new Error('格式错误：根节点必须是数组')
+            }
+          } catch (jsonError) {
+            ElMessage.error('JSON 解析失败: ' + jsonError.message)
+            importLoading.value = false
+            return
+          }
+        } else {
+          // 默认为 Markdown
+          moduleTree = parseMarkdownModules(content)
+        }
 
         if (moduleTree.length === 0) {
-          ElMessage.warning('未从Markdown中解析到有效的模块结构')
+          ElMessage.warning('未解析到有效的模块结构')
           importLoading.value = false
           return
         }
@@ -1438,8 +1653,8 @@ const importModules = async () => {
         // 刷新模块树
         fetchModuleTree()
       } catch (error) {
-        console.error('解析Markdown错误:', error)
-        ElMessage.error('解析Markdown时发生错误')
+        console.error('解析文件错误:', error)
+        ElMessage.error('解析文件时发生错误')
       } finally {
         importLoading.value = false
       }
@@ -1629,5 +1844,25 @@ onMounted(async () => {
   min-height: 0;
   overflow-y: auto;
   /* 关键：必须有高度，flex: 1 1 0 + min-height: 0 */
+}
+
+/* AI生成相关样式 */
+.ai-generate-container {
+   max-height: 60vh;
+   overflow-y: auto;
+   padding: 10px;
+}
+.json-code {
+   background: #f4f4f4;
+   padding: 10px;
+   border-radius: 4px;
+   font-size: 12px;
+   max-height: 200px;
+   overflow-y: auto;
+}
+.form-tip {
+   color: #909399;
+   font-size: 12px;
+   margin-top: 5px;
 }
 </style>

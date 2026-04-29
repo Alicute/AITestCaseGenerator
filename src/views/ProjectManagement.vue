@@ -96,7 +96,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import MainLayout from '@/components/layout/MainLayout.vue'
-import axios from 'axios'
+import { projectAPI } from '@/api'
 
 const router = useRouter()
 
@@ -151,11 +151,11 @@ const editingProject = ref({})
 const fetchProjects = async () => {
   loading.value = true
   try {
-    const response = await axios.get('/api/v1/projects')
-    if (response.data.success) {
-      projects.value = response.data.data
+    const data = await projectAPI.getProjects()
+    if (data.success) {
+      projects.value = data.data
     } else {
-      ElMessage.error(response.data.message || '获取项目列表失败')
+      ElMessage.error(data.message || '获取项目列表失败')
     }
   } catch (error) {
     console.error('获取项目列表错误:', error)
@@ -191,18 +191,18 @@ const createProject = async () => {
 
   submitting.value = true
   try {
-    const response = await axios.post('/api/v1/projects', {
+    const data = await projectAPI.createProject({
       name: newProject.value.name,
       description: newProject.value.description,
       templateId: newProject.value.templateId || null
     })
     
-    if (response.data.success) {
+    if (data.success) {
       createProjectDialogVisible.value = false
       ElMessage.success('项目创建成功')
       fetchProjects() // 刷新项目列表
     } else {
-      ElMessage.error(response.data.message || '创建项目失败')
+      ElMessage.error(data.message || '创建项目失败')
     }
   } catch (error) {
     console.error('创建项目错误:', error)
@@ -232,17 +232,17 @@ const saveProjectEdit = async () => {
 
   submitting.value = true
   try {
-    const response = await axios.put(`/api/v1/projects/${editingProject.value.id}`, {
+    const data = await projectAPI.updateProject(editingProject.value.id, {
       name: editingProject.value.name,
       description: editingProject.value.description
     })
     
-    if (response.data.success) {
+    if (data.success) {
       editProjectDialogVisible.value = false
       ElMessage.success('项目更新成功')
       fetchProjects() // 刷新项目列表
     } else {
-      ElMessage.error(response.data.message || '更新项目失败')
+      ElMessage.error(data.message || '更新项目失败')
     }
   } catch (error) {
     console.error('更新项目错误:', error)
@@ -265,13 +265,13 @@ const confirmDeleteProject = (project) => {
   )
     .then(async () => {
       try {
-        const response = await axios.delete(`/api/v1/projects/${project.id}`)
+        const data = await projectAPI.deleteProject(project.id)
         
-        if (response.data.success) {
+        if (data.success) {
           ElMessage.success('项目删除成功')
           fetchProjects() // 刷新项目列表
         } else {
-          ElMessage.error(response.data.message || '删除项目失败')
+          ElMessage.error(data.message || '删除项目失败')
         }
       } catch (error) {
         console.error('删除项目错误:', error)

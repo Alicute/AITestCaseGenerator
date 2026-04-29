@@ -100,8 +100,7 @@
               size="small"
               class="highlight-number"
             />
-          <a href="https://www.kimi.com/" target="_blank" style="color: black; text-decoration: underline;">跳转到Kimi</a>
-
+            />
           </div>
         </div>
         
@@ -132,7 +131,7 @@
       <el-card class="section-card">
         <template #header>
           <div class="card-header">
-            <span style="color: red;">AI设置 | 直接使用kimi的深度思考功能生成即可，免费且够用！</span>
+            <span>AI设置</span>
             <el-link type="primary" @click="showAdvancedSettings = !showAdvancedSettings">
               {{ showAdvancedSettings ? '隐藏高级选项' : '显示高级选项' }}
             </el-link>
@@ -140,13 +139,17 @@
         </template>
         
         <el-form label-position="left" label-width="100px">
+          <!-- 
           <el-form-item label="接口:">
-            <el-select v-model="aiSettings.provider" style="width: 260px">
-              <el-option label="OpenAI API" value="openai" />
-              <el-option label="Claude API" value="claude" />
-              <el-option label="本地模型" value="local" />
+            <el-select v-model="aiSettings.provider" style="width: 260px" @change="handleProviderChange">
+              <el-option label="Google Gemini" value="gemini" />
+              <el-option label="OpenAI Compatible" value="openai" />
             </el-select>
           </el-form-item>
+          -->
+          <div class="current-provider-info" style="margin-bottom: 20px; color: #666;">
+            当前使用全局AI配置: <strong>{{ aiSettings.providerName || aiSettings.provider }}</strong>
+          </div>
           
           <el-form-item label="模型:">
             <el-select v-model="aiSettings.model" style="width: 260px">
@@ -183,7 +186,7 @@
           size="large" 
           @click="generateTestCases"
           :loading="generating"
-          :disabled="true"
+          :disabled="!promptContent || generating"
         >
           生成测试用例
         </el-button>
@@ -202,33 +205,135 @@
           </div>
         </template>
         
-        <div class="generation-result">
-          <div v-for="(testCase, index) in currentPageTestCases" :key="index" class="test-case-item">
-            <div class="test-case-header">
-              <h3>{{ testCase.title }}</h3>
-              <el-checkbox v-model="testCase.selected" />
-            </div>
-            
-            <div class="test-case-section">
-              <div class="section-title">前置条件:</div>
-              <div class="section-content">{{ testCase.precondition }}</div>
-            </div>
-            
-            <div class="test-case-section">
-              <div class="section-title">测试步骤:</div>
-              <div class="section-content">
-                <ol>
-                  <li v-for="(step, stepIndex) in testCase.steps" :key="stepIndex">
-                    {{ step }}
-                  </li>
-                </ol>
-              </div>
-            </div>
-            
-            <div class="test-case-section">
-              <div class="section-title">预期结果:</div>
-              <div class="section-content">{{ testCase.expectedResult }}</div>
-            </div>
+        <div class="generation-result" v-if="parsedTestCases.length > 0">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 40px">
+                    <el-checkbox 
+                      :model-value="allSelected" 
+                      :indeterminate="isIndeterminate"
+                      @change="handleSelectAll" 
+                    />
+                  </th>
+                  <th style="width: 50px">序号</th>
+                  <th>标题</th>
+                  <th style="width: 80px">类型</th>
+                  <th style="width: 60px">优先级</th>
+                  <th>前置条件</th>
+                  <th>测试步骤</th>
+                  <th>预期结果</th>
+                  <th style="width: 120px">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(testCase, index) in currentPageTestCases" :key="index">
+                  <td>
+                    <el-checkbox v-model="testCase.selected" />
+                  </td>
+                  <td>{{ (pagination.currentPage - 1) * pagination.pageSize + index + 1 }}</td>
+                  
+                  <!-- Title -->
+                  <td v-if="editingIndex === index">
+                    <el-input 
+                      v-model="editForm.title" 
+                      type="textarea" 
+                      autosize 
+                      size="small"
+                    />
+                  </td>
+                  <td v-else>{{ testCase.title }}</td>
+
+                  <!-- Type -->
+                  <td v-if="editingIndex === index">
+                     <el-select v-model="editForm.type" size="small">
+                      <el-option label="功能测试" value="功能测试" />
+                      <el-option label="性能测试" value="性能测试" />
+                      <el-option label="安全相关" value="安全相关" />
+                      <el-option label="接口测试" value="接口测试" />
+                      <el-option label="UI测试" value="UI测试" />
+                      <el-option label="其他" value="其他" />
+                    </el-select>
+                  </td>
+                  <td v-else>
+                    <el-tag size="small">{{ testCase.type || '功能测试' }}</el-tag>
+                  </td>
+
+                  <!-- Priority -->
+                   <td v-if="editingIndex === index">
+                    <el-select v-model="editForm.priority" size="small">
+                      <el-option label="P1" value="P1" />
+                      <el-option label="P2" value="P2" />
+                      <el-option label="P3" value="P3" />
+                      <el-option label="P4" value="P4" />
+                    </el-select>
+                  </td>
+                  <td v-else>
+                    <el-tag 
+                      size="small" 
+                      :type="testCase.priority === 'P1' ? 'danger' : testCase.priority === 'P2' ? 'warning' : 'info'"
+                    >
+                      {{ testCase.priority || 'P2' }}
+                    </el-tag>
+                  </td>
+
+                  <!-- Preconditions -->
+                  <td v-if="editingIndex === index">
+                    <el-input 
+                      v-model="editForm.precondition" 
+                      type="textarea" 
+                      autosize 
+                      size="small"
+                    />
+                  </td>
+                   <td v-else class="pre-wrap">{{ testCase.precondition }}</td>
+
+                  <!-- Steps -->
+                  <td v-if="editingIndex === index">
+                    <el-input 
+                      v-model="editForm.steps" 
+                      type="textarea" 
+                      autosize 
+                      size="small"
+                      placeholder="每行一个步骤"
+                    />
+                  </td>
+                  <td v-else>
+                    <ol class="step-list">
+                      <li v-for="(step, sIndex) in (Array.isArray(testCase.steps) ? testCase.steps : [])" :key="sIndex">
+                        {{ step }}
+                      </li>
+                    </ol>
+                  </td>
+
+                  <!-- Expected Result -->
+                  <td v-if="editingIndex === index">
+                    <el-input 
+                      v-model="editForm.expectedResult" 
+                      type="textarea" 
+                      autosize 
+                      size="small"
+                    />
+                  </td>
+                  <td v-else class="pre-wrap">{{ testCase.expectedResult }}</td>
+
+                  <!-- Actions -->
+                  <td>
+                    <div class="action-buttons-group">
+                      <template v-if="editingIndex === index">
+                        <el-button type="primary" link size="small" @click="saveEdit(index)">保存</el-button>
+                        <el-button link size="small" @click="cancelEdit">取消</el-button>
+                      </template>
+                      <template v-else>
+                        <el-button type="primary" link size="small" @click="startEdit(index, testCase)">编辑</el-button>
+                        <el-button type="danger" link size="small" @click="deleteTestCase(index)">删除</el-button>
+                      </template>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -350,31 +455,58 @@ const saveForm = ref({
 
 // AI设置
 const aiSettings = ref({
-  provider: 'openai',
-  model: 'gpt-3.5-turbo',
+  provider: 'gemini',
+  providerName: '',
+  model: 'gemini-pro',
   temperature: 0.7,
   maxTokens: 2000,
   frequencyPenalty: 0
 })
 
-// 可用模型列表
-const availableModels = computed(() => {
-  if (aiSettings.value.provider === 'openai') {
-    return [
-      { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo' },
-      { id: 'gpt-4', name: 'GPT-4' },
-      { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' }
-    ]
-  } else if (aiSettings.value.provider === 'claude') {
-    return [
-      { id: 'claude-instant', name: 'Claude Instant' },
-      { id: 'claude-2', name: 'Claude 2' }
-    ]
-  } else {
-    return [
-      { id: 'local-model', name: '本地模型' }
-    ]
+const availableModels = ref([])
+
+// 获取可用模型列表
+const fetchModels = async (provider) => {
+  try {
+    const response = await api.ai.getAvailableModels(provider)
+    if (response.success) {
+      availableModels.value = response.data
+      
+      // 如果当前模型不在列表中，且列表不为空，默认选中第一个
+      if (availableModels.value.length > 0) {
+        const currentModelExists = availableModels.value.find(m => m.id === aiSettings.value.model)
+        if (!currentModelExists) {
+          aiSettings.value.model = availableModels.value[0].id
+        }
+      }
+    }
+  } catch (error) {
+    console.error('获取模型列表失败:', error)
   }
+}
+
+// 加载全局设置
+const loadGlobalSettings = async () => {
+  try {
+    const response = await api.settings.getSettings()
+    if (response.success && response.data.ai) {
+      const globalAI = response.data.ai
+      aiSettings.value.provider = globalAI.provider || 'gemini'
+      aiSettings.value.providerName = globalAI.providerName 
+      aiSettings.value.model = globalAI.model || 'gemini-pro'
+      aiSettings.value.temperature = globalAI.temperature || 0.7
+      
+      // 加载模型列表
+      await fetchModels(aiSettings.value.provider)
+    }
+  } catch (error) {
+    console.error('加载全局配置失败:', error)
+  }
+}
+
+onMounted(() => {
+  fetchProjects()
+  loadGlobalSettings()
 })
 
 // 计算属性
@@ -608,38 +740,23 @@ ${functionDescriptions}
    - 预期结果(expectedResults)：与测试步骤一一对应，不要多也不要少，描述每个步骤的预期结果
    - 优先级(priority)：根据测试用例的重要程度，选择P1、P2、P3、P4
    - 类型(type)：根据测试用例的类型，选择：功能测试、性能测试、配置相关、安装部署、接口测试、安全相关、兼容性测试、UI测试、其他
-请以如下JSON格式输出测试用例，确保包含所有必要字段：
-
+请务必只输出标准的JSON格式数据，不要包含任何Markdown标记（如 \`\`\`json），不要包含任何其他说明文字。
+JSON结构如下：
 {
   "testCases": [
     {
       "module": "${selectedModuleName.value}",
-      "id": "",
       "title": "功能点/场景-具体操作/条件-预期结果/验证点",
-      "maintainer": "程亮",
-      "type": "",
+      "type": "功能测试",
       "priority": "P1",
       "testType": "手动",
-      "estimatedHours": "",
-      "remainingHours": "",
-      "relatedItems": "",
       "preconditions": "1. 前置条件1\\n2. 前置条件2",
       "steps": "1. 步骤1\\n2. 步骤2",
       "expectedResults": "1. 步骤1的预期结果\\n2. 步骤2的预期结果",
-      "followers": "",
-      "notes": ""
+      "maintainer": "程亮"
     }
   ]
-}
-
-注意：
-1. id、estimatedHours、remainingHours、relatedItems、followers、notes字段保持为空字符串
-2. preconditions、steps、expectedResults字段必须使用数字编号
-3. 每个测试用例必须完整包含所有字段
-4. 确保生成的测试用例覆盖主要功能和关键场景
-5. 所有换行符必须使用 \\n 转义，不要使用实际的换行符
-6. 前置条件、步骤描述和预期结果的描述要求内容简洁专业，不要出现重复的描述，不要出现冗余的描述，不要出现重复的步骤，不要出现重复的预期结果
-7. 针对异常使用功能导致出现的提示、警告或者针对功能本身，使用确定性语气词，不要有可能、或、如等不确定的词语`
+}`
 }
 
 // 监听模板变化
@@ -666,7 +783,7 @@ const generateTestCases = async () => {
   try {
     // 使用AI API生成测试用例
     const response = await api.ai.generateTestCases({
-      prompt: promptContent.value,
+      promptContent: promptContent.value,
       moduleId: selectedModuleId.value,
       settings: aiSettings.value
     })
@@ -696,44 +813,47 @@ const generateTestCases = async () => {
 
 // 解析生成的测试用例文本
 const parseTestCases = (text) => {
-  // 使用分隔符分割各个测试用例
-  const testCases = text.split(/----+/)
-    .map(tc => tc.trim())
-    .filter(tc => tc.length > 0)
-  
-  return testCases.map(tcText => {
-    // 提取标题
-    const titleMatch = tcText.match(/测试用例.*?:(.*?)[\r\n]|^(.*?)[\r\n]/i)
-    const title = titleMatch ? (titleMatch[1] || titleMatch[2]).trim() : '未命名测试用例'
+  try {
+    // 尝试直接解析
+    let jsonContent = text;
     
-    // 提取前置条件
-    const preconditionMatch = tcText.match(/前置条件:([\s\S]*?)(?=步骤:|测试步骤:|$)/i)
-    const precondition = preconditionMatch ? preconditionMatch[1].trim() : ''
-    
-    // 提取步骤
-    const stepsMatch = tcText.match(/(?:步骤|测试步骤):([\s\S]*?)(?=预期结果:|$)/i)
-    const stepsText = stepsMatch ? stepsMatch[1].trim() : ''
-    
-    // 把步骤文本转换为数组
-    const steps = stepsText.split(/\r?\n/)
-      .map(step => {
-        // 移除数字和点前缀
-        return step.replace(/^\s*\d+\.\s*|-\s*/, '').trim()
-      })
-      .filter(step => step.length > 0)
-    
-    // 提取预期结果
-    const expectedResultMatch = tcText.match(/预期结果:([\s\S]*?)(?=$)/i)
-    const expectedResult = expectedResultMatch ? expectedResultMatch[1].trim() : ''
-    
-    return {
-      title,
-      precondition,
-      steps,
-      expectedResult,
-      selected: true
+    // 如果包含 markdown 代码块，提取其中的内容
+    const codeBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/```\s*([\s\S]*?)\s*```/);
+    if (codeBlockMatch) {
+      jsonContent = codeBlockMatch[1];
     }
-  })
+    
+    // 清理可能导致解析失败的非JSON字符（如果不在代码块中）
+    // 这里简单处理，假设 content 是 JSON 字符串
+    
+    const parsed = JSON.parse(jsonContent);
+    const testCasesList = parsed.testCases || (Array.isArray(parsed) ? parsed : []);
+    
+    return testCasesList.map(tc => {
+      // 确保 steps 是数组
+      let steps = tc.steps;
+      if (typeof steps === 'string') {
+        steps = steps.split(/\r?\n/).filter(s => s.trim());
+      } else if (!Array.isArray(steps)) {
+        steps = [];
+      }
+      
+      return {
+        title: tc.title || '未命名用例',
+        precondition: tc.preconditions || tc.precondition || '',
+        steps: steps,
+        expectedResult: tc.expectedResults || tc.expectedResult || '',
+        priority: tc.priority || 'P2',
+        type: tc.type || '功能测试',
+        selected: true
+      };
+    });
+  } catch (error) {
+    console.warn('JSON解析失败，尝试回退到文本解析:', error);
+    // 回退到简单的文本解析（保留以前的逻辑作为兜底，或者提示错误）
+    ElMessage.warning('自动解析失败，请检查生成内容格式');
+    return []; 
+  }
 }
 
 // 保存到测试用例
@@ -775,14 +895,13 @@ const confirmSaveTestCases = async () => {
       const testCaseData = {
         title: tc.title,
         moduleId,
+        projectId: selectedProjectId.value,
         precondition: tc.precondition,
-        steps: tc.steps.join('\n'),
+        steps: Array.isArray(tc.steps) ? tc.steps.join('\n') : tc.steps,
         expectedResult: tc.expectedResult,
-        priority: 'medium',
-        type: selectedTemplate.value === 'exception' ? 'security' : 
-              selectedTemplate.value === 'boundary' ? 'performance' : 'functional',
-        status: 'waiting',
-        creatorId: 1, // 当前登录用户ID，实际应该从认证中获取
+        priority: tc.priority || 'P2',
+        type: tc.type || '功能测试',
+        status: '未执行',
       }
       
       const response = await api.testCase.createTestCase(testCaseData)
@@ -1003,6 +1122,77 @@ const selectedModuleDisplay = computed(() => {
   const path = findModulePath(moduleOptions.value, selectedModulePath.value)
   return path || '请选择功能模块'
 })
+
+// 编辑相关逻辑
+const editingIndex = ref(-1)
+const editForm = ref({
+  title: '',
+  type: '',
+  priority: '',
+  precondition: '',
+  steps: '',
+  expectedResult: ''
+})
+
+const startEdit = (index, testCase) => {
+  editingIndex.value = index
+  editForm.value = {
+    title: testCase.title,
+    type: testCase.type || '功能测试',
+    priority: testCase.priority || 'P2',
+    precondition: testCase.precondition,
+    steps: Array.isArray(testCase.steps) ? testCase.steps.join('\n') : testCase.steps,
+    expectedResult: testCase.expectedResult
+  }
+}
+
+const cancelEdit = () => {
+  editingIndex.value = -1
+  editForm.value = {}
+}
+
+const saveEdit = (index) => {
+  const realIndex = (pagination.value.currentPage - 1) * pagination.value.pageSize + index
+  const testCase = parsedTestCases.value[realIndex]
+  
+  // 更新数据
+  testCase.title = editForm.value.title
+  testCase.type = editForm.value.type
+  testCase.priority = editForm.value.priority
+  testCase.precondition = editForm.value.precondition
+  // 处理步骤，按换行符分割回数组
+  testCase.steps = editForm.value.steps.split('\n').filter(s => s.trim())
+  testCase.expectedResult = editForm.value.expectedResult
+  
+  editingIndex.value = -1
+  ElMessage.success('已更新')
+}
+
+const deleteTestCase = (index) => {
+  const realIndex = (pagination.value.currentPage - 1) * pagination.value.pageSize + index
+  parsedTestCases.value.splice(realIndex, 1)
+  
+  // 如果当前页为空且不是第一页，自动跳转到上一页
+  if (currentPageTestCases.value.length === 0 && pagination.value.currentPage > 1) {
+    pagination.value.currentPage--
+  }
+}
+
+// 全选/反选逻辑
+const allSelected = computed(() => {
+  return currentPageTestCases.value.length > 0 && currentPageTestCases.value.every(tc => tc.selected)
+})
+
+const isIndeterminate = computed(() => {
+  const selectedCount = currentPageTestCases.value.filter(tc => tc.selected).length
+  return selectedCount > 0 && selectedCount < currentPageTestCases.value.length
+})
+
+const handleSelectAll = (val) => {
+  currentPageTestCases.value.forEach(tc => {
+    tc.selected = val
+  })
+}
 </script>
 
 <style scoped>
@@ -1222,5 +1412,184 @@ const selectedModuleDisplay = computed(() => {
   color: #f56c6c;
   font-weight: bold;
   font-size: 16px;
+}
+
+
+.ai-generation {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.section-card {
+  margin-bottom: 20px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.selector-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.selector-row {
+  display: flex;
+  gap: 30px;
+  flex-wrap: wrap;
+}
+
+.selector-item {
+  display: flex;
+  align-items: center;
+}
+
+.selector-label {
+  font-weight: bold;
+  margin-right: 10px;
+  min-width: 50px;
+}
+
+.module-description {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  border-left: 4px solid #409eff;
+}
+
+.module-description h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #303133;
+}
+
+.description-content {
+  color: #606266;
+  line-height: 1.6;
+}
+
+.function-list {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #ebeef5;
+}
+
+.function-list h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.prompt-actions {
+  margin-bottom: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.test-case-count {
+  display: flex;
+  align-items: center;
+}
+
+.count-label {
+  margin-right: 10px;
+  color: #606266;
+}
+
+.highlight-number :deep(.el-input__inner) {
+  color: #409eff;
+  font-weight: bold;
+}
+
+.template-selector {
+  margin-bottom: 15px;
+}
+
+.prompt-editor {
+  margin-top: 10px;
+}
+
+.action-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin: 10px 0;
+}
+
+/* 表格样式 */
+.table-wrapper {
+  overflow-x: auto;
+  margin: 10px 0;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 13px;
+}
+
+th {
+  background-color: #f5f7fa;
+  color: #606266;
+  font-weight: 600;
+  text-align: left;
+  padding: 12px 10px;
+  border-bottom: 1px solid #ebeef5;
+  white-space: nowrap;
+}
+
+td {
+  padding: 10px;
+  border-bottom: 1px solid #ebeef5;
+  color: #606266;
+  vertical-align: top;
+  word-break: break-word; /* 允许单词换行 */
+  white-space: normal; /* 允许文本换行 */
+}
+
+/* 特定列的样式 */
+td .pre-wrap {
+  white-space: pre-wrap;
+}
+
+.step-list {
+  padding-left: 20px;
+  margin: 0;
+}
+
+.step-list li {
+  margin-bottom: 4px;
+}
+
+tr:hover td {
+  background-color: #f5f7fa;
+}
+
+.action-buttons-group {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.pagination-container {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.save-options {
+  margin-top: 20px;
+  padding: 10px;
+  background-color: #f0f9eb;
+  border-radius: 4px;
+  color: #67c23a;
 }
 </style>

@@ -60,6 +60,7 @@
               <el-button @click="refreshZentaoMap">刷新禅道模块映射</el-button>
             </template>
           </el-tooltip>
+          <el-button @click="recalculateModuleCounts">重新计算模块数量</el-button>
           <el-button @click="goToModuleDesign">查看模块设计</el-button>
           <el-button @click="openLoadJsonDialog">加载JSON</el-button>
           <el-upload
@@ -585,21 +586,17 @@ const fetchModules = async (projectId) => {
     const response = await api.module.getModuleTree(projectId)
 
     if (response.success) {
-      // 直接使用后端返回的树形结构
-      moduleOptions.value = response.data.map((module) => ({
-        value: module.id,
-        label: module.name,
-        children:
-          module.children?.map((child) => ({
-            value: child.id,
-            label: child.name,
-            children:
-              child.children?.map((grandChild) => ({
-                value: grandChild.id,
-                label: grandChild.name
-              })) || []
-          })) || []
-      }))
+      // 递归构建模块选项，在名称后添加测试用例数量
+      const buildModuleOptions = (modules) => {
+        return modules.map((module) => ({
+          value: module.id,
+          name: module.name,
+          label: module.testCaseCount > 0 ? `${module.name} (${module.testCaseCount})` : module.name,
+          children: module.children ? buildModuleOptions(module.children) : []
+        }))
+      }
+
+      moduleOptions.value = buildModuleOptions(response.data)
     } else {
       ElMessage.error(response.message || '获取模块列表失败')
     }
@@ -837,6 +834,35 @@ const refreshZentaoMap = async () => {
     tooltipText.value = '禅道模块映射刷新失败'
   }
 }
+
+const recalculateModuleCounts = async () => {
+  try {
+    if (!selectedProjectId.value) {
+      ElMessage.warning('请先选择项目')
+      return
+    }
+
+    await ElMessageBox.confirm('确定要重新计算所有模块的测试用例数量吗？', '确认操作', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
+    const response = await api.module.recalculateCounts({ projectId: selectedProjectId.value })
+    if (response.success) {
+      ElMessage.success(response.message)
+      // 重新加载模块列表
+      await fetchModules(selectedProjectId.value)
+    } else {
+      ElMessage.error(response.message || '重新计算失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('重新计算模块数量失败:', error)
+      ElMessage.error('重新计算模块数量失败')
+    }
+  }
+}
 const exportTestCases_zentao = () => {
   if (testCases.value.length === 0) {
     ElMessage.warning('没有可导出的测试用例')
@@ -846,6 +872,7 @@ const exportTestCases_zentao = () => {
   try {
     // 准备表头
     const headers = [
+      '所属编号',
       '所属模块',
       '用例标题',
       '前置条件',
@@ -861,7 +888,6 @@ const exportTestCases_zentao = () => {
     ]
 
     // 准备数据行
-    // 准备数据行
     const rows = testCases.value.map((testCase) => {
       // 如果用例类型为“UI测试”，导出时改成“其他”
       const typeValue = testCase.type === 'UI测试' ? '其他' : testCase.type
@@ -875,7 +901,6 @@ const exportTestCases_zentao = () => {
         testCase.preconditions,
         testCase.steps,
         testCase.expectedResults,
-
         testCase.priority,
         ' ',
         typeValue, // ← 替换这里
@@ -904,6 +929,7 @@ const exportTestCases_zentao = () => {
       { wch: 10 }, // 关键词
       { wch: 10 }, // 用例类型
       { wch: 10 }, // 适用阶段
+      { wch: 10 }, // 空列
       { wch: 20 }, // 类型可选值列表
       { wch: 20 } // 阶段可选值列表
     ]
@@ -1051,15 +1077,15 @@ watch(selectedProjectId, (newValue) => {
 
 /**
  * 在一个树形结构的模块选项中，根据模块名称递归查找模块ID。
- * @param {Array} moduleOptions - 模块选项的树形数组，每个选项应有 label, value, 和可选的 children 属性。
+ * @param {Array} moduleOptions - 模块选项的树形数组，每个选项应有 label, value, name, 和可选的 children 属性。
  * @param {string} moduleName - 需要查找的模块名称。
  * @returns {number|string|null} - 匹配到的模块ID；如果未找到则返回 null。
  */
 const findModuleIdByName = (moduleOptions, moduleName) => {
   // 遍历当前层级的模块
   for (const option of moduleOptions) {
-    // 如果名称匹配，返回当前模块的ID (value)
-    if (option.label === moduleName) {
+    // 使用 name 而不是 label 进行匹配，因为 label 包含了测试用例数量
+    if (option.name === moduleName) {
       return option.value
     }
     // 如果有子模块，则递归进入子模块中查找
@@ -1073,6 +1099,25 @@ const findModuleIdByName = (moduleOptions, moduleName) => {
   }
   // 如果遍历完所有模块及其子模块都未找到，返回 null
   return null
+}
+
+/**
+ * 从树形结构的模块选项中提取所有模块名称。
+ * @param {Array} moduleOptions - 模块选项的树形数组。
+ * @returns {Array} - 所有模块名称的数组。
+ */
+const getModuleNamesFromOptions = (moduleOptions) => {
+  const names = []
+  const extractNames = (options) => {
+    for (const option of options) {
+      names.push(option.label)
+      if (option.children && option.children.length > 0) {
+        extractNames(option.children)
+      }
+    }
+  }
+  extractNames(moduleOptions)
+  return names
 }
 
 // 打开加载 JSON 对话框
@@ -1177,7 +1222,7 @@ const saveSelectedTestCases = async () => {
         if (!moduleId) {
           console.warn(`未找到模块: ${testCase.module}`, {
             testCase,
-            availableModules: modules.value.map((m) => m.name)
+            availableModules: getModuleNamesFromOptions(moduleOptions.value)
           })
         }
 
@@ -1280,10 +1325,10 @@ const getModulePath = (moduleId) => {
   const findModulePath = (modules, id, path = []) => {
     for (const module of modules) {
       if (module.value === id) {
-        return [...path, module.label].join('/')
+        return [...path, module.name].join('/')
       }
       if (module.children && module.children.length > 0) {
-        const result = findModulePath(module.children, id, [...path, module.label])
+        const result = findModulePath(module.children, id, [...path, module.name])
         if (result) return result
       }
     }

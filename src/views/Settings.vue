@@ -112,7 +112,32 @@
                   />
                 </el-select>
               </el-form-item>
-              
+
+              <el-form-item v-if="settings.provider === 'openai'" label="供应商名称">
+                <el-input 
+                  v-model="settings.providerName" 
+                  placeholder="如: DeepSeek, Moonshot" 
+                  class="form-input" 
+                />
+                 <div class="input-description">
+                  自定义显示的AI服务商名称
+                </div>
+              </el-form-item>
+              <el-form-item label="API接口地址">
+                <el-input
+                  v-model="settings.apiUrl"
+                  placeholder="https://api.openai.com/v1"
+                  class="form-input"
+                >
+                   <template #append>
+                      <el-button @click="resetApiUrl">恢复默认</el-button>
+                   </template>
+                </el-input>
+                <div class="input-description">
+                  可配置第三方中转地址或代理地址，留空则使用官方默认地址
+                </div>
+              </el-form-item>
+
               <el-form-item label="API密钥">
                 <el-input
                   v-model="settings.apiKey"
@@ -124,14 +149,26 @@
               </el-form-item>
               
               <el-form-item label="默认模型">
-                <el-select v-model="settings.model" class="form-input">
-                  <el-option
-                    v-for="item in modelOptions"
-                    :key="item.value"
-                    :label="item.label"
-                    :value="item.value"
-                  />
-                </el-select>
+                <div class="model-select-container" style="display: flex; gap: 10px; width: 100%;">
+                  <el-select 
+                    v-model="settings.model" 
+                    placeholder="请选择或输入模型名称"
+                    filterable
+                    allow-create
+                    default-first-option
+                    class="form-input"
+                    :loading="modelsLoading"
+                    style="flex: 1;"
+                  >
+                    <el-option
+                      v-for="item in modelOptions"
+                      :key="item.value"
+                      :label="item.label"
+                      :value="item.value"
+                    />
+                  </el-select>
+                  <el-button @click="fetchModelList" :loading="modelsLoading" icon="Refresh">获取模型</el-button>
+                </div>
               </el-form-item>
               
               <el-form-item label="Temperature (创造性)">
@@ -150,7 +187,7 @@
               </el-form-item>
               
               <el-form-item>
-                <el-button type="primary" @click="saveAISettings">保存设置</el-button>
+                <el-button type="primary" @click="saveAISettings" :loading="aiSaving">保存设置</el-button>
                 <el-button @click="settings.apiKey = ''">清除API密钥</el-button>
               </el-form-item>
             </el-form>
@@ -483,7 +520,7 @@ import { ref, reactive, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useUserStore } from '../stores/user';
 import MainLayout from '@/components/layout/MainLayout.vue';
-import { settingsAPI } from '@/api';
+import api, { settingsAPI } from '@/api';
 import {
   Setting,
   Connection,
@@ -493,7 +530,8 @@ import {
   Plus,
   Search,
   Document,
-  Tools
+  Tools,
+  Refresh
 } from '@element-plus/icons-vue';
 
 // 定义状态变量
@@ -691,6 +729,23 @@ const envSettings = reactive({
 });
 const envLoading = ref(false);
 const envSaving = ref(false);
+const aiSaving = ref(false);
+
+// 加载AI设置（从环境变量）
+const loadAISettingsFromEnv = async () => {
+   try {
+      const result = await settingsAPI.getEnvironmentSettings();
+      if(result.success) {
+         settings.provider = result.data.AI_PROVIDER || 'gemini';
+         settings.providerName = result.data.AI_PROVIDER_NAME || '';
+         settings.apiKey = result.data.AI_API_KEY || '';
+         settings.apiUrl = result.data.AI_API_URL || '';
+         settings.model = result.data.AI_MODEL || '';
+      }
+   } catch (error) {
+      console.error('加载AI配置失败', error);
+   }
+}
 
 // 获取环境变量设置
 const fetchEnvSettings = async () => {
@@ -747,6 +802,8 @@ const handleMenuChange = (menu) => {
     fetchUsers();
   } else if (menu === 'environment') {
     fetchEnvSettings();
+  } else if (menu === 'ai') {
+    loadAISettingsFromEnv();
   }
 };
 
@@ -778,11 +835,17 @@ const settings = reactive({
   autoSave: true,
   defaultView: 'list',
   language: 'zh-CN',
-  provider: 'openai',
+  provider: 'gemini',
+  providerName: '',
   apiKey: '',
-  model: 'gpt-3.5-turbo',
+  apiUrl: '',
+  model: '',
   temperature: 0.7
 });
+
+const resetApiUrl = () => {
+   settings.apiUrl = '';
+}
 
 // 语言选项
 const languageOptions = [
@@ -799,46 +862,54 @@ const viewOptions = [
 
 // API供应商选项
 const providerOptions = [
-  { label: 'OpenAI', value: 'openai' },
-  { label: 'Azure OpenAI', value: 'azure' },
-  { label: 'Anthropic Claude', value: 'anthropic' },
-  { label: '百度文心一言', value: 'baidu' },
-  { label: '讯飞星火', value: 'xfyun' }
+  { label: 'Google Gemini (默认)', value: 'gemini' },
+  { label: 'OpenAI 兼容协议', value: 'openai' }
 ];
 
-// 模型选项 (根据供应商动态变化)
-const modelOptions = computed(() => {
-  switch (settings.provider) {
-    case 'openai':
-      return [
-        { label: 'GPT-3.5 Turbo', value: 'gpt-3.5-turbo' },
-        { label: 'GPT-4', value: 'gpt-4' },
-        { label: 'GPT-4 Turbo', value: 'gpt-4-turbo' }
-      ];
-    case 'azure':
-      return [
-        { label: 'GPT-3.5 Turbo', value: 'gpt-35-turbo' },
-        { label: 'GPT-4', value: 'gpt-4' }
-      ];
-    case 'anthropic':
-      return [
-        { label: 'Claude 2', value: 'claude-2' },
-        { label: 'Claude Instant', value: 'claude-instant' }
-      ];
-    case 'baidu':
-      return [
-        { label: 'ERNIE-Bot-4', value: 'ernie-bot-4' },
-        { label: 'ERNIE-Bot', value: 'ernie-bot' }
-      ];
-    case 'xfyun':
-      return [
-        { label: '星火大模型V2.0', value: 'spark-v2.0' },
-        { label: '星火大模型V1.5', value: 'spark-v1.5' }
-      ];
-    default:
-      return [];
-  }
-});
+// 模型列表 (动态获取)
+const modelOptions = ref([]);
+const modelsLoading = ref(false);
+
+// 获取模型列表
+const fetchModelList = async () => {
+    if(!settings.apiKey){
+       ElMessage.warning('请先输入API密钥');
+       return;
+    }
+    
+    modelsLoading.value = true;
+    try {
+        // 先保存当前的设置，确保后端能拿到最新的Key和URL
+        await settingsAPI.updateEnvironmentSettings({
+            AI_PROVIDER: settings.provider,
+            AI_API_KEY: settings.apiKey,
+            AI_API_URL: settings.apiUrl
+        });
+
+        // 获取模型
+        const response = await api.ai.getAvailableModels(settings.provider);
+        if(response.success && response.data) {
+            modelOptions.value = response.data.map(m => ({
+                label: m.name,
+                value: m.id
+            }));
+            
+            if(modelOptions.value.length === 0){
+                ElMessage.info('未获取到模型，请手动输入');
+            } else {
+                ElMessage.success(`获取到 ${modelOptions.value.length} 个模型`);
+            }
+        } else {
+             ElMessage.warning('获取模型失败，请检查配置');
+        }
+    } catch (error) {
+        console.error('获取模型列表失败', error);
+        ElMessage.error(error.response?.data?.message || '获取模型列表失败');
+    } finally {
+        modelsLoading.value = false;
+    }
+}
+
 
 // 保存通用设置
 const saveGeneralSettings = () => {
@@ -846,8 +917,28 @@ const saveGeneralSettings = () => {
 };
 
 // 保存AI设置
-const saveAISettings = () => {
-  ElMessage.success('AI设置已保存');
+const saveAISettings = async () => {
+  aiSaving.value = true;
+  try {
+     const result = await settingsAPI.updateEnvironmentSettings({
+        AI_PROVIDER: settings.provider,
+        AI_PROVIDER_NAME: settings.providerName,
+        AI_API_KEY: settings.apiKey,
+        AI_API_URL: settings.apiUrl,
+        AI_MODEL: settings.model
+     });
+
+     if(result.success) {
+        ElMessage.success('AI设置已保存');
+     } else {
+        ElMessage.error(result.message || '保存失败');
+     }
+  } catch (error) {
+     console.error('保存AI设置失败', error);
+     ElMessage.error('保存AI设置失败');
+  } finally {
+     aiSaving.value = false;
+  }
 };
 
 // 保存模板设置
