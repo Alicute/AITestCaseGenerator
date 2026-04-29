@@ -3,7 +3,7 @@ import axios from 'axios'
 // 创建axios实例
 const api = axios.create({
   baseURL: 'http://localhost:9090/api/v1',
-  timeout: 15000
+  timeout: 60000
 })
 
 // 请求拦截器
@@ -46,17 +46,17 @@ export const settingsAPI = {
   getSettings() {
     return api.get('/settings')
   },
-  
+
   // 更新系统设置
   updateSettings(data) {
     return api.put('/settings', data)
   },
-  
+
   // 获取环境变量设置
   getEnvironmentSettings() {
     return api.get('/settings/environment')
   },
-  
+
   // 更新环境变量设置
   updateEnvironmentSettings(data) {
     return api.put('/settings/environment', data)
@@ -69,22 +69,22 @@ export const projectAPI = {
   getProjects() {
     return api.get('/projects')
   },
-  
+
   // 获取单个项目详情
   getProject(id) {
     return api.get(`/projects/${id}`)
   },
-  
+
   // 创建项目
   createProject(data) {
     return api.post('/projects', data)
   },
-  
+
   // 更新项目
   updateProject(id, data) {
     return api.put(`/projects/${id}`, data)
   },
-  
+
   // 删除项目
   deleteProject(id) {
     return api.delete(`/projects/${id}`)
@@ -97,7 +97,7 @@ export const moduleAPI = {
   getModules(projectId) {
     return api.get('/modules', { params: { projectId } })
   },
-  
+
   // 获取模块树
   getModuleTree(projectId, timestamp) {
     const params = { projectId };
@@ -105,29 +105,34 @@ export const moduleAPI = {
     if (timestamp) {
       params._t = timestamp;
     }
-    return api.get('/modules/tree', { params })
+    return api.get('/modules', { params })
   },
-  
+
+  // 重新计算模块测试用例数量
+  recalculateCounts(data) {
+    return api.post('/modules/recalculate-counts', data)
+  },
+
   // 获取单个模块详情
   getModule(id) {
     return api.get(`/modules/${id}`)
   },
-  
+
   // 创建模块
   createModule(data) {
     return api.post('/modules', data)
   },
-  
+
   // 更新模块
   updateModule(id, data) {
     return api.put(`/modules/${id}`, data)
   },
-  
+
   // 删除模块
   deleteModule(id) {
     return api.delete(`/modules/${id}`)
   },
-  
+
   // 获取模块的功能点列表
   getModuleFunctions(moduleId) {
     return api.get(`/modules/${moduleId}/functions`)
@@ -163,32 +168,32 @@ export const testCaseAPI = {
   getTestCases(params) {
     return api.get('/testcases', { params })
   },
-  
+
   // 获取单个测试用例详情
   getTestCase(id) {
     return api.get(`/testcases/${id}`)
   },
-  
+
   // 创建测试用例
   createTestCase(data) {
     return api.post('/testcases', data)
   },
-  
+
   // 批量创建测试用例
   batchCreateTestCases(data) {
     return api.post('/testcases/batch', data)
   },
-  
+
   // 更新测试用例
   updateTestCase(id, data) {
     return api.put(`/testcases/${id}`, data)
   },
-  
+
   // 删除测试用例
   deleteTestCase(id) {
     return api.delete(`/testcases/${id}`)
   },
-  
+
   // 批量删除测试用例
   batchDeleteTestCases(data) {
     return api.delete('/testcases/batch', { data })
@@ -199,17 +204,32 @@ export const testCaseAPI = {
 export const userAPI = {
   // 登录
   login(credentials) {
-    return api.post('/auth/login', credentials)
+    return api.post('/users/login', credentials)
   },
-  
+
   // 注册
   register(userData) {
-    return api.post('/auth/register', userData)
+    return api.post('/users/register', userData)
   },
-  
+
   // 获取用户信息
   getUserProfile() {
     return api.get('/users/profile')
+  },
+
+  // 获取用户列表 (管理员)
+  getUsers() {
+    return api.get('/users')
+  },
+
+  // 更新用户 (管理员)
+  updateUser(id, data) {
+    return api.put(`/users/${id}`, data)
+  },
+
+  // 删除用户 (管理员)
+  deleteUser(id) {
+    return api.delete(`/users/${id}`)
   }
 }
 
@@ -221,6 +241,34 @@ export const statAPI = {
   }
 }
 
+// AI相关API
+export const aiAPI = {
+  // 获取提示词模板
+  getPromptTemplates() {
+    return api.get('/ai/templates')
+  },
+
+  // 获取可用模型
+  getAvailableModels(provider) {
+    return api.get('/ai/models', { params: { provider } })
+  },
+
+  // 生成测试用例
+  generateTestCases(data) {
+    return api.post('/ai/generate', data)
+  },
+
+  // 生成模块结构
+  generateModules(data) {
+    return api.post('/ai/generate-modules', data)
+  },
+
+  // 保存生成的测试用例
+  saveGeneratedTestCases(data) {
+    return api.post('/ai/save', data)
+  }
+}
+
 export default {
   project: projectAPI,
   module: moduleAPI,
@@ -229,5 +277,6 @@ export default {
   user: userAPI,
   stat: statAPI,
   zentao: zentaoAPI,
-  settings: settingsAPI
+  settings: settingsAPI,
+  ai: aiAPI
 } 
