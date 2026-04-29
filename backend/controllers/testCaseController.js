@@ -498,13 +498,15 @@ exports.batchCreateTestCases = asyncHandler(async (req, res) => {
       };
     });
 
-    // 批量创建测试用例
-    const createdTestCases = await TestCase.bulkCreate(testCasesWithProjectId);
+    // 批量创建测试用例，遇到重复时更新
+    const createdTestCases = await TestCase.bulkCreate(testCasesWithProjectId, {
+      updateOnDuplicate: ['precondition', 'steps', 'expectedResult', 'priority', 'type', 'maintainer', 'testType', 'estimatedHours', 'remainingHours', 'relatedItems', 'followers', 'notes']
+    });
 
     res.status(201).json({
       success: true,
       data: createdTestCases,
-      message: `成功创建 ${createdTestCases.length} 个测试用例`
+      message: `成功创建/更新 ${createdTestCases.length} 个测试用例`
     });
   } catch (error) {
     console.error('批量创建测试用例错误:', error);
