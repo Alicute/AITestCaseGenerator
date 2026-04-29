@@ -24,8 +24,13 @@ router.post('/modules/refresh', async (_, res) => {
   try {
     const data = await fetch()
     res.json({ success: true, count: data.length })
-  } catch {
-    res.status(500).json({ success: false, message: '服务器内部错误' })
+  } catch (error) {
+    console.error('刷新禅道模块失败:', error)
+    res.status(500).json({ 
+      success: false, 
+      message: '刷新失败: ' + error.message,
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    })
   }
 })
 

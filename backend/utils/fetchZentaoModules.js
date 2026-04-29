@@ -13,12 +13,25 @@ const COOKIE = process.env.ZENTAO_COOKIE
  * @returns {Promise<Array>} 模块扁平数组
  */
 async function fetchModules(write = true) {
+  // 检查环境变量
+  if (!URL) {
+    throw new Error('ZENTAO_URL 环境变量未配置')
+  }
+  if (!COOKIE) {
+    throw new Error('ZENTAO_COOKIE 环境变量未配置')
+  }
+
   const { data: html } = await axios.get(URL, {
     headers: { Cookie: COOKIE.trim() },
     timeout: 15000
   })
   const $      = cheerio.load(html)
   const $root  = $('#modules')
+  
+  if ($root.length === 0) {
+    throw new Error('未找到禅道模块数据，请检查URL和Cookie是否正确')
+  }
+  
   const flat  = []
 
   const walk = ($ul, parent = null) => {
