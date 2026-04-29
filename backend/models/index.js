@@ -3,6 +3,7 @@ const Project = require('./Project');
 const Module = require('./Module');
 const TestCase = require('./TestCase');
 const Function = require('./Function');
+const Setting = require('./Setting');
 const { sequelize } = require('../config/database');
 
 // 项目和用户的关系
@@ -51,5 +52,6 @@ module.exports = {
   Module,
   TestCase,
   Function,
-  ProjectMember
+  ProjectMember,
+  Setting
 };
