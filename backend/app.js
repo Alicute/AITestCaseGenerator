@@ -50,7 +50,7 @@ const initializeDatabase = async () => {
   try {
     // 测试数据库连接
     await testConnection();
-    
+
     // 根据环境变量决定是否同步数据库
     if (process.env.DB_SYNC === 'true') {
       await sequelize.sync({ alter: true });
