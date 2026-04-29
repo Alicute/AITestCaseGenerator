@@ -1,22 +1,19 @@
 const express = require('express');
 const router = express.Router();
 const { protect, authorize } = require('../middlewares/auth');
-const fs = require('fs');
-const path = require('path');
-const dotenv = require('dotenv');
-
-// 环境变量文件路径
-const envFilePath = path.resolve(__dirname, '../.env');
+const { Setting } = require('../models');
 
 /**
  * @desc   获取系统设置
  * @route  GET /api/v1/settings
  * @access Private/Admin
  */
-router.get('/', protect, authorize('admin'), (req, res) => {
-  res.json({
-    success: true,
-    data: {
+router.get('/', protect, authorize('admin'), async (req, res) => {
+  try {
+    const settings = await Setting.findAll();
+
+    // 构造配置对象
+    const config = {
       general: {
         darkMode: false,
         autoSave: true,
@@ -24,12 +21,37 @@ router.get('/', protect, authorize('admin'), (req, res) => {
         language: 'zh-CN'
       },
       ai: {
-        provider: 'openai',
-        model: 'gpt-3.5-turbo',
+        provider: 'gemini',
+        model: 'gemini-pro',
         temperature: 0.7
       }
-    }
-  });
+    };
+
+    // 覆盖默认值
+    settings.forEach(setting => {
+      if (setting.category === 'ai') {
+        if (setting.key === 'AI_PROVIDER') config.ai.provider = setting.value;
+        if (setting.key === 'AI_MODEL') config.ai.model = setting.value;
+        if (setting.key === 'AI_PROVIDER_NAME') config.ai.providerName = setting.value;
+        // 其他AI配置...
+      } else if (setting.category === 'general') {
+        // general配置...
+      }
+      // 可以在这里处理更多配置
+    });
+
+    res.json({
+      success: true,
+      data: config
+    });
+  } catch (error) {
+    console.error('获取系统设置失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取系统设置失败',
+      error: error.message
+    });
+  }
 });
 
 /**
@@ -48,91 +70,73 @@ router.put('/', protect, authorize('admin'), (req, res) => {
 });
 
 /**
- * @desc   获取环境变量设置
+ * @desc   获取环境变量设置 (从数据库)
  * @route  GET /api/v1/settings/environment
  * @access Private/Admin
  */
-router.get('/environment', protect, authorize('admin'), (req, res) => {
+router.get('/environment', protect, authorize('admin'), async (req, res) => {
   try {
-    // 检查.env文件是否存在
-    if (!fs.existsSync(envFilePath)) {
-      return res.status(404).json({
-        success: false,
-        message: '环境变量文件不存在'
-      });
-    }
+    const settings = await Setting.findAll();
+    const envConfig = {};
 
-    // 读取.env文件内容
-    const envConfig = dotenv.parse(fs.readFileSync(envFilePath));
-    
-    // 返回环境变量
+    settings.forEach(setting => {
+      envConfig[setting.key] = setting.value;
+    });
+
+    // 为了兼容前端，如果没有数据库记录，尝试读取process.env作为默认值(可选)
+    // 但在这个迁移方案中，我们主要依赖数据库
+
     res.json({
       success: true,
       data: envConfig
     });
   } catch (error) {
-    console.error('获取环境变量错误:', error);
+    console.error('获取系统配置错误:', error);
     res.status(500).json({
       success: false,
-      message: '获取环境变量失败',
+      message: '获取系统配置失败',
       error: error.message
     });
   }
 });
 
 /**
- * @desc   更新环境变量设置
+ * @desc   更新环境变量设置 (保存到数据库)
  * @route  PUT /api/v1/settings/environment
  * @access Private/Admin
  */
-router.put('/environment', protect, authorize('admin'), (req, res) => {
+router.put('/environment', protect, authorize('admin'), async (req, res) => {
   try {
-    // 获取要更新的环境变量
-    const { ZENTAO_URL, ZENTAO_COOKIE } = req.body;
-    
-    // 检查.env文件是否存在
-    let envContent = '';
-    if (fs.existsSync(envFilePath)) {
-      // 读取现有的.env文件内容
-      envContent = fs.readFileSync(envFilePath, 'utf8');
-    }
-    
-    // 更新环境变量内容
-    const updateEnvVar = (content, key, value) => {
-      const regex = new RegExp(`${key}\\s*=.*`, 'g');
-      if (content.match(regex)) {
-        // 如果变量已存在，则更新
-        return content.replace(regex, `${key} = '${value}'`);
-      } else {
-        // 如果变量不存在，则添加
-        return `${content}\n${key} = '${value}'`;
+    const updates = req.body;
+    const updatePromises = [];
+
+    for (const [key, value] of Object.entries(updates)) {
+      if (value !== undefined) {
+        let category = 'general';
+        if (key.startsWith('AI_')) category = 'ai';
+        if (key.startsWith('ZENTAO_')) category = 'zentao';
+
+        updatePromises.push(
+          Setting.upsert({
+            key,
+            value: String(value), // 确保存储为字符串
+            category
+          })
+        );
       }
-    };
-    
-    // 更新禅道URL和Cookie
-    if (ZENTAO_URL !== undefined) {
-      envContent = updateEnvVar(envContent, 'ZENTAO_URL', ZENTAO_URL);
     }
-    
-    if (ZENTAO_COOKIE !== undefined) {
-      envContent = updateEnvVar(envContent, 'ZENTAO_COOKIE', ZENTAO_COOKIE);
-    }
-    
-    // 写入更新后的内容到.env文件
-    fs.writeFileSync(envFilePath, envContent.trim());
-    
-    // 重新加载环境变量
-    Object.assign(process.env, dotenv.parse(envContent));
-    
+
+    await Promise.all(updatePromises);
+
     res.json({
       success: true,
-      message: '环境变量已更新'
+      message: '系统配置已更新'
     });
   } catch (error) {
-    console.error('更新环境变量错误:', error);
+    console.error('更新系统配置错误:', error);
     res.status(500).json({
       success: false,
-      message: '更新环境变量失败',
+      message: '更新系统配置失败',
       error: error.message
     });
   }
