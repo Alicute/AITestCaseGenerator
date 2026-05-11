@@ -10,7 +10,7 @@ const { User } = require('./models');
 
 // 创建Express应用
 const app = express();
-const PORT = process.env.PORT || 9090;
+const PORT = process.env.PORT || 14110;
 
 // 中间件
 app.use(express.json());
@@ -28,7 +28,10 @@ app.use('/api/v1/ai', require('./routes/ai'));
 app.use('/api/v1/settings', require('./routes/settings'));
 app.use('/api/v1/import-export', require('./routes/importExport'));
 app.use('/api/v1/stats', require('./routes/stats'));
-app.use('/api/v1/zentao', require('./routes/zentao'))
+app.use('/api/v1/zentao', require('./routes/zentao'));
+
+// 公开API路由 - 不需要认证，用于第三方AI访问
+app.use('/api/v1/public', require('./routes/public'));
 
 // 根路由
 app.get('/', (req, res) => {
