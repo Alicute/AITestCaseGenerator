@@ -23,11 +23,11 @@
     "express-async-handler": "^1.2.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.13.2",
+    "morgan": "^1.10.0",
     "mysql2": "^3.14.0",
     "sequelize": "^6.37.7"
   },
   "devDependencies": {
-    "morgan": "^1.10.0",
     "nodemon": "^3.1.9"
   }
 }

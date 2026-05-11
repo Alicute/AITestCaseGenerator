@@ -1,5 +1,5 @@
 # 使用官方Node.js镜像
-FROM node:18-alpine
+FROM node:20-alpine
 
 # 设置国内镜像源
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
