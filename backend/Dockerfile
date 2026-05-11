@@ -1,6 +1,9 @@
 # 使用官方Node.js镜像
 FROM node:18-alpine
 
+# 设置国内镜像源
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+
 # 设置工作目录
 WORKDIR /app
 
