@@ -11,23 +11,6 @@ services:
       - ./backend/.env
     environment:
       NODE_ENV: production
-      PORT: 14110
-      DB_HOST: ${DB_HOST:-host.docker.internal}
-      DB_PORT: 3306
-      DB_NAME: ai_testcase_generator
-      DB_USER: ${DB_USER:-root}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_DIALECT: mysql
-      DB_SYNC: "false"
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRES_IN: 7d
-      AI_PROVIDER: gemini
-      AI_API_KEY: ${AI_API_KEY}
-      AI_API_URL: https://generativelanguage.googleapis.com/v1beta
-      AI_MODEL: ${AI_MODEL:-gemini-pro}
-      LOG_LEVEL: debug
-      ZENTAO_URL: ${ZENTAO_URL}
-      ZENTAO_COOKIE: "${ZENTAO_COOKIE}"
     ports:
       - "14110:14110"
     extra_hosts:
