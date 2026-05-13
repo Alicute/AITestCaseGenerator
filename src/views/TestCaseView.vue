@@ -830,8 +830,9 @@ const refreshZentaoMap = async () => {
     ElMessage.success(`禅道模块映射已刷新，共 ${json.count} 条`)
   } catch (err) {
     console.error('刷新禅道模块映射失败', err)
-    ElMessage.error('刷新禅道模块映射失败')
-    tooltipText.value = '禅道模块映射刷新失败'
+    const message = err.response?.data?.message || err.message || '刷新禅道模块映射失败'
+    ElMessage.error(message)
+    tooltipText.value = message
   }
 }
 

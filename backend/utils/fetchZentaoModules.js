@@ -3,9 +3,19 @@ const axios   = require('axios')
 const cheerio = require('cheerio')
 const fs      = require('fs').promises
 const path    = require('path')
+const { Setting } = require('../models')
 
-const URL    = process.env.ZENTAO_URL
-const COOKIE = process.env.ZENTAO_COOKIE
+async function getZentaoConfig() {
+  const [urlSetting, cookieSetting] = await Promise.all([
+    Setting.findByPk('ZENTAO_URL'),
+    Setting.findByPk('ZENTAO_COOKIE')
+  ])
+
+  return {
+    url: (urlSetting?.value || process.env.ZENTAO_URL || '').trim(),
+    cookie: (cookieSetting?.value || process.env.ZENTAO_COOKIE || '').trim()
+  }
+}
 
 /**
  * 抓取禅道模块并缓存为 public/flat.json
@@ -13,16 +23,18 @@ const COOKIE = process.env.ZENTAO_COOKIE
  * @returns {Promise<Array>} 模块扁平数组
  */
 async function fetchModules(write = true) {
+  const { url, cookie } = await getZentaoConfig()
+
   // 检查环境变量
-  if (!URL) {
+  if (!url) {
     throw new Error('ZENTAO_URL 环境变量未配置')
   }
-  if (!COOKIE) {
+  if (!cookie) {
     throw new Error('ZENTAO_COOKIE 环境变量未配置')
   }
 
-  const { data: html } = await axios.get(URL, {
-    headers: { Cookie: COOKIE.trim() },
+  const { data: html } = await axios.get(url, {
+    headers: { Cookie: cookie },
     timeout: 15000
   })
   const $      = cheerio.load(html)
