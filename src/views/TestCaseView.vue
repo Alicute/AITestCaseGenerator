@@ -820,6 +820,41 @@ const exportTestCases = () => {
     ElMessage.error('导出失败，请重试')
   }
 }
+
+const mapZentaoPriority = (priority) => {
+  const priorityMap = {
+    P0: '1',
+    P1: '1',
+    P2: '2',
+    P3: '3',
+    P4: '4'
+  }
+
+  return priorityMap[priority] || ''
+}
+
+const escapeCsvCell = (value) => {
+  if (value === null || value === undefined) return ''
+  const text = String(value).replace(/"/g, '""')
+  return /[",\r\n]/.test(text) ? `"${text}"` : text
+}
+
+const downloadPlainCsv = (rows, fileName) => {
+  const csvContent = rows
+    .map((row) => row.map(escapeCsvCell).join(','))
+    .join('\r\n')
+
+  const blob = new Blob([csvContent], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
 const refreshZentaoMap = async () => {
   try {
     tooltipText.value = '正在刷新禅道模块映射…'
@@ -871,95 +906,51 @@ const exportTestCases_zentao = () => {
   }
 
   try {
-    // 准备表头
+    const currentProject = projectsList.value.find((project) => project.id === selectedProjectId.value)
+    const productName = currentProject?.name || ''
+
     const headers = [
-      '所属编号',
+      '用例编号',
+      '所属产品',
+      '平台',
       '所属模块',
+      '相关需求',
       '用例标题',
       '前置条件',
       '步骤',
       '预期',
-      '优先级',
+      '实际情况',
       '关键词',
+      '优先级',
       '用例类型',
-      '适用阶段',
-      ' ',
-      '类型可选值列表',
-      '阶段可选值列表'
+      '适用阶段'
     ]
 
-    // 准备数据行
     const rows = testCases.value.map((testCase) => {
-      // 如果用例类型为“UI测试”，导出时改成“其他”
       const typeValue = testCase.type === 'UI测试' ? '其他' : testCase.type
       const rawModulePath = '/' + getModulePath(testCase.moduleId)
       const zentaoModulePath = zentaoPathMap[rawModulePath] || rawModulePath
 
       return [
         '',
+        productName,
+        '',
         zentaoModulePath,
+        '',
         testCase.title,
         testCase.preconditions,
         testCase.steps,
         testCase.expectedResults,
-        testCase.priority,
-        ' ',
-        typeValue, // ← 替换这里
-        ' ',
-        ' ',
-        ' ',
-        ' '
+        '',
+        '',
+        mapZentaoPriority(testCase.priority),
+        typeValue,
+        ''
       ]
     })
 
-    // 创建工作簿
-    const wb = XLSX.utils.book_new()
-
-    // 组合所有行：空行 + 表头 + 数据行
-    const allRows = [headers, ...rows]
-    const ws = XLSX.utils.aoa_to_sheet(allRows)
-
-    // 设置列宽
-    const colWidths = [
-      { wch: 10 }, // 所属编号
-      { wch: 20 }, // 所属模块
-      { wch: 30 }, // 用例标题
-      { wch: 20 }, // 前置条件
-      { wch: 20 }, // 步骤
-      { wch: 20 }, // 预期
-      { wch: 10 }, // 优先级
-      { wch: 10 }, // 关键词
-      { wch: 10 }, // 用例类型
-      { wch: 10 }, // 适用阶段
-      { wch: 10 }, // 空列
-      { wch: 20 }, // 类型可选值列表
-      { wch: 20 } // 阶段可选值列表
-    ]
-    ws['!cols'] = colWidths
-
-    // 设置标题行样式（第一行）
-    const headerStyle = {
-      font: { bold: true, color: { rgb: 'FFFFFF' } },
-      fill: { fgColor: { rgb: '3498DB' } },
-      alignment: { horizontal: 'center', vertical: 'center' }
-    }
-
-    // 将样式应用到标题行（第一行）
-    const range = XLSX.utils.decode_range(ws['!ref'])
-    for (let C = range.s.c; C <= range.e.c; ++C) {
-      const cell = XLSX.utils.encode_cell({ r: 0, c: C }) // 第一行
-      if (!ws[cell]) continue
-      ws[cell].s = headerStyle
-    }
-
-    // 将工作表添加到工作簿
-    XLSX.utils.book_append_sheet(wb, ws, '测试用例')
-
-    // 生成文件名
     const fileName = `测试用例_禅道_${new Date().toISOString().split('T')[0]}.csv`
-
-    // 导出文件
-    XLSX.writeFile(wb, fileName, { bookType: 'csv' })
+    downloadPlainCsv([headers, ...rows], fileName)
     ElMessage.success('导出成功')
   } catch (error) {
     console.error('导出Excel错误:', error)
