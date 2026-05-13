@@ -892,12 +892,12 @@ const exportTestCases_zentao = () => {
     const rows = testCases.value.map((testCase) => {
       // 如果用例类型为“UI测试”，导出时改成“其他”
       const typeValue = testCase.type === 'UI测试' ? '其他' : testCase.type
-        // 替换成禅道的模块路径
+      const rawModulePath = '/' + getModulePath(testCase.moduleId)
+      const zentaoModulePath = zentaoPathMap[rawModulePath] || rawModulePath
+
       return [
-        (() => {
-          const raw = '/' + getModulePath(testCase.moduleId)
-          return zentaoPathMap[raw] || raw
-        })(), // 使用完整的模块路径
+        '',
+        zentaoModulePath,
         testCase.title,
         testCase.preconditions,
         testCase.steps,
@@ -921,6 +921,7 @@ const exportTestCases_zentao = () => {
 
     // 设置列宽
     const colWidths = [
+      { wch: 10 }, // 所属编号
       { wch: 20 }, // 所属模块
       { wch: 30 }, // 用例标题
       { wch: 20 }, // 前置条件
@@ -936,17 +937,17 @@ const exportTestCases_zentao = () => {
     ]
     ws['!cols'] = colWidths
 
-    // 设置标题行样式（第二行）
+    // 设置标题行样式（第一行）
     const headerStyle = {
       font: { bold: true, color: { rgb: 'FFFFFF' } },
       fill: { fgColor: { rgb: '3498DB' } },
       alignment: { horizontal: 'center', vertical: 'center' }
     }
 
-    // 将样式应用到标题行（第二行）
+    // 将样式应用到标题行（第一行）
     const range = XLSX.utils.decode_range(ws['!ref'])
     for (let C = range.s.c; C <= range.e.c; ++C) {
-      const cell = XLSX.utils.encode_cell({ r: 1, c: C }) // 第二行
+      const cell = XLSX.utils.encode_cell({ r: 0, c: C }) // 第一行
       if (!ws[cell]) continue
       ws[cell].s = headerStyle
     }
@@ -955,7 +956,7 @@ const exportTestCases_zentao = () => {
     XLSX.utils.book_append_sheet(wb, ws, '测试用例')
 
     // 生成文件名
-    const fileName = `测试用例_${new Date().toISOString().split('T')[0]}.csv`
+    const fileName = `测试用例_禅道_${new Date().toISOString().split('T')[0]}.csv`
 
     // 导出文件
     XLSX.writeFile(wb, fileName, { bookType: 'csv' })
