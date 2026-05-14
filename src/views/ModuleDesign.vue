@@ -111,16 +111,16 @@
                     <el-table-column prop="title" label="测试用例名称" />
                     <el-table-column prop="priority" label="优先级" width="100">
                       <template #default="scope">
-                        <el-tag v-if="scope.row.priority === 'high'" type="danger">高</el-tag>
-                        <el-tag v-else-if="scope.row.priority === 'medium'" type="warning">中</el-tag>
-                        <el-tag v-else-if="scope.row.priority === 'low'" type="success">低</el-tag>
+                        <el-tag :type="getTestCasePriorityTagType(scope.row.priority)">
+                          {{ scope.row.priority || 'P1' }}
+                        </el-tag>
                       </template>
                     </el-table-column>
                     <el-table-column prop="status" label="状态" width="100">
                       <template #default="scope">
-                        <el-tag v-if="scope.row.status === 'passed'" type="success">通过</el-tag>
-                        <el-tag v-else-if="scope.row.status === 'failed'" type="danger">失败</el-tag>
-                        <el-tag v-else type="info">未执行</el-tag>
+                        <el-tag :type="getTestCaseStatusTagType(scope.row.status)">
+                          {{ scope.row.status || '未执行' }}
+                        </el-tag>
                       </template>
                     </el-table-column>
                     <el-table-column label="操作" width="300">
@@ -368,9 +368,11 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowDown, MagicStick, Plus } from '@element-plus/icons-vue'
 import MainLayout from '@/components/layout/MainLayout.vue'
 import api from '@/api'
+import { useSelectionStore } from '@/stores/selection'
 
 const router = useRouter()
 const route = useRoute()
+const selectionStore = useSelectionStore()
 const projectId = computed(() => route.query.projectId || null)
 const projectsList = ref([])
 const selectedProjectId = ref(null)
@@ -385,6 +387,7 @@ const fileList = ref([])
 // 当前选中的模块
 const currentModule = ref(null)
 const activeTab = ref('functions')
+const pendingSelectedModuleId = ref(null)
 
 // 模块数据树
 const moduleTree = ref([])
@@ -403,6 +406,61 @@ const moduleFunctions = ref([])
 
 // 测试用例数据
 const moduleTestCases = ref([])
+
+const findModuleInTree = (modules, moduleId) => {
+  for (const module of modules) {
+    if (module.id === moduleId) {
+      return module
+    }
+    if (module.children && module.children.length > 0) {
+      const found = findModuleInTree(module.children, moduleId)
+      if (found) {
+        return found
+      }
+    }
+  }
+
+  return null
+}
+
+const findModulePathInTree = (modules, moduleId, path = []) => {
+  for (const module of modules) {
+    const nextPath = [...path, module.id]
+    if (module.id === moduleId) {
+      return nextPath
+    }
+    if (module.children && module.children.length > 0) {
+      const found = findModulePathInTree(module.children, moduleId, nextPath)
+      if (found.length > 0) {
+        return found
+      }
+    }
+  }
+
+  return []
+}
+
+const selectModuleById = async (moduleId) => {
+  const module = findModuleInTree(moduleTree.value, moduleId)
+  if (!module) {
+    return false
+  }
+
+  currentModule.value = module
+  selectionStore.setSelectedModule({
+    id: module.id,
+    name: module.name,
+    path: findModulePathInTree(moduleTree.value, module.id)
+  })
+
+  await Promise.all([fetchModuleFunctions(module.id), fetchModuleTestCases(module.id)])
+
+  nextTick(() => {
+    moduleTreeRef.value?.setCurrentKey(module.id)
+  })
+
+  return true
+}
 
 // 获取项目信息
 const projectInfo = ref({})
@@ -448,7 +506,7 @@ const getCurrentProjectName = () => {
   }
   
   if (projectId.value) {
-    const project = projectsList.value.find(p => p.id === projectId.value)
+    const project = projectsList.value.find(p => p.id === Number(projectId.value))
     if (project) return project.name
   }
   
@@ -459,6 +517,10 @@ const getCurrentProjectName = () => {
 const handleProjectChange = (projectId) => {
   if (projectId) {
     selectedProjectId.value = projectId
+    const project = projectsList.value.find((item) => item.id === projectId)
+    if (project) {
+      selectionStore.setSelectedProject(project)
+    }
     router.push(`/modules?projectId=${projectId}`)
   }
 }
@@ -479,8 +541,9 @@ watch(selectedProjectId, async (newProjectId) => {
 watch(
   () => route.query.projectId,
   (newProjectId) => {
-    if (newProjectId && newProjectId !== selectedProjectId.value) {
-      selectedProjectId.value = newProjectId
+    const normalizedProjectId = newProjectId ? Number(newProjectId) : null
+    if (normalizedProjectId && normalizedProjectId !== selectedProjectId.value) {
+      selectedProjectId.value = normalizedProjectId
     }
   },
   { immediate: true }
@@ -490,7 +553,8 @@ watch(
 watch(projectsList, (newProjects) => {
   if (newProjects.length > 0 && route.query.projectId) {
     // 确保选中的项目ID在项目列表中
-    const project = newProjects.find(p => p.id === route.query.projectId)
+    const routeProjectId = Number(route.query.projectId)
+    const project = newProjects.find(p => p.id === routeProjectId)
     if (project) {
       selectedProjectId.value = project.id
     }
@@ -517,30 +581,16 @@ const fetchModuleTree = async (forceRefresh = false) => {
       
       // 如果有模块，默认选中第一个
       if (moduleTree.value.length > 0) {
-        // 定义一个辅助函数，检查模块是否存在于树中
-        const moduleExists = (modules, id) => {
-          for (const module of modules) {
-            if (module.id === id) {
-              return true;
-            }
-            if (module.children && module.children.length > 0) {
-              if (moduleExists(module.children, id)) {
-                return true;
-              }
-            }
-          }
-          return false;
-        };
-        
-        // 如果当前没有选中的模块或者选中的模块不存在于新的树中，则选择第一个
-        if (!currentModule.value || !moduleExists(moduleTree.value, currentModule.value.id)) {
-          currentModule.value = moduleTree.value[0]
-          fetchModuleFunctions(currentModule.value.id)
-          fetchModuleTestCases(currentModule.value.id)
+        const restoreModuleId =
+          pendingSelectedModuleId.value ||
+          currentModule.value?.id ||
+          selectionStore.selectedModuleId
+
+        if (restoreModuleId && (await selectModuleById(restoreModuleId))) {
+          pendingSelectedModuleId.value = null
         } else {
-          // 刷新当前选中模块的功能点和测试用例
-          fetchModuleFunctions(currentModule.value.id)
-          fetchModuleTestCases(currentModule.value.id)
+          pendingSelectedModuleId.value = null
+          await selectModuleById(moduleTree.value[0].id)
         }
 
         // 如果之前没有展开的节点，默认展开第一个根节点
@@ -549,9 +599,10 @@ const fetchModuleTree = async (forceRefresh = false) => {
         }
       } else {
         // 如果没有模块，清空当前模块选择
-        currentModule.value = null;
-        moduleFunctions.value = [];
-        moduleTestCases.value = [];
+        currentModule.value = null
+        moduleFunctions.value = []
+        moduleTestCases.value = []
+        selectionStore.setSelectedModule(null)
       }
     } else {
       ElMessage.error(response.message || '获取模块树失败')
@@ -564,6 +615,7 @@ const fetchModuleTree = async (forceRefresh = false) => {
     currentModule.value = null;
     moduleFunctions.value = [];
     moduleTestCases.value = [];
+    selectionStore.setSelectedModule(null)
   } finally {
     loading.value = false
   }
@@ -731,7 +783,7 @@ const restoreScroll = () => {
 };
 
 // 节点点击事件
-const handleNodeClick = (data) => {
+const handleNodeClick = async (data) => {
   saveScroll(); // 先记录滚动条位置
   // 保存当前展开状态，防止被覆盖
   const wasAllExpanded = isAllExpanded.value
@@ -744,9 +796,7 @@ const handleNodeClick = (data) => {
   }
 
   // 原有的节点点击逻辑
-  currentModule.value = data
-  fetchModuleFunctions(data.id)
-  fetchModuleTestCases(data.id)
+  await selectModuleById(data.id)
   nextTick(() => {
     if (moduleTreeRef.value) {
       moduleTreeRef.value.setCurrentKey(data.id);
@@ -890,6 +940,7 @@ const addModule = async () => {
       // 保存新创建的模块ID，以便在刷新树后高亮显示
       const newModuleId = response.data.id
       const parentId = newModule.value.parentId
+      pendingSelectedModuleId.value = newModuleId
 
       // 完全刷新模块树，强制从服务器重新加载
       moduleTree.value = []
@@ -911,78 +962,6 @@ const addModule = async () => {
               parentNode.expand()
             }
           }
-        }
-        
-        // 等待展开动画完成
-        setTimeout(() => {
-          // 递归查找并选中新添加的模块
-          const findAndSelectModule = (modules) => {
-            for (const module of modules) {
-              if (module.id === newModuleId) {
-                currentModule.value = module
-                fetchModuleFunctions(module.id)
-                fetchModuleTestCases(module.id)
-                return true
-              }
-              if (module.children && module.children.length > 0) {
-                if (findAndSelectModule(module.children)) {
-                  return true
-                }
-              }
-            }
-            return false
-          }
-          
-          // 如果在树中找不到新模块，直接从API获取
-          if (!findAndSelectModule(moduleTree.value)) {
-            console.log('未在树中找到新添加的模块，尝试直接获取模块信息');
-            api.module.getModule(newModuleId)
-              .then(response => {
-                if (response.success) {
-                  currentModule.value = response.data;
-                  fetchModuleFunctions(newModuleId);
-                  fetchModuleTestCases(newModuleId);
-                  
-                  // 模块获取成功后，再次刷新模块树，确保UI同步
-                  setTimeout(() => fetchModuleTree(true), 500);
-                }
-              })
-              .catch(error => {
-                console.error('获取新模块信息失败:', error);
-              });
-          }
-        }, 300); // 给予足够的时间让树结构更新
-      } else {
-        // 如果是根模块，直接查找
-        const findAndSelectModule = (modules) => {
-          for (const module of modules) {
-            if (module.id === newModuleId) {
-              currentModule.value = module
-              fetchModuleFunctions(module.id)
-              fetchModuleTestCases(module.id)
-              return true
-            }
-          }
-          return false
-        }
-        
-        if (!findAndSelectModule(moduleTree.value)) {
-          console.log('未在树中找到新添加的根模块，尝试直接获取模块信息');
-          // 如果在树中找不到，直接从API获取
-          api.module.getModule(newModuleId)
-            .then(response => {
-              if (response.success) {
-                currentModule.value = response.data;
-                fetchModuleFunctions(newModuleId);
-                fetchModuleTestCases(newModuleId);
-                
-                // 模块获取成功后，再次刷新模块树，确保UI同步
-                setTimeout(() => fetchModuleTree(true), 500);
-              }
-            })
-            .catch(error => {
-              console.error('获取新模块信息失败:', error);
-            });
         }
       }
     } else {
@@ -1242,12 +1221,35 @@ const deleteFunction = (row) => {
 }
 
 // 测试用例相关
+const getTestCasePriorityTagType = (priority) => {
+  const priorityTypeMap = {
+    P0: 'danger',
+    P1: 'danger',
+    P2: 'warning',
+    P3: 'success',
+    P4: 'info'
+  }
+
+  return priorityTypeMap[priority] || 'info'
+}
+
+const getTestCaseStatusTagType = (status) => {
+  const statusTypeMap = {
+    未执行: 'info',
+    执行中: 'warning',
+    通过: 'success',
+    失败: 'danger'
+  }
+
+  return statusTypeMap[status] || 'info'
+}
+
 const viewTestCase = (testCase) => {
-  router.push(`/testcases/${testCase.id}`)
+  router.push(`/testcases?projectId=${projectId.value}&moduleId=${testCase.moduleId || currentModule.value?.id}`)
 }
 
 const editTestCase = (testCase) => {
-  router.push(`/testcases/${testCase.id}/edit`)
+  router.push(`/testcases?projectId=${projectId.value}&moduleId=${testCase.moduleId || currentModule.value?.id}`)
 }
 
 const deleteTestCase = (testCase) => {
@@ -1326,7 +1328,7 @@ const parseMarkdownModules = (markdownText) => {
       isReadingModuleDescription = false
     } else if (line.startsWith('### ')) {
       // 三级标题，作为子模块
-      if (currentLevel ) {
+      if (currentModule) {
         const moduleName = line.substring(4).trim()
         currentChildModule = {
           name: moduleName,
@@ -1416,99 +1418,177 @@ const parseMarkdownModules = (markdownText) => {
   return moduleTree
 }
 
-// 递归导入模块树
-const importModuleTree = async (modules, parentId = null) => {
-  // 检查是否是一级标题（项目名称）
-  if (modules.length === 1 && modules[0].name && modules[0].name.startsWith('# ')) {
-    // 提取项目名称（去掉 # 前缀）
-    const importedProjectName = modules[0].name.substring(2).trim()
+const createImportSummary = () => ({
+  createdModules: 0,
+  createdFunctions: 0,
+  failedModules: 0,
+  failedFunctions: 0,
+  errors: [],
+  firstCreatedModuleId: null
+})
 
-    // 如果导入的项目名称与当前项目名称不一致，则使用当前项目名称
-    if (importedProjectName !== projectInfo.value.name) {
-      console.log(
-        `导入的项目名称 "${importedProjectName}" 与当前项目名称 "${projectInfo.value.name}" 不一致，使用当前项目名称`
-      )
-    }
+const appendImportError = (summary, message) => {
+  if (summary.errors.length < 5) {
+    summary.errors.push(message)
+  }
+}
 
-    // 处理子模块
-    if (modules[0].children && modules[0].children.length > 0) {
-      await processModules(modules[0].children, parentId)
-    }
-    return
+const normalizeImportedModule = (module, parentId = null, depth = 1) => {
+  const rawName = typeof module?.name === 'string' ? module.name.trim() : ''
+  let normalizedName = rawName
+  let level = depth
+
+  if (normalizedName.startsWith('# ')) {
+    normalizedName = normalizedName.substring(2).trim()
+  } else if (normalizedName.startsWith('## ')) {
+    normalizedName = normalizedName.substring(3).trim()
+    level = 1
+  } else if (normalizedName.startsWith('### ')) {
+    normalizedName = normalizedName.substring(4).trim()
+    level = Math.max(depth, 2)
   }
 
-  // 处理模块列表
-  await processModules(modules, parentId)
+  return {
+    name: normalizedName,
+    description: module?.description || '',
+    parentId,
+    level
+  }
+}
+
+const normalizeImportedFunction = (func, moduleId) => {
+  if (typeof func === 'string') {
+    const name = func.replace(/^- /, '').trim()
+    if (!name) {
+      return null
+    }
+
+    return {
+      name,
+      moduleId,
+      priority: 'medium'
+    }
+  }
+
+  if (!func || typeof func !== 'object' || !func.name) {
+    return null
+  }
+
+  return {
+    name: func.name.trim(),
+    description: func.description || '',
+    priority: func.priority || 'medium',
+    moduleId
+  }
+}
+
+const buildImportResultMessage = (summary) => {
+  const baseMessage = `模块 ${summary.createdModules} 个，功能点 ${summary.createdFunctions} 个`
+
+  if (summary.failedModules === 0 && summary.failedFunctions === 0) {
+    return `导入成功：${baseMessage}`
+  }
+
+  if (summary.createdModules === 0 && summary.createdFunctions === 0) {
+    const detailMessage = summary.errors.length > 0 ? `：${summary.errors.join('；')}` : ''
+    return `导入失败${detailMessage}`
+  }
+
+  const failedMessage = `失败模块 ${summary.failedModules} 个，失败功能点 ${summary.failedFunctions} 个`
+  const detailMessage = summary.errors.length > 0 ? `；示例：${summary.errors.join('；')}` : ''
+  return `部分导入成功：${baseMessage}；${failedMessage}${detailMessage}`
+}
+
+// 递归导入模块树
+const importModuleTree = async (modules, parentId = null) => {
+  if (!projectInfo.value.id) {
+    throw new Error('请先选择项目后再导入模块')
+  }
+
+  const summary = createImportSummary()
+
+  if (modules.length === 1 && modules[0].name && modules[0].name.startsWith('# ')) {
+    if (modules[0].children && modules[0].children.length > 0) {
+      await processModules(modules[0].children, parentId, 1, summary)
+    }
+    return summary
+  }
+
+  await processModules(modules, parentId, 1, summary)
+  return summary
 }
 
 // 处理模块列表
-const processModules = async (modules, parentId = null) => {
+const processModules = async (modules, parentId = null, depth = 1, summary = createImportSummary()) => {
   for (const module of modules) {
-    // 检查模块级别
-    if (module.name && module.name.startsWith('## ')) {
-      // 一级模块
-      module.name = module.name.substring(3).trim()
-      module.level = 1
-    } else if (module.name && module.name.startsWith('### ')) {
-      // 三级模块
-      module.name = module.name.substring(4).trim()
-      module.level = 3
-    } else {
-      // 默认为二级模块
-      module.level = 2
+    const modulePayload = normalizeImportedModule(module, parentId, depth)
+    const functions = Array.isArray(module?.functions) ? module.functions : []
+    const children = Array.isArray(module?.children) ? module.children : []
+
+    if (!modulePayload.name) {
+      summary.failedModules += 1
+      appendImportError(summary, '存在未命名模块，已跳过')
+      continue
     }
 
-    // 设置父模块ID
-    module.parentId = parentId
-
-    // 保存功能点列表
-    const functions = module.functions || []
-    delete module.functions // 移除functions字段，因为API不接受这个字段
-
-    // 保存子模块
-    const children = module.children || []
-    delete module.children // 移除children字段，因为API不接受这个字段
-
     try {
-      // 创建模块
       const response = await api.module.createModule({
-        ...module,
+        ...modulePayload,
         projectId: projectInfo.value.id
       })
 
-      if (response.success) {
-        const newModuleId = response.data.id
+      if (!response.success || !response.data?.id) {
+        summary.failedModules += 1
+        appendImportError(summary, `模块 "${modulePayload.name}" 创建失败`)
+        continue
+      }
 
-        // 为该模块创建功能点
-        for (const func of functions) {
-          // 检查功能点格式
-          if (typeof func === 'string' && func.startsWith('- ')) {
-            // 将功能点字符串转换为对象
-            const functionName = func.substring(2).trim()
-            await api.function.createFunction({
-              name: functionName,
-              moduleId: newModuleId,
-              priority: 'medium'
-            })
-          } else if (typeof func === 'object') {
-            // 直接使用功能点对象
-            func.moduleId = newModuleId
-            await api.function.createFunction(func)
+      const newModuleId = response.data.id
+      summary.createdModules += 1
+      if (!summary.firstCreatedModuleId) {
+        summary.firstCreatedModuleId = newModuleId
+      }
+
+      for (const func of functions) {
+        const functionPayload = normalizeImportedFunction(func, newModuleId)
+        if (!functionPayload) {
+          summary.failedFunctions += 1
+          appendImportError(summary, `模块 "${modulePayload.name}" 存在无效功能点，已跳过`)
+          continue
+        }
+
+        try {
+          const functionResponse = await api.function.createFunction(functionPayload)
+          if (functionResponse.success) {
+            summary.createdFunctions += 1
+          } else {
+            summary.failedFunctions += 1
+            appendImportError(summary, `功能点 "${functionPayload.name}" 创建失败`)
           }
+        } catch (error) {
+          console.error('导入功能点错误:', error)
+          summary.failedFunctions += 1
+          appendImportError(
+            summary,
+            `功能点 "${functionPayload.name}" 创建失败：${error.response?.data?.message || error.message}`
+          )
         }
+      }
 
-        // 递归处理子模块
-        if (children.length > 0) {
-          await processModules(children, newModuleId)
-        }
-      } else {
-        ElMessage.error(`导入模块 "${module.name}" 失败: ${response.message}`)
+      if (children.length > 0) {
+        await processModules(children, newModuleId, depth + 1, summary)
       }
     } catch (error) {
       console.error('导入模块错误:', error)
-      ElMessage.error(`导入模块 "${module.name}" 时发生错误，没有项目ID！`)
+      summary.failedModules += 1
+      appendImportError(
+        summary,
+        `模块 "${modulePayload.name}" 创建失败：${error.response?.data?.message || error.message}`
+      )
     }
   }
+
+  return summary
 }
 
 
@@ -1517,10 +1597,28 @@ const processModules = async (modules, parentId = null) => {
 // AI 生成模块相关
 const aiGenerateDialogVisible = ref(false)
 const aiPrompt = ref('')
-const aiImages = ref([]) // 存储Base64格式的图片
+const aiImages = ref([]) // 存储 { uid, dataUrl }
 const aiGenerating = ref(false)
 const aiGeneratedResult = ref(null)
 const aiGeneratedModuleTree = ref([]) // 用于预览与导入
+
+const normalizeAiGeneratedModules = (data) => {
+  if (Array.isArray(data)) {
+    return data
+  }
+
+  if (data && typeof data === 'object') {
+    return [data]
+  }
+
+  if (typeof data === 'string') {
+    const jsonContent = data.replace(/```json/g, '').replace(/```/g, '').trim()
+    const parsed = JSON.parse(jsonContent)
+    return Array.isArray(parsed) ? parsed : [parsed]
+  }
+
+  return []
+}
 
 
 // 显示AI生成对话框
@@ -1537,15 +1635,14 @@ const handleAiImageChange = (file) => {
   const reader = new FileReader()
   reader.readAsDataURL(file.raw)
   reader.onload = () => {
-    aiImages.value.push(reader.result)
+    aiImages.value = aiImages.value
+      .filter((item) => item.uid !== file.uid)
+      .concat({ uid: file.uid, dataUrl: reader.result })
   }
 }
 
-// 处理图片移除 (这里简化处理，实际需要匹配)
 const handleAiImageRemove = (file) => {
-  // 简单清空逻辑，因为 Base64 不好匹配
-  // 实际建议维护一个 fileList，最后再转 Base64
-  aiImages.value = [] 
+  aiImages.value = aiImages.value.filter((item) => item.uid !== file.uid)
 }
 
 // 调用AI生成
@@ -1559,20 +1656,23 @@ const generateAiModules = async () => {
    try {
       const response = await api.ai.generateModules({
          prompt: aiPrompt.value,
-         images: aiImages.value
+         images: aiImages.value.map((item) => item.dataUrl)
       });
 
       if(response.success){
+         aiGeneratedModuleTree.value = normalizeAiGeneratedModules(response.data);
+         if (aiGeneratedModuleTree.value.length === 0) {
+            ElMessage.error('AI返回了空的模块结构');
+            return;
+         }
          aiGeneratedResult.value = response.data;
-         // 规范化数据为数组
-         aiGeneratedModuleTree.value = Array.isArray(response.data) ? response.data : [response.data];
          ElMessage.success('生成成功，请预览确认');
       } else {
          ElMessage.error(response.message || '生成失败');
       }
    } catch (error) {
       console.error('AI生成失败:', error);
-      ElMessage.error('AI生成请求发生错误');
+      ElMessage.error(error.response?.data?.message || 'AI生成请求发生错误');
    } finally {
       aiGenerating.value = false;
    }
@@ -1587,13 +1687,21 @@ const confirmImportAiModules = async () => {
    
    importLoading.value = true;
    try {
-      await importModuleTree(aiGeneratedModuleTree.value);
-      ElMessage.success('模块导入成功');
-      aiGenerateDialogVisible.value = false;
-      fetchModuleTree();
+      const summary = await importModuleTree(aiGeneratedModuleTree.value);
+      if (summary.createdModules > 0) {
+        pendingSelectedModuleId.value = summary.firstCreatedModuleId
+        aiGenerateDialogVisible.value = false
+        await fetchModuleTree(true)
+      }
+
+      if (summary.failedModules > 0 || summary.failedFunctions > 0) {
+        ElMessage.warning(buildImportResultMessage(summary))
+      } else {
+        ElMessage.success(buildImportResultMessage(summary))
+      }
    } catch (error) {
       console.error('导入AI模块失败:', error);
-      ElMessage.error('导入失败');
+      ElMessage.error(error.message || '导入失败');
    } finally {
       importLoading.value = false;
    }
@@ -1611,6 +1719,7 @@ const importModules = async () => {
     const file = fileList.value[0].raw
     if (!file) {
       ElMessage.error('无法读取文件')
+      importLoading.value = false
       return
     }
 
@@ -1645,16 +1754,22 @@ const importModules = async () => {
         }
 
         // 开始导入
-        await importModuleTree(moduleTree)
+        const summary = await importModuleTree(moduleTree)
 
-        ElMessage.success('模块导入成功')
-        importDialogVisible.value = false
+        if (summary.createdModules > 0) {
+          pendingSelectedModuleId.value = summary.firstCreatedModuleId
+          importDialogVisible.value = false
+          await fetchModuleTree(true)
+        }
 
-        // 刷新模块树
-        fetchModuleTree()
+        if (summary.failedModules > 0 || summary.failedFunctions > 0) {
+          ElMessage.warning(buildImportResultMessage(summary))
+        } else {
+          ElMessage.success(buildImportResultMessage(summary))
+        }
       } catch (error) {
         console.error('解析文件错误:', error)
-        ElMessage.error('解析文件时发生错误')
+        ElMessage.error(error.message || '解析文件时发生错误')
       } finally {
         importLoading.value = false
       }
@@ -1682,7 +1797,7 @@ const goToAIGenerate = () => {
 
 const goToTestCases = () => {
   const moduleId = currentModule.value?.id
-  router.push(`/testcases?moduleId=${moduleId}`)
+  router.push(`/testcases?projectId=${projectId.value}&moduleId=${moduleId}`)
 }
 
 // 组件挂载时加载数据
@@ -1692,7 +1807,10 @@ onMounted(async () => {
     
     // 从路由参数中获取项目ID
     if (route.query.projectId) {
-      selectedProjectId.value = route.query.projectId
+      selectedProjectId.value = Number(route.query.projectId)
+    } else if (selectionStore.selectedProjectId) {
+      selectedProjectId.value = selectionStore.selectedProjectId
+      router.push(`/modules?projectId=${selectionStore.selectedProjectId}`)
     } else if (projectsList.value.length > 0) {
       // 只有在没有项目ID参数时才自动选择第一个项目
       selectedProjectId.value = projectsList.value[0].id
