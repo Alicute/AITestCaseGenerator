@@ -1204,11 +1204,16 @@ onMounted(async () => {
 
     // 如果有项目列表且当前没有选中项目，则自动选中第一个项目
     const routeProjectId = route.query.projectId ? Number(route.query.projectId) : null
-    if (routeProjectId && projectsList.value.some((project) => project.id === routeProjectId)) {
-      selectedProjectId.value = routeProjectId
+    const resolvedProjectId =
+      routeProjectId && projectsList.value.some((project) => project.id === routeProjectId)
+        ? routeProjectId
+        : (projectsList.value.find((p) => p.id === selectedProjectId.value)?.id ??
+          projectsList.value[0].id)
+
+    if (selectedProjectId.value === resolvedProjectId) {
+      await handleProjectChange(resolvedProjectId)
     } else {
-      const validProject = projectsList.value.find((p) => p.id === selectedProjectId.value)
-      selectedProjectId.value = validProject ? validProject.id : projectsList.value[0].id
+      selectedProjectId.value = resolvedProjectId
     }
   } catch (error) {
     ElMessage.error('初始化页面时发生错误')
