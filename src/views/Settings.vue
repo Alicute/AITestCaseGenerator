@@ -185,6 +185,26 @@
                   <span>创造性</span>
                 </div>
               </el-form-item>
+
+              <el-form-item label="最大长度">
+                <el-input-number
+                  v-model="settings.maxTokens"
+                  :min="100"
+                  :max="4000"
+                  :step="100"
+                  class="form-input"
+                />
+              </el-form-item>
+
+              <el-form-item label="频率惩罚">
+                <el-slider
+                  v-model="settings.frequencyPenalty"
+                  :min="-2"
+                  :max="2"
+                  :step="0.1"
+                  show-stops
+                />
+              </el-form-item>
               
               <el-form-item>
                 <el-button type="primary" @click="saveAISettings" :loading="aiSaving">保存设置</el-button>
@@ -731,6 +751,11 @@ const envLoading = ref(false);
 const envSaving = ref(false);
 const aiSaving = ref(false);
 
+const parseNumericSetting = (value, fallback) => {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : fallback;
+};
+
 // 加载AI设置（从环境变量）
 const loadAISettingsFromEnv = async () => {
    try {
@@ -741,6 +766,9 @@ const loadAISettingsFromEnv = async () => {
          settings.apiKey = result.data.AI_API_KEY || '';
          settings.apiUrl = result.data.AI_API_URL || '';
          settings.model = result.data.AI_MODEL || '';
+         settings.temperature = parseNumericSetting(result.data.AI_TEMPERATURE, 0.7);
+         settings.maxTokens = parseNumericSetting(result.data.AI_MAX_TOKENS, 2000);
+         settings.frequencyPenalty = parseNumericSetting(result.data.AI_FREQUENCY_PENALTY, 0);
       }
    } catch (error) {
       console.error('加载AI配置失败', error);
@@ -840,7 +868,9 @@ const settings = reactive({
   apiKey: '',
   apiUrl: '',
   model: '',
-  temperature: 0.7
+  temperature: 0.7,
+  maxTokens: 2000,
+  frequencyPenalty: 0
 });
 
 const resetApiUrl = () => {
@@ -913,7 +943,7 @@ const fetchModelList = async () => {
 
 // 保存通用设置
 const saveGeneralSettings = () => {
-  ElMessage.success('通用设置已保存');
+  ElMessage.warning('通用设置暂未接入持久化保存');
 };
 
 // 保存AI设置
@@ -925,7 +955,10 @@ const saveAISettings = async () => {
         AI_PROVIDER_NAME: settings.providerName,
         AI_API_KEY: settings.apiKey,
         AI_API_URL: settings.apiUrl,
-        AI_MODEL: settings.model
+        AI_MODEL: settings.model,
+        AI_TEMPERATURE: settings.temperature,
+        AI_MAX_TOKENS: settings.maxTokens,
+        AI_FREQUENCY_PENALTY: settings.frequencyPenalty
      });
 
      if(result.success) {
@@ -943,17 +976,17 @@ const saveAISettings = async () => {
 
 // 保存模板设置
 const saveTemplateSettings = () => {
-  ElMessage.success('模板设置已保存');
+  ElMessage.warning('模板设置功能尚未实现');
 };
 
 // 保存数据存储设置
 const saveStorageSettings = () => {
-  ElMessage.success('数据存储设置已保存');
+  ElMessage.warning('数据存储设置功能尚未实现');
 };
 
 // 保存高级设置
 const saveAdvancedSettings = () => {
-  ElMessage.success('高级设置已保存');
+  ElMessage.warning('高级设置功能尚未实现');
 };
 
 const copyRulesContent = () => {

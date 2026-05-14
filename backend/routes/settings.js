@@ -3,12 +3,17 @@ const router = express.Router();
 const { protect, authorize } = require('../middlewares/auth');
 const { Setting } = require('../models');
 
+const parseStoredNumber = (value, fallback) => {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : fallback;
+};
+
 /**
  * @desc   获取系统设置
  * @route  GET /api/v1/settings
  * @access Private/Admin
  */
-router.get('/', protect, authorize('admin'), async (req, res) => {
+router.get('/', protect, async (req, res) => {
   try {
     const settings = await Setting.findAll();
 
@@ -23,7 +28,10 @@ router.get('/', protect, authorize('admin'), async (req, res) => {
       ai: {
         provider: 'gemini',
         model: 'gemini-pro',
-        temperature: 0.7
+        providerName: '',
+        temperature: 0.7,
+        maxTokens: 2000,
+        frequencyPenalty: 0
       }
     };
 
@@ -33,6 +41,9 @@ router.get('/', protect, authorize('admin'), async (req, res) => {
         if (setting.key === 'AI_PROVIDER') config.ai.provider = setting.value;
         if (setting.key === 'AI_MODEL') config.ai.model = setting.value;
         if (setting.key === 'AI_PROVIDER_NAME') config.ai.providerName = setting.value;
+        if (setting.key === 'AI_TEMPERATURE') config.ai.temperature = parseStoredNumber(setting.value, 0.7);
+        if (setting.key === 'AI_MAX_TOKENS') config.ai.maxTokens = parseStoredNumber(setting.value, 2000);
+        if (setting.key === 'AI_FREQUENCY_PENALTY') config.ai.frequencyPenalty = parseStoredNumber(setting.value, 0);
         // 其他AI配置...
       } else if (setting.category === 'general') {
         // general配置...

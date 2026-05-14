@@ -9,8 +9,14 @@ const asyncHandler = require('express-async-handler');
  */
 exports.getTestCases = async (req, res) => {
   try {
-    const { moduleId, projectId, page = 1, limit = 10, search } = req.query;
+    const { moduleId, projectId, priority, type, status, page = 1, limit = 10, search } = req.query;
     const where = {};
+    const statusMap = {
+      waiting: '未执行',
+      running: '执行中',
+      passed: '通过',
+      failed: '失败'
+    };
 
     // 如果有项目ID，添加到查询条件
     if (projectId) {
@@ -20,6 +26,18 @@ exports.getTestCases = async (req, res) => {
     // 如果有模块ID，添加到查询条件
     if (moduleId) {
       where.moduleId = moduleId;
+    }
+
+    if (priority) {
+      where.priority = priority;
+    }
+
+    if (type) {
+      where.type = type;
+    }
+
+    if (status) {
+      where.status = statusMap[status] || status;
     }
 
     // 如果有搜索关键字，添加搜索条件
@@ -485,10 +503,11 @@ exports.batchCreateTestCases = asyncHandler(async (req, res) => {
         projectId,
         type: testCase.type || '功能测试',
         priority: testCase.priority || 'P1',
+        status: testCase.status || '未执行',
         testType: testCase.testType || '手动',
-        precondition: testCase.preconditions || '',
-        steps: testCase.steps || '',
-        expectedResult: testCase.expectedResults || '',
+        precondition: testCase.precondition ?? testCase.preconditions ?? '',
+        steps: Array.isArray(testCase.steps) ? testCase.steps.join('\n') : (testCase.steps || ''),
+        expectedResult: testCase.expectedResult ?? testCase.expectedResults ?? '',
         maintainer: testCase.maintainer || null,
         estimatedHours: estimatedHours ? parseFloat(estimatedHours) : null,
         remainingHours: remainingHours ? parseFloat(remainingHours) : null,
@@ -500,8 +519,17 @@ exports.batchCreateTestCases = asyncHandler(async (req, res) => {
 
     // 批量创建测试用例，遇到重复时更新
     const createdTestCases = await TestCase.bulkCreate(testCasesWithProjectId, {
-      updateOnDuplicate: ['precondition', 'steps', 'expectedResult', 'priority', 'type', 'maintainer', 'testType', 'estimatedHours', 'remainingHours', 'relatedItems', 'followers', 'notes']
+      updateOnDuplicate: ['precondition', 'steps', 'expectedResult', 'priority', 'status', 'type', 'maintainer', 'testType', 'estimatedHours', 'remainingHours', 'relatedItems', 'followers', 'notes']
     });
+
+    const moduleIds = [...new Set(testCasesWithProjectId.map(testCase => testCase.moduleId).filter(Boolean))];
+    for (const moduleId of moduleIds) {
+      const count = await TestCase.count({ where: { moduleId } });
+      await Module.update({ testCaseCount: count }, { where: { id: moduleId } });
+    }
+
+    const projectCount = await TestCase.count({ where: { projectId } });
+    await Project.update({ testCaseCount: projectCount }, { where: { id: projectId } });
 
     res.status(201).json({
       success: true,

@@ -17,6 +17,11 @@ async function getConfig(key, defaultValue = '') {
   }
 }
 
+function getNumericValue(value, fallback) {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : fallback;
+}
+
 /**
  * @desc    生成测试用例
  * @route   POST /api/v1/ai/generate
@@ -24,7 +29,7 @@ async function getConfig(key, defaultValue = '') {
  */
 exports.generateTestCases = async (req, res) => {
   try {
-    const { moduleId, promptContent, provider, model, temperature, maxTokens } = req.body;
+    const { moduleId, promptContent, provider, model, temperature, maxTokens, frequencyPenalty } = req.body;
 
     // 检查必要参数
     if (!moduleId || !promptContent) {
@@ -63,15 +68,21 @@ exports.generateTestCases = async (req, res) => {
     // 确定使用的提供商
     const envProvider = await getConfig('AI_PROVIDER');
     const envModel = await getConfig('AI_MODEL');
+    const envTemperature = await getConfig('AI_TEMPERATURE');
+    const envMaxTokens = await getConfig('AI_MAX_TOKENS');
+    const envFrequencyPenalty = await getConfig('AI_FREQUENCY_PENALTY');
 
     const activeProvider = provider || envProvider || 'gemini';
     const activeModel = model || envModel;
+    const activeTemperature = temperature ?? envTemperature;
+    const activeMaxTokens = maxTokens ?? envMaxTokens;
+    const activeFrequencyPenalty = frequencyPenalty ?? envFrequencyPenalty;
 
     if (activeProvider === 'gemini') {
-      generatedContent = await generateWithGemini(promptContent, activeModel, temperature, maxTokens);
+      generatedContent = await generateWithGemini(promptContent, activeModel, activeTemperature, activeMaxTokens);
     } else {
       // 默认为 OpenAI 兼容模式
-      generatedContent = await generateWithOpenAI(promptContent, activeModel, temperature, maxTokens);
+      generatedContent = await generateWithOpenAI(promptContent, activeModel, activeTemperature, activeMaxTokens, '', [], activeFrequencyPenalty);
     }
 
     res.json({
@@ -108,13 +119,13 @@ exports.generateTestCases = async (req, res) => {
  */
 exports.generateModules = async (req, res) => {
   try {
-    const { prompt, images, provider, model, temperature, maxTokens } = req.body;
+    const { prompt, images, provider, model, temperature, maxTokens, frequencyPenalty } = req.body;
 
     // 检查必要参数
-    if (!prompt) {
+    if (!prompt && (!Array.isArray(images) || images.length === 0)) {
       return res.status(400).json({
         success: false,
-        message: '缺少必要参数：prompt'
+        message: '缺少必要参数：prompt或images'
       });
     }
 
@@ -161,19 +172,25 @@ exports.generateModules = async (req, res) => {
     // 确定使用的提供商
     const envProvider = await getConfig('AI_PROVIDER');
     const envModel = await getConfig('AI_MODEL');
+    const envTemperature = await getConfig('AI_TEMPERATURE');
+    const envMaxTokens = await getConfig('AI_MAX_TOKENS');
+    const envFrequencyPenalty = await getConfig('AI_FREQUENCY_PENALTY');
 
     const activeProvider = provider || envProvider || 'gemini';
     const activeModel = model || envModel;
+    const activeTemperature = temperature ?? envTemperature;
+    const activeMaxTokens = maxTokens ?? envMaxTokens;
+    const activeFrequencyPenalty = frequencyPenalty ?? envFrequencyPenalty;
 
     if (activeProvider === 'gemini') {
       const geminiPrompt = {
-        text: systemPrompt + '\n\n' + prompt,
+        text: `${systemPrompt}\n\n${prompt || ''}`.trim(),
         images: images
       };
-      generatedContent = await generateWithGemini(geminiPrompt, activeModel, temperature);
+      generatedContent = await generateWithGemini(geminiPrompt, activeModel, activeTemperature);
     } else {
       // 默认为 OpenAI 兼容模式
-      generatedContent = await generateWithOpenAI(prompt, activeModel, temperature, maxTokens, systemPrompt, images);
+      generatedContent = await generateWithOpenAI(prompt || '', activeModel, activeTemperature, activeMaxTokens, systemPrompt, images, activeFrequencyPenalty);
     }
 
     // 尝试解析JSON以验证格式
@@ -430,7 +447,7 @@ async function generateWithGemini(prompt, model = 'gemini-pro', temperature = 0.
       {
         contents: contents,
         generationConfig: {
-          temperature: parseFloat(temperature) || 0.7
+          temperature: getNumericValue(temperature, 0.7)
         }
       },
       {
@@ -565,7 +582,7 @@ exports.getAvailableModels = async (req, res) => {
 /**
  * 使用OpenAI API生成内容
  */
-async function generateWithOpenAI(prompt, model = 'gpt-3.5-turbo', temperature = 0.7, maxTokens = 2000, systemPrompt = '', images = []) {
+async function generateWithOpenAI(prompt, model = 'gpt-3.5-turbo', temperature = 0.7, maxTokens = 2000, systemPrompt = '', images = [], frequencyPenalty = 0) {
   try {
     // 检查API密钥是否已配置
     const aiApiKey = await getConfig('AI_API_KEY');
@@ -628,8 +645,9 @@ async function generateWithOpenAI(prompt, model = 'gpt-3.5-turbo', temperature =
       {
         model: model || 'gpt-3.5-turbo',
         messages: messages,
-        temperature: parseFloat(temperature) || 0.7,
-        max_tokens: parseInt(maxTokens) || 2000
+        temperature: getNumericValue(temperature, 0.7),
+        max_tokens: getNumericValue(maxTokens, 2000),
+        frequency_penalty: getNumericValue(frequencyPenalty, 0)
       },
       {
         headers: {

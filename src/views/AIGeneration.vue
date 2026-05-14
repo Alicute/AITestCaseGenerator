@@ -420,7 +420,9 @@ const selectedProjectId = computed({
 })
 
 // 将 selectedModulePath 改为 ref
-const selectedModulePath = ref(selectionStore.selectedModulePath)
+const selectedModulePath = ref(
+  Array.isArray(selectionStore.selectedModulePath) ? [...selectionStore.selectedModulePath] : []
+)
 
 const selectedModuleId = computed({
   get: () => selectionStore.selectedModuleId,
@@ -465,6 +467,17 @@ const aiSettings = ref({
 
 const availableModels = ref([])
 
+const getNumericValue = (value, fallback) => {
+  const numericValue = Number(value)
+  return Number.isFinite(numericValue) ? numericValue : fallback
+}
+
+const clearGeneratedResult = () => {
+  generationResult.value = ''
+  parsedTestCases.value = []
+  saveDialogVisible.value = false
+}
+
 // 获取可用模型列表
 const fetchModels = async (provider) => {
   try {
@@ -492,9 +505,11 @@ const loadGlobalSettings = async () => {
     if (response.success && response.data.ai) {
       const globalAI = response.data.ai
       aiSettings.value.provider = globalAI.provider || 'gemini'
-      aiSettings.value.providerName = globalAI.providerName 
+      aiSettings.value.providerName = globalAI.providerName || ''
       aiSettings.value.model = globalAI.model || 'gemini-pro'
-      aiSettings.value.temperature = globalAI.temperature || 0.7
+      aiSettings.value.temperature = getNumericValue(globalAI.temperature, 0.7)
+      aiSettings.value.maxTokens = getNumericValue(globalAI.maxTokens, 2000)
+      aiSettings.value.frequencyPenalty = getNumericValue(globalAI.frequencyPenalty, 0)
       
       // 加载模型列表
       await fetchModels(aiSettings.value.provider)
@@ -505,7 +520,6 @@ const loadGlobalSettings = async () => {
 }
 
 onMounted(() => {
-  fetchProjects()
   loadGlobalSettings()
 })
 
@@ -554,14 +568,34 @@ const findModuleById = (modules, id) => {
   return null
 }
 
+const findModulePathById = (modules, id, path = []) => {
+  for (const module of modules) {
+    const nextPath = [...path, module.value]
+    if (module.value === id) {
+      return nextPath
+    }
+    if (module.children && module.children.length > 0) {
+      const found = findModulePathById(module.children, id, nextPath)
+      if (found) return found
+    }
+  }
+  return []
+}
+
+const buildModuleOptions = (modules) => {
+  return modules.map((module) => ({
+    value: module.id,
+    label: module.name,
+    children: module.children ? buildModuleOptions(module.children) : []
+  }))
+}
+
 // 获取项目列表
 const fetchProjects = async () => {
   try {
     const response = await api.project.getProjects()
     if (response.success) {
       projects.value = response.data
-
-
       // 如果路由中有项目ID，自动选择
       const routeProjectId = route.query.projectId
 
@@ -573,8 +607,7 @@ const fetchProjects = async () => {
 
       }
     } else {
-      selectedProjectId.value = projects.value[0].id
-      handleProjectChange(selectedProjectId.value)
+      ElMessage.error(response.message || '获取项目列表失败')
     }
   } catch (error) {
     ElMessage.error('获取项目列表时发生错误')
@@ -590,28 +623,26 @@ const fetchModuleTree = async (projectId) => {
     const response = await api.module.getModuleTree(projectId)
     
     if (response.success) {
-      // 直接使用后端返回的数据结构
-      moduleOptions.value = response.data.map(module => ({
-        value: module.id,
-        label: module.name,
-        children: module.children?.map(child => ({
-          value: child.id,
-          label: child.name
-        })) || []
-      }))
+      moduleOptions.value = buildModuleOptions(response.data)
       
       // 如果路由中有模块ID，自动选择
       const routeModuleId = route.query.moduleId
       if (routeModuleId) {
         const moduleId = parseInt(routeModuleId)
-        selectedModuleId.value = moduleId
-        selectedModulePath.value = moduleId
-        loadModuleDescription()
+        const modulePath = findModulePathById(moduleOptions.value, moduleId)
+        if (modulePath.length > 0) {
+          selectedModuleId.value = moduleId
+          selectedModulePath.value = modulePath
+          loadModuleDescription()
+        }
       } else if (selectionStore.selectedModuleId) {
         // 如果 store 中有选中的模块，使用它
-        selectedModuleId.value = selectionStore.selectedModuleId
-        selectedModulePath.value = selectionStore.selectedModuleId
-        loadModuleDescription()
+        const modulePath = findModulePathById(moduleOptions.value, selectionStore.selectedModuleId)
+        if (modulePath.length > 0) {
+          selectedModuleId.value = selectionStore.selectedModuleId
+          selectedModulePath.value = modulePath
+          loadModuleDescription()
+        }
       }
     } else {
       ElMessage.error(response.message || '获取模块树失败')
@@ -630,6 +661,11 @@ const handleProjectChange = (projectId) => {
   if (projectId) {
     const project = projects.value.find(p => p.id === projectId)
     if (project) {
+      clearGeneratedResult()
+      selectedModulePath.value = []
+      currentModuleDescription.value = ''
+      moduleFunctions.value = []
+      selectedFunctions.value = []
       currentProjectDescription.value = project.description || ''
       selectionStore.setSelectedProject(project)
       fetchModuleTree(projectId)
@@ -646,6 +682,7 @@ const handleModuleChange = async (path) => {
     // 根据级联选择器的值查找模块
     const module = findModuleById(moduleOptions.value, moduleId)
     if (module) {
+      clearGeneratedResult()
       // 清空当前功能点
       moduleFunctions.value = []
       selectedFunctions.value = []
@@ -656,7 +693,7 @@ const handleModuleChange = async (path) => {
       selectionStore.setSelectedModule({
         id: moduleId,
         name: module.label,
-        path: path.join('/')  // 使用完整路径
+        path
       })
       
       // 加载模块描述和功能点
@@ -785,7 +822,11 @@ const generateTestCases = async () => {
     const response = await api.ai.generateTestCases({
       promptContent: promptContent.value,
       moduleId: selectedModuleId.value,
-      settings: aiSettings.value
+      provider: aiSettings.value.provider,
+      model: aiSettings.value.model,
+      temperature: aiSettings.value.temperature,
+      maxTokens: aiSettings.value.maxTokens,
+      frequencyPenalty: aiSettings.value.frequencyPenalty
     })
     
     if (response.success) {
@@ -863,11 +904,28 @@ const saveToTestCases = () => {
     return
   }
   
-  if (!selectedModuleId.value && !saveForm.value.moduleId) {
+  if (selectedModuleId.value && !saveForm.value.moduleId) {
     saveForm.value.moduleId = selectedModuleId.value
   }
   
   saveDialogVisible.value = true
+}
+
+const buildBatchSavePayload = (testCases, moduleId) => {
+  return testCases.map((tc) => ({
+    title: tc.title,
+    moduleId,
+    projectId: selectedProjectId.value,
+    precondition: tc.precondition,
+    preconditions: tc.precondition,
+    steps: Array.isArray(tc.steps) ? tc.steps.join('\n') : tc.steps,
+    expectedResult: tc.expectedResult,
+    expectedResults: tc.expectedResult,
+    priority: tc.priority || 'P2',
+    type: tc.type || '功能测试',
+    status: '未执行',
+    testType: '手动'
+  }))
 }
 
 // 确认保存测试用例
@@ -888,30 +946,13 @@ const confirmSaveTestCases = async () => {
   
   saving.value = true
   try {
-    let successCount = 0
-    
-    // 逐个保存测试用例
-    for (const tc of selectedTestCases) {
-      const testCaseData = {
-        title: tc.title,
-        moduleId,
-        projectId: selectedProjectId.value,
-        precondition: tc.precondition,
-        steps: Array.isArray(tc.steps) ? tc.steps.join('\n') : tc.steps,
-        expectedResult: tc.expectedResult,
-        priority: tc.priority || 'P2',
-        type: tc.type || '功能测试',
-        status: '未执行',
-      }
-      
-      const response = await api.testCase.createTestCase(testCaseData)
-      
-      if (response.success) {
-        successCount++
-      }
-    }
-    
-    if (successCount > 0) {
+    const response = await api.testCase.batchCreateTestCases({
+      projectId: selectedProjectId.value,
+      testCases: buildBatchSavePayload(selectedTestCases, moduleId)
+    })
+
+    if (response.success) {
+      const successCount = response.data?.length || selectedTestCases.length
       ElMessage.success(`成功保存 ${successCount} 个测试用例`)
       saveDialogVisible.value = false
       
@@ -926,17 +967,17 @@ const confirmSaveTestCases = async () => {
         }
       )
         .then(() => {
-          router.push(`/testcases?moduleId=${moduleId}`)
+          router.push(`/testcases?projectId=${selectedProjectId.value}&moduleId=${moduleId}`)
         })
         .catch(() => {
           // 用户选择继续生成，不做操作
         })
     } else {
-      ElMessage.error('保存测试用例失败')
+      ElMessage.error(response.message || '保存测试用例失败')
     }
   } catch (error) {
     console.error('保存测试用例错误:', error)
-    ElMessage.error('保存测试用例时发生错误')
+    ElMessage.error(error.response?.data?.message || '保存测试用例时发生错误')
   } finally {
     saving.value = false
   }
@@ -1011,8 +1052,7 @@ const doReset = () => {
   moduleFunctions.value = []
   selectedFunctions.value = []
   promptContent.value = ''
-  generationResult.value = ''
-  parsedTestCases.value = []
+  clearGeneratedResult()
   
   // 如果有模块ID，重新加载模块信息
   if (moduleId) {
@@ -1103,24 +1143,21 @@ onMounted(async () => {
 
 // 添加计算属性
 const selectedModuleDisplay = computed(() => {
-  if (!selectedModulePath.value) return '请选择功能模块'
-  
-  // 查找选中的模块
-  const findModulePath = (modules, id) => {
-    for (const module of modules) {
-      if (module.id === id) {
-        return module.path
-      }
-      if (module.children) {
-        const path = findModulePath(module.children, id)
-        if (path) return path
-      }
-    }
-    return null
+  if (!Array.isArray(selectedModulePath.value) || selectedModulePath.value.length === 0) {
+    return '请选择功能模块'
   }
-  
-  const path = findModulePath(moduleOptions.value, selectedModulePath.value)
-  return path || '请选择功能模块'
+
+  const labels = []
+  let currentOptions = moduleOptions.value
+
+  for (const moduleId of selectedModulePath.value) {
+    const matched = currentOptions.find((item) => item.value === moduleId)
+    if (!matched) break
+    labels.push(matched.label)
+    currentOptions = matched.children || []
+  }
+
+  return labels.length > 0 ? labels.join(' / ') : '请选择功能模块'
 })
 
 // 编辑相关逻辑
