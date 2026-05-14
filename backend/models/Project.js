@@ -25,6 +25,10 @@ const Project = sequelize.define('Project', {
     type: DataTypes.INTEGER,
     allowNull: true
   },
+  creatorId: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
   moduleCount: {
     type: DataTypes.INTEGER,
     defaultValue: 0

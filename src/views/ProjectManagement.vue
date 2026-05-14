@@ -97,8 +97,10 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import MainLayout from '@/components/layout/MainLayout.vue'
 import { projectAPI } from '@/api'
+import { useSelectionStore } from '@/stores/selection'
 
 const router = useRouter()
+const selectionStore = useSelectionStore()
 
 // 加载状态
 const loading = ref(false)
@@ -214,6 +216,7 @@ const createProject = async () => {
 
 // 打开项目
 const openProject = (project) => {
+  selectionStore.setSelectedProject(project)
   router.push(`/modules?projectId=${project.id}`)
 }
 
@@ -268,6 +271,9 @@ const confirmDeleteProject = (project) => {
         const data = await projectAPI.deleteProject(project.id)
         
         if (data.success) {
+          if (selectionStore.selectedProjectId === project.id) {
+            selectionStore.clearSelection()
+          }
           ElMessage.success('项目删除成功')
           fetchProjects() // 刷新项目列表
         } else {

@@ -1,5 +1,49 @@
 const Project = require('../models/Project');
 const Module = require('../models/Module');
+const TestCase = require('../models/TestCase');
+
+const populateProjectStats = async (project) => {
+  const [moduleCount, testCaseCount] = await Promise.all([
+    Module.count({ where: { projectId: project.id } }),
+    TestCase.count({ where: { projectId: project.id } })
+  ]);
+
+  project.setDataValue('moduleCount', moduleCount);
+  project.setDataValue('testCaseCount', testCaseCount);
+  return project;
+};
+
+const canReadProject = async (project, user) => {
+  if (!project || !user) {
+    return false;
+  }
+
+  if (user.role === 'admin') {
+    return true;
+  }
+
+  if (project.creatorId == null) {
+    return true;
+  }
+
+  if (project.creatorId === user.id) {
+    return true;
+  }
+
+  return project.hasMembers ? project.hasMembers(user.id) : false;
+};
+
+const canManageProject = (project, user) => {
+  if (!project || !user) {
+    return false;
+  }
+
+  if (project.creatorId == null) {
+    return true;
+  }
+
+  return user.role === 'admin' || project.creatorId === user.id;
+};
 
 /**
  * @desc    获取所有项目
@@ -8,23 +52,21 @@ const Module = require('../models/Module');
  */
 exports.getProjects = async (req, res) => {
   try {
-    // 使用Sequelize查询所有项目
     const projects = await Project.findAll();
-    
-    // 获取每个项目的测试用例数量
-    const TestCase = require('../models/TestCase');
+
+    const visibleProjects = [];
     for (const project of projects) {
-      const testCaseCount = await TestCase.count({
-        where: { projectId: project.id }
-      });
-      project.testCaseCount = testCaseCount;
+      if (await canReadProject(project, req.user)) {
+        await populateProjectStats(project);
+        visibleProjects.push(project);
+      }
     }
     
     // 即使没有数据也返回空数组
     res.json({
       success: true,
-      count: projects.length,
-      data: projects || []
+      count: visibleProjects.length,
+      data: visibleProjects
     });
   } catch (error) {
     console.error('获取项目列表错误:', error);
@@ -52,12 +94,14 @@ exports.getProject = async (req, res) => {
       });
     }
 
-    // 获取该项目的测试用例数量
-    const TestCase = require('../models/TestCase');
-    const testCaseCount = await TestCase.count({
-      where: { projectId: project.id }
-    });
-    project.testCaseCount = testCaseCount;
+    if (!(await canReadProject(project, req.user))) {
+      return res.status(403).json({
+        success: false,
+        message: '无权访问此项目'
+      });
+    }
+
+    await populateProjectStats(project);
     
     res.json({
       success: true,
@@ -80,8 +124,12 @@ exports.getProject = async (req, res) => {
  */
 exports.createProject = async (req, res) => {
   try {
-    // 直接使用请求体创建项目
-    const project = await Project.create(req.body);
+    const project = await Project.create({
+      name: req.body.name,
+      description: req.body.description,
+      templateId: req.body.templateId || null,
+      creatorId: req.user.id
+    });
     
     res.status(201).json({
       success: true,
@@ -112,7 +160,6 @@ exports.createProject = async (req, res) => {
  */
 exports.updateProject = async (req, res) => {
   try {
-    // 使用Sequelize查找并更新项目
     const project = await Project.findByPk(req.params.id);
     
     if (!project) {
@@ -121,9 +168,19 @@ exports.updateProject = async (req, res) => {
         message: '未找到项目'
       });
     }
+
+    if (!canManageProject(project, req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: '无权修改此项目'
+      });
+    }
     
-    // 更新项目
-    await project.update(req.body);
+    await project.update({
+      name: req.body.name,
+      description: req.body.description,
+      templateId: req.body.templateId ?? project.templateId
+    });
     
     res.json({
       success: true,
@@ -154,7 +211,6 @@ exports.updateProject = async (req, res) => {
  */
 exports.deleteProject = async (req, res) => {
   try {
-    // 使用Sequelize查找项目
     const project = await Project.findByPk(req.params.id);
     
     if (!project) {
@@ -163,9 +219,15 @@ exports.deleteProject = async (req, res) => {
         message: '未找到项目'
       });
     }
+
+    if (!canManageProject(project, req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: '无权删除此项目'
+      });
+    }
     
     // 1. 先删除项目关联的所有测试用例
-    const TestCase = require('../models/TestCase');
     await TestCase.destroy({
       where: { projectId: req.params.id }
     });
