@@ -252,17 +252,9 @@
                     </el-select>
                   </td>
                   <td v-else>
-                    <el-tag v-if="testCase.type === '功能测试'" type="primary">功能测试</el-tag>
-                    <el-tag v-else-if="testCase.type === '性能测试'" type="warning"
-                      >性能测试</el-tag
-                    >
-                    <el-tag v-else-if="testCase.type === '安全测试'" type="danger">安全测试</el-tag>
-                    <el-tag v-else-if="testCase.type === '边界测试'" type="success"
-                      >边界测试</el-tag
-                    >
-                    <el-tag v-else-if="testCase.type === '异常测试'" type="danger">异常测试</el-tag>
-                    <el-tag v-else-if="testCase.type === 'UI测试'" type="info">UI测试</el-tag>
-                    <el-tag v-else type="info">其他</el-tag>
+                    <el-tag :type="getTestCaseTypeTagType(testCase.type)">
+                      {{ testCase.type || '其他' }}
+                    </el-tag>
                   </td>
                   <td v-if="editingRowId === testCase.id">
                     <el-select v-model="editCache.priority" size="small" style="min-width: 120px">
@@ -719,6 +711,22 @@ const createTestCase = () => {
   router.push(`/testcases/create?projectId=${selectedProjectId.value}`)
 }
 
+const getTestCaseTypeTagType = (type) => {
+  const tagTypeMap = {
+    功能测试: 'primary',
+    性能测试: 'warning',
+    配置相关: 'info',
+    安装部署: 'warning',
+    接口测试: 'success',
+    安全相关: 'danger',
+    兼容性测试: 'success',
+    UI测试: 'info',
+    其他: 'info'
+  }
+
+  return tagTypeMap[type] || 'info'
+}
+
 const exportTestCases = () => {
   if (testCases.value.length === 0) {
     ElMessage.warning('没有可导出的测试用例')
@@ -833,6 +841,24 @@ const mapZentaoPriority = (priority) => {
   return priorityMap[priority] || ''
 }
 
+const mapZentaoType = (type) => {
+  const typeMap = {
+    功能测试: '功能测试',
+    性能测试: '性能测试',
+    配置相关: '配置相关',
+    安装部署: '安装部署',
+    安全相关: '安全相关',
+    接口测试: '接口测试',
+    单元测试: '单元测试',
+    其他: '其他',
+    UI测试: '其他',
+    'UI/UX测试': '其他',
+    兼容性测试: '其他'
+  }
+
+  return typeMap[type] || '其他'
+}
+
 const escapeCsvCell = (value) => {
   if (value === null || value === undefined) return ''
   const text = String(value).replace(/"/g, '""')
@@ -927,7 +953,7 @@ const exportTestCases_zentao = () => {
     ]
 
     const rows = testCases.value.map((testCase) => {
-      const typeValue = testCase.type === 'UI测试' ? '其他' : testCase.type
+      const typeValue = mapZentaoType(testCase.type)
       const rawModulePath = '/' + getModulePath(testCase.moduleId)
       const zentaoModulePath = zentaoPathMap[rawModulePath] || rawModulePath
 

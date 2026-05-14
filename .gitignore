@@ -30,3 +30,7 @@ pnpm-debug.log*
 ig_*
 zzzig_*
 .cursor
+
+deploy-frontend-lan-sudo.bat
+deploy-frontend-lan.bat
+deploy-frontend.ps1
