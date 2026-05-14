@@ -260,10 +260,14 @@
   import { ArrowLeft, Plus, Delete } from '@element-plus/icons-vue'
   import MainLayout from '@/components/layout/MainLayout.vue'
   import api from '@/api'
+  import { useUserStore } from '@/stores/user'
+  import { useSelectionStore } from '@/stores/selection'
   
   // 路由对象
   const router = useRouter()
   const route = useRoute()
+  const userStore = useUserStore()
+  const selectionStore = useSelectionStore()
   
   // 表单引用
   const testCaseForm = ref(null)
@@ -274,6 +278,22 @@
   const projects = ref([])
   const moduleOptions = ref([])
   const selectedModulePath = ref([])
+
+  const findModuleLabelById = (options, moduleId) => {
+    for (const option of options) {
+      if (option.value === moduleId) {
+        return option.label
+      }
+      if (option.children && option.children.length > 0) {
+        const found = findModuleLabelById(option.children, moduleId)
+        if (found) {
+          return found
+        }
+      }
+    }
+
+    return ''
+  }
   
   // 初始化测试用例数据
   const testCaseData = reactive({
@@ -335,11 +355,20 @@
         const moduleId = route.query.moduleId
         
         if (projectId) {
-          testCaseData.projectId = projectId
+          testCaseData.projectId = Number(projectId)
           await fetchModules(projectId)
           
           if (moduleId) {
-            testCaseData.moduleId = moduleId
+            testCaseData.moduleId = Number(moduleId)
+            selectedModulePath.value = Number(moduleId)
+          }
+        } else if (selectionStore.selectedProjectId) {
+          testCaseData.projectId = selectionStore.selectedProjectId
+          await fetchModules(selectionStore.selectedProjectId)
+
+          if (selectionStore.selectedModuleId) {
+            testCaseData.moduleId = selectionStore.selectedModuleId
+            selectedModulePath.value = selectionStore.selectedModuleId
           }
         }
       } else {
@@ -377,31 +406,11 @@
   
   // 添加构建级联选择器选项的函数
   const buildCascaderOptions = (modules) => {
-    const rootModules = modules.filter(m => !m.parentId)
-    
-    const buildTree = (parentId) => {
-      const children = modules.filter(m => m.parentId === parentId)
-      
-      return children.map(module => {
-        const hasChildren = modules.some(m => m.parentId === module.id)
-        
-        return {
-          value: module.id,
-          label: module.name,
-          children: hasChildren ? buildTree(module.id) : []
-        }
-      })
-    }
-    
-    return rootModules.map(module => {
-      const hasChildren = modules.some(m => m.parentId === module.id)
-      
-      return {
-        value: module.id,
-        label: module.name,
-        children: hasChildren ? buildTree(module.id) : []
-      }
-    })
+    return modules.map(module => ({
+      value: module.id,
+      label: module.name,
+      children: Array.isArray(module.children) ? buildCascaderOptions(module.children) : []
+    }))
   }
   
   // 修改项目变更处理函数
@@ -409,6 +418,10 @@
     if (projectId) {
       testCaseData.moduleId = null // 清空模块选择
       selectedModulePath.value = [] // 清空级联选择器的值
+      const project = projects.value.find((item) => item.id === projectId)
+      if (project) {
+        selectionStore.setSelectedProject(project)
+      }
       fetchModules(projectId)
     } else {
       moduleOptions.value = []
@@ -421,6 +434,11 @@
       testCaseData.moduleId = moduleId
       // 确保两个值保持同步
       selectedModulePath.value = moduleId
+      selectionStore.setSelectedModule({
+        id: moduleId,
+        name: findModuleLabelById(moduleOptions.value, moduleId),
+        path: [moduleId]
+      })
     }
   }
   
@@ -443,6 +461,36 @@
       testCaseData.steps.forEach((step, idx) => {
         step.order = idx + 1
       })
+    }
+  }
+
+  const serializeStepField = (field) => {
+    return testCaseData.steps
+      .map((step, index) => {
+        const content = step[field]?.trim()
+        return content ? `${index + 1}. ${content}` : ''
+      })
+      .filter(Boolean)
+      .join('\n')
+  }
+
+  const buildCreatePayload = () => {
+    return {
+      title: testCaseData.title,
+      moduleId: testCaseData.moduleId,
+      projectId: testCaseData.projectId,
+      maintainer: testCaseData.maintainer,
+      type: testCaseData.caseType,
+      priority: testCaseData.priority,
+      testType: testCaseData.testType,
+      estimatedHours: testCaseData.estimatedHours,
+      remainingHours: testCaseData.remainingHours,
+      relatedItems: testCaseData.relatedItems,
+      precondition: testCaseData.precondition,
+      steps: serializeStepField('description'),
+      expectedResult: serializeStepField('expectedResult'),
+      followers: testCaseData.watchers,
+      notes: testCaseData.remarks
     }
   }
   
@@ -472,13 +520,13 @@
       
       // 开始保存
       saving.value = true
-      const response = await api.testCase.createTestCase(testCaseData)
+      const response = await api.testCase.createTestCase(buildCreatePayload())
       
       if (response.success) {
         ElMessage.success('测试用例创建成功')
         
         // 返回列表页
-        router.push('/testcases')
+        goBack()
       } else {
         ElMessage.error(response.message || '创建测试用例失败')
       }
@@ -516,7 +564,7 @@
       
       // 开始保存
       saving.value = true
-      const response = await api.testCase.createTestCase(testCaseData)
+      const response = await api.testCase.createTestCase(buildCreatePayload())
       
       if (response.success) {
         ElMessage.success('测试用例创建成功')
@@ -586,11 +634,21 @@
   
   // 返回列表页
   const goBack = () => {
-    router.push('/testcases')
+    const query = {}
+    if (testCaseData.projectId) {
+      query.projectId = testCaseData.projectId
+    }
+    if (testCaseData.moduleId) {
+      query.moduleId = testCaseData.moduleId
+    }
+    router.push({ path: '/testcases', query })
   }
   
   // 组件挂载时执行
   onMounted(() => {
+    if (userStore.currentUser?.username) {
+      testCaseData.maintainer = userStore.currentUser.username
+    }
     fetchProjects()
   })
   </script>

@@ -134,9 +134,11 @@
                       clearable
                       @change="applyFilters"
                     >
-                      <el-option label="高" value="P0" />
-                      <el-option label="中" value="P1" />
-                      <el-option label="低" value="P3" />
+                      <el-option label="P0" value="P0" />
+                      <el-option label="P1" value="P1" />
+                      <el-option label="P2" value="P2" />
+                      <el-option label="P3" value="P3" />
+                      <el-option label="P4" value="P4" />
                     </el-select>
                   </el-form-item>
                 </el-col>
@@ -170,9 +172,10 @@
                       clearable
                       @change="applyFilters"
                     >
-                      <el-option label="未执行" value="waiting" />
-                      <el-option label="通过" value="passed" />
-                      <el-option label="失败" value="failed" />
+                      <el-option label="未执行" value="未执行" />
+                      <el-option label="执行中" value="执行中" />
+                      <el-option label="通过" value="通过" />
+                      <el-option label="失败" value="失败" />
                     </el-select>
                   </el-form-item>
                 </el-col>
@@ -432,8 +435,10 @@ import MainLayout from '@/components/layout/MainLayout.vue'
 import api from '@/api'
 import { useSelectionStore } from '@/stores/selection'
 import * as XLSX from 'xlsx'
+import { useRoute } from 'vue-router'
 
 const router = useRouter()
+const route = useRoute()
 
 const selectionStore = useSelectionStore()
 // ---------------- 禅道模块映射 ----------------
@@ -518,6 +523,73 @@ const filters = ref({
   status: ''
 })
 
+const parseRouteNumber = (value, fallback) => {
+  const parsedValue = Number(value)
+  return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : fallback
+}
+
+const getTestCaseRouteQuery = () => {
+  const query = {}
+
+  if (selectedProjectId.value) {
+    query.projectId = String(selectedProjectId.value)
+  }
+
+  if (selectedModuleId.value) {
+    query.moduleId = String(selectedModuleId.value)
+  }
+
+  if (searchQuery.value) {
+    query.search = searchQuery.value
+  }
+
+  if (filters.value.priority) {
+    query.priority = filters.value.priority
+  }
+
+  if (filters.value.type) {
+    query.type = filters.value.type
+  }
+
+  if (filters.value.status) {
+    query.status = filters.value.status
+  }
+
+  if (pagination.value.current > 1) {
+    query.page = String(pagination.value.current)
+  }
+
+  if (pagination.value.pageSize !== 10) {
+    query.pageSize = String(pagination.value.pageSize)
+  }
+
+  return query
+}
+
+const syncRouteQuery = () => {
+  const nextQuery = getTestCaseRouteQuery()
+  const currentQuery = route.query
+
+  const currentKeys = Object.keys(currentQuery)
+  const nextKeys = Object.keys(nextQuery)
+  const hasSameQuery =
+    currentKeys.length === nextKeys.length &&
+    nextKeys.every((key) => currentQuery[key] === nextQuery[key])
+
+  if (!hasSameQuery) {
+    router.replace({ path: '/testcases', query: nextQuery })
+  }
+}
+
+const restorePageStateFromRoute = () => {
+  searchQuery.value = typeof route.query.search === 'string' ? route.query.search : ''
+  filters.value.priority = typeof route.query.priority === 'string' ? route.query.priority : ''
+  filters.value.type = typeof route.query.type === 'string' ? route.query.type : ''
+  filters.value.status = typeof route.query.status === 'string' ? route.query.status : ''
+  pagination.value.current = parseRouteNumber(route.query.page, 1)
+  pagination.value.pageSize = parseRouteNumber(route.query.pageSize, 10)
+}
+
 const allSelected = ref(false)
 const hasSelectedItems = computed(() => {
   return testCases.value.some((testCase) => testCase.selected)
@@ -545,6 +617,7 @@ const handleProjectChange = async (projectId) => {
   try {
     // 先清空当前数据
     selectedModuleId.value = null
+    selectedModulePath.value = []
     modules.value = []
     testCases.value = []
 
@@ -552,6 +625,7 @@ const handleProjectChange = async (projectId) => {
     const project = projectsList.value.find((p) => p.id === projectId)
     if (project) {
       selectionStore.setSelectedProject(project)
+      syncRouteQuery()
       await fetchModules(projectId)
       await fetchTestCases()
     }
@@ -568,6 +642,38 @@ const goToCreateProject = () => {
 // 在 script setup 部分添加新的响应式变量
 const moduleOptions = ref([])
 const selectedModulePath = ref([])
+
+const findModulePathById = (options, targetId, path = []) => {
+  for (const option of options) {
+    const nextPath = [...path, option.value]
+    if (option.value === targetId) {
+      return nextPath
+    }
+    if (option.children && option.children.length > 0) {
+      const found = findModulePathById(option.children, targetId, nextPath)
+      if (found.length > 0) {
+        return found
+      }
+    }
+  }
+  return []
+}
+
+const findModuleLabelById = (options, targetId) => {
+  for (const option of options) {
+    if (option.value === targetId) {
+      return option.name || option.label
+    }
+    if (option.children && option.children.length > 0) {
+      const found = findModuleLabelById(option.children, targetId)
+      if (found) {
+        return found
+      }
+    }
+  }
+
+  return ''
+}
 
 // 修改获取模块列表方法
 const fetchModules = async (projectId) => {
@@ -589,6 +695,26 @@ const fetchModules = async (projectId) => {
       }
 
       moduleOptions.value = buildModuleOptions(response.data)
+
+      const routeModuleId = route.query.moduleId ? Number(route.query.moduleId) : null
+      const targetModuleId = routeModuleId || selectionStore.selectedModuleId
+      if (targetModuleId) {
+        const modulePath = findModulePathById(moduleOptions.value, targetModuleId)
+        if (modulePath.length > 0) {
+          selectedModuleId.value = targetModuleId
+          selectedModulePath.value = modulePath
+          const moduleLabel = findModuleLabelById(moduleOptions.value, targetModuleId)
+          selectionStore.setSelectedModule({
+            id: targetModuleId,
+            name: moduleLabel || '',
+            path: modulePath
+          })
+        } else {
+          selectedModuleId.value = null
+          selectedModulePath.value = []
+          selectionStore.setSelectedModule(null)
+        }
+      }
     } else {
       ElMessage.error(response.message || '获取模块列表失败')
     }
@@ -678,6 +804,7 @@ const jsonInput = ref('')
 // 处理方法
 const applyFilters = () => {
   pagination.value.current = 1 // 重置到第一页
+  syncRouteQuery()
   fetchTestCases()
 }
 
@@ -694,21 +821,29 @@ const handleSearchClear = () => {
 
 const searchTestCases = () => {
   pagination.value.current = 1 // 重置到第一页
+  syncRouteQuery()
   fetchTestCases()
 }
 
 const handleSizeChange = (size) => {
   pagination.value.pageSize = size
+  pagination.value.current = 1
+  syncRouteQuery()
   fetchTestCases()
 }
 
 const handleCurrentChange = (page) => {
   pagination.value.current = page
+  syncRouteQuery()
   fetchTestCases()
 }
 
 const createTestCase = () => {
-  router.push(`/testcases/create?projectId=${selectedProjectId.value}`)
+  const query = { projectId: selectedProjectId.value }
+  if (selectedModuleId.value) {
+    query.moduleId = selectedModuleId.value
+  }
+  router.push({ path: '/testcases/create', query })
 }
 
 const getTestCaseTypeTagType = (type) => {
@@ -985,11 +1120,19 @@ const exportTestCases_zentao = () => {
 }
 
 const goToAIGenerate = () => {
-  router.push(`/ai-generate?projectId=${selectedProjectId.value}`)
+  const query = { projectId: selectedProjectId.value }
+  if (selectedModuleId.value) {
+    query.moduleId = selectedModuleId.value
+  }
+  router.push({ path: '/ai-generate', query })
 }
 
 const goToModuleDesign = () => {
-  router.push(`/modules?projectId=${selectedProjectId.value}`)
+  const query = { projectId: selectedProjectId.value }
+  if (selectedModuleId.value) {
+    query.moduleId = selectedModuleId.value
+  }
+  router.push({ path: '/modules', query })
 }
 
 // 添加文件处理相关的方法
@@ -1048,6 +1191,7 @@ const handleFileChange = async (file) => {
 // 生命周期钩子
 onMounted(async () => {
   try {
+    restorePageStateFromRoute()
     await fetchProjects()
     // 加载禅道模块映射
     await loadZentaoModules()
@@ -1059,19 +1203,12 @@ onMounted(async () => {
     }
 
     // 如果有项目列表且当前没有选中项目，则自动选中第一个项目
-    if (!selectedProjectId.value) {
-      selectedProjectId.value = projectsList.value[0].id
-      await handleProjectChange(projectsList.value[0].id)
+    const routeProjectId = route.query.projectId ? Number(route.query.projectId) : null
+    if (routeProjectId && projectsList.value.some((project) => project.id === routeProjectId)) {
+      selectedProjectId.value = routeProjectId
     } else {
-      // 如果store中有选中的项目，验证它是否有效
       const validProject = projectsList.value.find((p) => p.id === selectedProjectId.value)
-      if (validProject) {
-        await handleProjectChange(selectedProjectId.value)
-      } else {
-        // 如果store中的项目无效，选择第一个项目
-        selectedProjectId.value = projectsList.value[0].id
-        await handleProjectChange(projectsList.value[0].id)
-      }
+      selectedProjectId.value = validProject ? validProject.id : projectsList.value[0].id
     }
   } catch (error) {
     ElMessage.error('初始化页面时发生错误')
@@ -1249,7 +1386,7 @@ const saveSelectedTestCases = async () => {
           ...testCase,
           moduleId: moduleId,
           projectId: selectedProjectId.value,
-          status: 'waiting',
+          status: '未执行',
           type: testCase.type || '功能测试',
           priority: testCase.priority || 'P1'
         }
@@ -1293,12 +1430,22 @@ const handleModuleChange = (path) => {
   if (path && path.length > 0) {
     // 获取最后一个选中的模块ID
     selectedModuleId.value = path[path.length - 1]
+    const moduleLabel = findModuleLabelById(moduleOptions.value, selectedModuleId.value)
+    selectionStore.setSelectedModule({
+      id: selectedModuleId.value,
+      name: moduleLabel || '',
+      path
+    })
     // 重置到第一页并重新加载测试用例
     pagination.value.current = 1
+    syncRouteQuery()
     fetchTestCases()
   } else {
     // 清空选择时重置模块ID
     selectedModuleId.value = null
+    selectedModulePath.value = []
+    selectionStore.setSelectedModule(null)
+    syncRouteQuery()
     fetchTestCases()
   }
 }
