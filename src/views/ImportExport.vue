@@ -326,13 +326,7 @@ const importData = () => {
     return
   }
   
-  ElMessage.success('数据导入成功')
-  
-  // 重置导入表单
-  resetImport()
-  
-  // 切换到历史记录标签页
-  activeTab.value = 'history'
+  ElMessage.warning('导入导出页面当前仍为演示实现，尚未接入真实导入逻辑')
 }
 
 const exportData = () => {
@@ -341,10 +335,7 @@ const exportData = () => {
     return
   }
   
-  ElMessage.success('数据导出成功，文件已保存到下载目录')
-  
-  // 切换到历史记录标签页
-  activeTab.value = 'history'
+  ElMessage.warning('导入导出页面当前仍为演示实现，尚未接入真实导出逻辑')
 }
 
 const resetImport = () => {
@@ -378,7 +369,7 @@ const getStatusType = (status) => {
 }
 
 const downloadFile = (record) => {
-  ElMessage.success(`开始下载文件: ${record.fileName}`)
+  ElMessage.warning(`历史记录 "${record.fileName}" 为演示数据，暂不支持下载`)
 }
 
 const deleteRecord = (record) => {
