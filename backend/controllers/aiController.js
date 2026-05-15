@@ -279,7 +279,7 @@ exports.saveGeneratedTestCases = async (req, res) => {
           expectedResult: tc.expectedResult,
           isGenerated: true,
           aiProvider: aiProvider || 'gemini',
-          creatorId: req.user.id
+          createdBy: req.user.id
         });
       })
     );

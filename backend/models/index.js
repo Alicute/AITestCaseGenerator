@@ -40,11 +40,8 @@ Project.hasMany(TestCase, { foreignKey: 'projectId', as: 'testCases' });
 TestCase.belongsTo(Project, { foreignKey: 'projectId' });
 
 // 用户和测试用例的关系
-User.hasMany(TestCase, { foreignKey: 'creatorId', as: 'createdTestCases' });
-TestCase.belongsTo(User, { foreignKey: 'creatorId', as: 'creator' });
-
-User.hasMany(TestCase, { foreignKey: 'executorId', as: 'executedTestCases' });
-TestCase.belongsTo(User, { foreignKey: 'executorId', as: 'executor' });
+User.hasMany(TestCase, { foreignKey: 'createdBy', as: 'createdTestCases' });
+TestCase.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
 
 module.exports = {
   User,
