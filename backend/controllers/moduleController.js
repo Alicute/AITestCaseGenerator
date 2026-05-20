@@ -463,3 +463,39 @@ exports.getModuleTree = async (req, res) => {
     });
   }
 };
+
+/**
+ * @desc    设置模块标签
+ * @route   POST /api/v1/modules/:id/labels
+ * @access  Private
+ */
+exports.setModuleLabels = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { labels } = req.body;
+
+    if (!Array.isArray(labels)) {
+      return res.status(400).json({ success: false, message: 'labels 必须是数组' });
+    }
+
+    const module = await Module.findByPk(id);
+    if (!module) {
+      return res.status(404).json({ success: false, message: '未找到模块' });
+    }
+
+    await module.update({ labels });
+
+    res.json({
+      success: true,
+      message: '模块标签已更新',
+      data: { id: module.id, name: module.name, labels: module.labels }
+    });
+  } catch (error) {
+    console.error('设置模块标签错误:', error);
+    res.status(500).json({
+      success: false,
+      message: '服务器错误',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};

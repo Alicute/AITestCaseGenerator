@@ -80,6 +80,11 @@ const TestCase = sequelize.define('TestCase', {
   createdBy: {
     type: DataTypes.INTEGER,
     allowNull: true
+  },
+  labels: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    defaultValue: null
   }
 }, {
   timestamps: true,

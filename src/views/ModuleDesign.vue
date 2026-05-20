@@ -170,6 +170,13 @@
               rows="10"
             />
           </el-form-item>
+          <el-form-item label="测试标签">
+            <el-select v-model="newModule.labels" multiple placeholder="选择标签（用例未设置时继承）" style="width:100%">
+              <el-option label="冒烟" value="smoke" />
+              <el-option label="回归" value="regression" />
+              <el-option label="全量" value="full" />
+            </el-select>
+          </el-form-item>
         </el-form>
         <template #footer>
           <span class="dialog-footer">
@@ -877,7 +884,8 @@ const addModuleDialogVisible = ref(false)
 const newModule = ref({
   name: '',
   description: '',
-  parentId: null
+  parentId: null,
+  labels: []
 })
 const editingModule = ref(null)
 
@@ -1090,7 +1098,8 @@ const editModule = () => {
     name: currentModule.value.name,
     description: currentModule.value.description,
     parentId: currentModule.value.parentId,
-    projectId: projectId.value
+    projectId: projectId.value,
+    labels: currentModule.value.labels || []
   }
 
   addModuleDialogVisible.value = true
@@ -1107,7 +1116,8 @@ const saveModule = async () => {
   try {
     const updateData = {
       name: newModule.value.name,
-      description: newModule.value.description
+      description: newModule.value.description,
+      labels: newModule.value.labels && newModule.value.labels.length ? newModule.value.labels : null
     }
     const response = await api.module.updateModule(newModule.value.id, updateData)
 

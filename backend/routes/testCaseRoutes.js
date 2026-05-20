@@ -9,7 +9,8 @@ const {
   updateTestCase,
   deleteTestCase,
   batchCreateTestCases,
-  batchDeleteTestCases
+  batchDeleteTestCases,
+  batchLabels
 } = require('../controllers/testCaseController');
 const { protect } = require('../middlewares/auth');
 
@@ -28,6 +29,7 @@ router.route('/')
 // 批量操作路由
 router.post('/batch', batchCreateTestCases);
 router.delete('/batch', batchDeleteTestCases);
+router.post('/batch-labels', batchLabels);
 
 // 带参数的路由
 router.route('/:id')

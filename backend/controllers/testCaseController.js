@@ -9,7 +9,7 @@ const asyncHandler = require('express-async-handler');
  */
 exports.getTestCases = async (req, res) => {
   try {
-    const { moduleId, projectId, priority, type, status, page = 1, limit = 10, search } = req.query;
+    const { moduleId, projectId, priority, type, status, page = 1, limit = 10, search, labels } = req.query;
     const where = {};
     const statusMap = {
       waiting: '未执行',
@@ -38,6 +38,12 @@ exports.getTestCases = async (req, res) => {
 
     if (status) {
       where.status = statusMap[status] || status;
+    }
+
+    // 如果有标签筛选
+    if (labels) {
+      const { sequelize } = require('../config/database');
+      where[Op.and] = sequelize.literal(`JSON_CONTAINS(labels, '"${labels}"')`);
     }
 
     // 如果有搜索关键字，添加搜索条件
@@ -79,6 +85,7 @@ exports.getTestCases = async (req, res) => {
         'relatedItems',
         'followers',
         'notes',
+        'labels',
         'createdAt',
         'updatedAt'
       ]
@@ -610,3 +617,46 @@ exports.batchDeleteTestCases = asyncHandler(async (req, res) => {
     });
   }
 }); 
+
+/**
+ * @desc    批量设置测试用例标签
+ * @route   POST /api/v1/testcases/batch-labels
+ * @access  Private
+ */
+exports.batchLabels = asyncHandler(async (req, res) => {
+  const { ids, moduleId, projectId, labels, mode = 'replace' } = req.body;
+
+  if (!labels || !Array.isArray(labels)) {
+    return res.status(400).json({ success: false, message: 'labels 必须是数组' });
+  }
+
+  const where = {};
+  if (ids && ids.length > 0) {
+    where.id = { [Op.in]: ids };
+  } else if (moduleId) {
+    where.moduleId = moduleId;
+  } else if (projectId) {
+    where.projectId = projectId;
+  } else {
+    return res.status(400).json({ success: false, message: '必须提供 ids、moduleId 或 projectId 之一' });
+  }
+
+  const testCases = await TestCase.findAll({ where });
+
+  for (const tc of testCases) {
+    let newLabels;
+    if (mode === 'merge') {
+      const existing = tc.labels || [];
+      newLabels = [...new Set([...existing, ...labels])];
+    } else {
+      newLabels = labels;
+    }
+    await tc.update({ labels: newLabels });
+  }
+
+  res.json({
+    success: true,
+    message: `成功更新 ${testCases.length} 个测试用例的标签`,
+    count: testCases.length
+  });
+});

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middlewares/auth');
 const moduleController = require('../controllers/moduleController');
+const { setModuleLabels } = moduleController;
 
 /**
  * @desc    获取模块列表
@@ -58,5 +59,12 @@ router.get('/tree', protect, moduleController.getModuleTree);
  * @access  Private
  */
 router.post('/recalculate-counts', protect, moduleController.recalculateTestCaseCounts);
+
+/**
+ * @desc    设置模块标签
+ * @route   POST /api/v1/modules/:id/labels
+ * @access  Private
+ */
+router.post('/:id/labels', protect, setModuleLabels);
 
 module.exports = router;

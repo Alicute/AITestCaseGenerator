@@ -48,6 +48,11 @@ const Module = sequelize.define('Module', {
   createdById: {
     type: DataTypes.INTEGER,
     allowNull: true
+  },
+  labels: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    defaultValue: null
   }
 }, {
   timestamps: true // 自动添加createdAt和updatedAt字段

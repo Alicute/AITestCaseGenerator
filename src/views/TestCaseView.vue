@@ -179,6 +179,20 @@
                     </el-select>
                   </el-form-item>
                 </el-col>
+                <el-col :span="8">
+                  <el-form-item label="测试标签:">
+                    <el-select
+                      v-model="filters.labels"
+                      placeholder="选择标签"
+                      clearable
+                      @change="applyFilters"
+                    >
+                      <el-option label="冒烟" value="smoke" />
+                      <el-option label="回归" value="regression" />
+                      <el-option label="全量" value="full" />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
               </el-row>
             </el-form>
           </div>
@@ -208,6 +222,7 @@
                   <th>关联工作项</th>
                   <th>关注人</th>
                   <th>备注</th>
+                  <th>测试标签</th>
                   <th style="width: 90px">操作</th>
                 </tr>
               </thead>
@@ -369,6 +384,22 @@
                     />
                   </td>
                   <td v-else>{{ testCase.notes }}</td>
+                  <td v-if="editingRowId === testCase.id">
+                    <el-select v-model="editCache.labels" multiple size="small" style="min-width: 140px" placeholder="选择标签">
+                      <el-option label="冒烟" value="smoke" />
+                      <el-option label="回归" value="regression" />
+                      <el-option label="全量" value="full" />
+                    </el-select>
+                  </td>
+                  <td v-else>
+                    <span v-if="testCase.labels && testCase.labels.length">
+                      <el-tag v-for="lb in testCase.labels" :key="lb" size="small" style="margin-right:2px"
+                        :type="lb === 'smoke' ? 'danger' : lb === 'regression' ? 'warning' : 'info'">
+                        {{ lb === 'smoke' ? '冒烟' : lb === 'regression' ? '回归' : '全量' }}
+                      </el-tag>
+                    </span>
+                    <span v-else style="color:#aaa;font-size:12px">继承</span>
+                  </td>
                   <td>
                     <template v-if="editingRowId === testCase.id">
                       <div class="edit-actions">
@@ -520,7 +551,8 @@ const filters = ref({
   moduleId: '',
   priority: '',
   type: '',
-  status: ''
+  status: '',
+  labels: ''
 })
 
 const parseRouteNumber = (value, fallback) => {
@@ -555,6 +587,10 @@ const getTestCaseRouteQuery = () => {
     query.status = filters.value.status
   }
 
+  if (filters.value.labels) {
+    query.labels = filters.value.labels
+  }
+
   if (pagination.value.current > 1) {
     query.page = String(pagination.value.current)
   }
@@ -586,6 +622,7 @@ const restorePageStateFromRoute = () => {
   filters.value.priority = typeof route.query.priority === 'string' ? route.query.priority : ''
   filters.value.type = typeof route.query.type === 'string' ? route.query.type : ''
   filters.value.status = typeof route.query.status === 'string' ? route.query.status : ''
+  filters.value.labels = typeof route.query.labels === 'string' ? route.query.labels : ''
   pagination.value.current = parseRouteNumber(route.query.page, 1)
   pagination.value.pageSize = parseRouteNumber(route.query.pageSize, 10)
 }
@@ -753,6 +790,9 @@ const fetchTestCases = async () => {
     }
     if (filters.value.status) {
       params.status = filters.value.status
+    }
+    if (filters.value.labels) {
+      params.labels = filters.value.labels
     }
 
     if (searchQuery.value) {
@@ -1536,7 +1576,8 @@ const saveEdit = async (testCase) => {
       steps: editCache.steps,
       expectedResult: editCache.expectedResults,
       followers: editCache.followers,
-      notes: editCache.notes
+      notes: editCache.notes,
+      labels: editCache.labels || null
     }
     const response = await api.testCase.updateTestCase(testCase.id, updateData)
     if (response.success) {
