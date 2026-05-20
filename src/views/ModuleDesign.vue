@@ -465,11 +465,12 @@ const selectModuleById = async (moduleId) => {
 // 获取项目信息
 const projectInfo = ref({})
 const fetchProjectInfo = async () => {
-  if (!projectId.value) return
+  const currentId = selectedProjectId.value || projectId.value
+  if (!currentId) return
 
   try {
     loading.value = true
-    const response = await api.project.getProject(projectId.value)
+    const response = await api.project.getProject(currentId)
 
     if (response.success) {
       projectInfo.value = response.data
@@ -505,8 +506,9 @@ const getCurrentProjectName = () => {
     return projectInfo.value.name
   }
   
-  if (projectId.value) {
-    const project = projectsList.value.find(p => p.id === Number(projectId.value))
+  const currentId = selectedProjectId.value || (projectId.value ? Number(projectId.value) : null)
+  if (currentId) {
+    const project = projectsList.value.find(p => p.id === currentId)
     if (project) return project.name
   }
   
@@ -529,6 +531,7 @@ const handleProjectChange = (projectId) => {
 watch(selectedProjectId, async (newProjectId) => {
   if (newProjectId) {
     try {
+      projectInfo.value = {}
       await Promise.all([fetchProjectInfo(), fetchModuleTree(true)])
     } catch (error) {
       console.error('切换项目时更新数据失败:', error)
