@@ -1,688 +1,186 @@
-# API 文档
+# AI 测试用例生成器 API 接口文档
 
-本文档详细描述了 AI 测试用例生成器后端的 RESTful API。
+**Base URL**: `http://your-server:14110/api/v1`
 
-**Base URL**: `/api/v1`
+**认证方式**: Bearer Token（请求头添加 `Authorization: Bearer <token>`）
 
-**认证**: 大多数端点需要通过 JWT 进行认证。在请求头中提供 `Authorization: Bearer <Your_JWT_Token>`。
-
----
-
-## 1. 用户 (Users)
-
-**路由**: `/users`
-
-### `POST /users/register`
-
-注册一个新用户。
-
-*   **权限**: Public
-*   **请求体**:
-    ```json
-    {
-      "username": "testuser",
-      "email": "test@example.com",
-      "password": "password123",
-      "role": "user" 
-    }
-    ```
-*   **响应 (201 Created)**:
-    ```json
-    {
-      "success": true,
-      "data": {
-        "id": 2,
-        "username": "testuser",
-        "email": "test@example.com",
-        "role": "user",
-        "active": true,
-        "createdAt": "...",
-        "token": "jwt.token.string"
-      }
-    }
-    ```
-
-### `POST /users/login`
-
-用户登录并获取 JWT。
-
-*   **权限**: Public
-*   **请求体**:
-    ```json
-    {
-      "username": "testuser",
-      "password": "password123"
-    }
-    ```
-*   **响应 (200 OK)**:
-    ```json
-    {
-      "success": true,
-      "data": {
-        "id": 2,
-        "username": "testuser",
-        "email": "test@example.com",
-        "role": "user",
-        "token": "jwt.token.string"
-      }
-    }
-    ```
-
-### `GET /users/profile`
-
-获取当前已登录用户的信息。
-
-*   **权限**: Private (需要认证)
-*   **响应 (200 OK)**:
-    ```json
-    {
-      "success": true,
-      "data": {
-        "id": 2,
-        "username": "testuser",
-        "email": "test@example.com",
-        "role": "user",
-        "active": true,
-        "lastLogin": "...",
-        "createdAt": "..."
-      }
-    }
-    ```
-
-### `GET /users`
-
-获取所有用户列表。
-
-*   **权限**: Admin
-*   **响应 (200 OK)**:
-    ```json
-    {
-      "success": true,
-      "count": 2,
-      "data": [
-        {
-          "id": 1,
-          "username": "admin",
-          "email": "admin@example.com",
-          "role": "admin"
-        },
-        {
-          "id": 2,
-          "username": "testuser",
-          "email": "test@example.com",
-          "role": "user"
-        }
-      ]
-    }
-    ```
-
-### `PUT /users/:id`
-
-更新指定用户信息。
-
-*   **权限**: Admin
-*   **请求体**:
-    ```json
-    {
-      "email": "new.email@example.com",
-      "role": "editor",
-      "active": false
-    }
-    ```
-*   **响应 (200 OK)**:
-    ```json
-    {
-      "success": true,
-      "data": {
-        "id": 2,
-        "username": "testuser",
-        "email": "new.email@example.com",
-        "role": "editor",
-        "active": false
-      }
-    }
-    ```
-
-### `DELETE /users/:id`
-
-删除指定用户。
-
-*   **权限**: Admin
-*   **响应 (200 OK)**:
-    ```json
-    {
-      "success": true,
-      "message": "用户已删除"
-    }
-    ```
+**权限说明**:
+- 🔓 公开 - 无需认证
+- 🔒 需认证 - 需登录后携带Token
+- 👑 管理员 - 需管理员权限
 
 ---
 
-## 2. 项目 (Projects)
+## 一、用户接口 `/users`
 
-**路由**: `/projects`
-**权限**: 所有端点都需要认证。
+| 方法 | 路径 | 权限 | 说明 |
+|------|------|------|------|
+| POST | `/users/login` | 🔓 公开 | 登录，返回token |
+| POST | `/users/register` | 🔓 公开 | 注册新用户 |
+| POST | `/users/create-admin` | 🔓 公开 | 创建管理员账号 |
+| GET | `/users/profile` | 🔒 需认证 | 获取当前用户信息 |
+| GET | `/users` | 👑 管理员 | 获取所有用户列表 |
+| GET | `/users/:id` | 👑 管理员 | 获取单个用户 |
+| PUT | `/users/:id` | 👑 管理员 | 更新用户 |
+| DELETE | `/users/:id` | 👑 管理员 | 删除用户 |
 
-### `GET /projects`
-
-获取所有项目列表。
-
-*   **响应 (200 OK)**:
-    ```json
-    {
-      "success": true,
-      "count": 1,
-      "data": [
-        {
-          "id": 1,
-          "name": "我的第一个项目",
-          "description": "项目描述",
-          "testCaseCount": 15,
-          "createdAt": "..."
-        }
-      ]
-    }
-    ```
-
-### `POST /projects`
-
-创建一个新项目。
-
-*   **请求体**:
-    ```json
-    {
-      "name": "新项目",
-      "description": "这是一个新项目"
-    }
-    ```
-*   **响应 (201 Created)**:
-    ```json
-    {
-      "success": true,
-      "data": {
-        "id": 2,
-        "name": "新项目",
-        "description": "这是一个新项目",
-        "createdAt": "..."
-      }
-    }
-    ```
-
-### `GET /projects/:id`
-
-获取单个项目的详细信息。
-
-*   **响应 (200 OK)**:
-    ```json
-    {
-      "success": true,
-      "data": {
-        "id": 1,
-        "name": "我的第一个项目",
-        "description": "项目描述",
-        "testCaseCount": 15,
-        "createdAt": "..."
-      }
-    }
-    ```
-
-### `PUT /projects/:id`
-
-更新指定项目。
-
-*   **请求体**:
-    ```json
-    {
-      "name": "更新后的项目名称"
-    }
-    ```
-*   **响应 (200 OK)**:
-    ```json
-    {
-      "success": true,
-      "data": {
-        "id": 1,
-        "name": "更新后的项目名称",
-        "description": "项目描述",
-        "createdAt": "..."
-      }
-    }
-    ```
-
-### `DELETE /projects/:id`
-
-删除指定项目及其所有相关数据 (模块、功能点、测试用例)。
-
-*   **响应 (200 OK)**:
-    ```json
-    {
-      "success": true,
-      "message": "项目已删除"
-    }
-    ```
+**登录示例**:
+```json
+POST /users/login
+Body: { "username": "admin", "password": "admin123" }
+返回: { "success": true, "token": "jwt...", "data": { "id", "username", "role" } }
+```
 
 ---
 
-## 3. 模块 (Modules)
+## 二、项目接口 `/projects`
 
-**路由**: `/modules`
-**权限**: 所有端点都需要认证。
-
-### `GET /modules`
-
-获取模块列表，可通过项目 ID 过滤。
-
-*   **查询参数**: `projectId` (可选, e.g., `/modules?projectId=1`)
-*   **响应 (200 OK)**:
-    ```json
-    {
-      "success": true,
-      "count": 2,
-      "data": [
-        { "id": 1, "name": "登录模块", "projectId": 1, ... },
-        { "id": 2, "name": "用户管理", "projectId": 1, "parentId": 1, ... }
-      ]
-    }
-    ```
-
-### `GET /modules/tree`
-
-获取指定项目的模块树结构。
-
-*   **查询参数**: `projectId` (必需)
-*   **响应 (200 OK)**:
-    ```json
-    {
-      "success": true,
-      "data": [
-        {
-          "id": 1,
-          "name": "登录模块",
-          "children": [
-            { "id": 2, "name": "SSO登录", ... }
-          ]
-        }
-      ]
-    }
-    ```
-
-### `POST /modules`
-
-创建一个新模块。
-
-*   **请求体**:
-    ```json
-    {
-      "name": "支付模块",
-      "projectId": 1,
-      "parentId": null 
-    }
-    ```
-*   **响应 (201 Created)**:
-    ```json
-    {
-      "success": true,
-      "data": {
-        "id": 3,
-        "name": "支付模块",
-        "projectId": 1,
-        ...
-      }
-    }
-    ```
-
-### `GET /modules/:id`
-
-获取单个模块的详细信息。
-
-*   **响应 (200 OK)**: 返回模块对象。
-
-### `PUT /modules/:id`
-
-更新指定模块。
-
-*   **请求体**: 模块的部分或全部字段。
-*   **响应 (200 OK)**: 返回更新后的模块对象。
-
-### `DELETE /modules/:id`
-
-删除指定模块及其所有子模块和相关数据。
-
-*   **响应 (200 OK)**:
-    ```json
-    { "success": true, "message": "模块已删除" }
-    ```
+| 方法 | 路径 | 权限 | 说明 |
+|------|------|------|------|
+| GET | `/projects` | 🔒 需认证 | 获取项目列表 |
+| GET | `/projects/templates` | 🔒 需认证 | 获取项目模板 |
+| GET | `/projects/:id` | 🔒 需认证 | 获取单个项目 |
+| POST | `/projects` | 🔒 需认证 | 创建项目 |
+| PUT | `/projects/:id` | 🔒 需认证 | 更新项目 |
+| DELETE | `/projects/:id` | 🔒 需认证 | 删除项目 |
 
 ---
 
-## 4. 功能点 (Functions)
+## 三、模块接口 `/modules`
 
-**路由**: `/functions`
-**权限**: 所有端点都需要认证。
-
-### `POST /functions`
-
-为指定模块创建一个新功能点。
-
-*   **请求体**:
-    ```json
-    {
-      "name": "创建订单",
-      "description": "用户下单的功能",
-      "priority": "high",
-      "moduleId": 3
-    }
-    ```
-*   **响应 (201 Created)**: 返回新创建的功能点对象。
-
-### `GET /functions/module/:moduleId`
-
-获取指定模块下的所有功能点。
-
-*   **响应 (200 OK)**: 返回功能点对象数组。
-
-### `PUT /functions/:id`
-
-更新指定功能点。
-
-*   **请求体**: 功能点的部分或全部字段。
-*   **响应 (200 OK)**: 返回更新后的功能点对象。
-
-### `DELETE /functions/:id`
-
-删除指定功能点。
-
-*   **响应 (200 OK)**:
-    ```json
-    { "success": true, "data": { "id": 1 } }
-    ```
+| 方法 | 路径 | 权限 | 说明 |
+|------|------|------|------|
+| GET | `/modules?projectId=1` | 🔒 需认证 | 获取模块列表 |
+| GET | `/modules/tree?projectId=1` | 🔒 需认证 | 获取模块树 |
+| GET | `/modules/:id` | 🔒 需认证 | 获取单个模块 |
+| GET | `/modules/:id/functions` | 🔒 需认证 | 获取模块的功能点 |
+| POST | `/modules` | 🔒 需认证 | 创建模块 |
+| POST | `/modules/recalculate-counts` | 🔒 需认证 | 重新计算测试用例数量 |
+| PUT | `/modules/:id` | 🔒 需认证 | 更新模块 |
+| DELETE | `/modules/:id` | 🔒 需认证 | 删除模块 |
 
 ---
 
-## 5. 测试用例 (Test Cases)
+## 四、功能点接口 `/functions`
 
-**路由**: `/testcases`
-**权限**: 所有端点都需要认证。
-
-### `GET /testcases`
-
-获取测试用例列表，支持分页和过滤。
-
-*   **查询参数**:
-    *   `projectId` (可选): 按项目ID过滤
-    *   `moduleId` (可选): 按模块ID过滤
-    *   `page` (可选, 默认1): 页码
-    *   `limit` (可选, 默认10): 每页数量
-    *   `search` (可选): 按标题、步骤、预期结果进行模糊搜索
-*   **响应 (200 OK)**:
-    ```json
-    {
-      "success": true,
-      "data": [ ... ], // 测试用例数组
-      "total": 50,
-      "page": 1,
-      "limit": 10
-    }
-    ```
-
-### `POST /testcases`
-
-创建一个新测试用例。
-
-*   **请求体**: 包含测试用例所有字段的对象。
-*   **响应 (201 Created)**: 返回新创建的测试用例对象。
-
-### `POST /testcases/batch`
-
-批量创建测试用例。
-
-*   **请求体**:
-    ```json
-    {
-      "testCases": [
-        { "title": "用例1", ... },
-        { "title": "用例2", ... }
-      ]
-    }
-    ```
-*   **响应 (201 Created)**: 返回成功创建的测试用例数组。
-
-### `DELETE /testcases/batch`
-
-批量删除测试用例。
-
-*   **请求体**:
-    ```json
-    {
-      "ids": [1, 2, 5]
-    }
-    ```
-*   **响应 (200 OK)**:
-    ```json
-    { "success": true, "message": "2个测试用例已删除" }
-    ```
-
-### `GET /testcases/:id`
-
-获取单个测试用例的详细信息。
-
-*   **响应 (200 OK)**: 返回测试用例对象。
-
-### `PUT /testcases/:id`
-
-更新指定测试用例。
-
-*   **请求体**: 测试用例的部分或全部字段。
-*   **响应 (200 OK)**: 返回更新后的测试用例对象。
-
-### `DELETE /testcases/:id`
-
-删除指定测试用例。
-
-*   **响应 (200 OK)**:
-    ```json
-    { "success": true, "message": "测试用例已删除" }
-    ```
+| 方法 | 路径 | 权限 | 说明 |
+|------|------|------|------|
+| GET | `/functions` | 🔒 需认证 | 获取功能点列表 |
+| GET | `/functions/module/:moduleId` | 🔒 需认证 | 获取模块下的功能点 |
+| GET | `/functions/:id` | 🔒 需认证 | 获取单个功能点 |
+| POST | `/functions` | 🔒 需认证 | 创建功能点 |
+| PUT | `/functions/:id` | 🔒 需认证 | 更新功能点 |
+| DELETE | `/functions/:id` | 🔒 需认证 | 删除功能点 |
 
 ---
 
-## 6. AI 生成 (AI)
+## 五、测试用例接口 `/testcases`
 
-**路由**: `/ai`
-**权限**: 所有端点都需要认证。
+| 方法 | 路径 | 权限 | 说明 |
+|------|------|------|------|
+| GET | `/testcases?moduleId=1&projectId=1` | 🔒 需认证 | 获取测试用例列表 |
+| GET | `/testcases/module/:moduleId` | 🔒 需认证 | 获取模块下的测试用例 |
+| GET | `/testcases/project/:projectId` | 🔒 需认证 | 获取项目下的测试用例 |
+| GET | `/testcases/:id` | 🔒 需认证 | 获取单个测试用例 |
+| POST | `/testcases` | 🔒 需认证 | 创建测试用例 |
+| POST | `/testcases/batch` | 🔒 需认证 | 批量创建测试用例 |
+| PUT | `/testcases/:id` | 🔒 需认证 | 更新测试用例 |
+| DELETE | `/testcases/:id` | 🔒 需认证 | 删除测试用例 |
+| DELETE | `/testcases/batch` | 🔒 需认证 | 批量删除测试用例 |
 
-### `POST /ai/generate`
-
-根据模块和提示词，请求 AI 生成测试用例内容。
-
-*   **请求体**:
-    ```json
-    {
-      "moduleId": 3,
-      "promptContent": "为支付模块生成边界测试用例...",
-      "provider": "openai",
-      "model": "gpt-3.5-turbo"
-    }
-    ```
-*   **响应 (200 OK)**:
-    ```json
-    {
-      "success": true,
-      "data": {
-        "content": "AI生成的测试用例文本...",
-        "moduleId": 3,
-        ...
-      }
-    }
-    ```
-
-### `POST /ai/save`
-
-将在 AI 生成界面解析后的测试用例批量保存到数据库。
-
-*   **请求体**:
-    ```json
-    {
-      "moduleId": 3,
-      "projectId": 1,
-      "testCases": [
-        { "title": "AI用例1", "steps": "...", ... },
-        { "title": "AI用例2", "steps": "...", ... }
-      ]
-    }
-    ```
-*   **响应 (201 Created)**: 返回成功创建的测试用例数组。
-
-### `GET /ai/templates`
-
-获取可用的提示词模板。
-
-*   **响应 (200 OK)**: 返回模板对象数组。
-
-### `GET /ai/models`
-
-获取指定 AI 提供商可用的模型列表。
-
-*   **查询参数**: `provider` (可选, e.g., `openai`, `claude`)
-*   **响应 (200 OK)**: 返回模型对象数组。
+**测试用例字段**:
+```json
+{
+  "title": "测试标题",
+  "steps": "操作步骤",
+  "expectedResult": "预期结果",
+  "moduleId": 1,
+  "projectId": 1,
+  "priority": "high|medium|low",
+  "status": "active|inactive"
+}
+```
 
 ---
 
-## 7. 导入/导出 (Import/Export)
+## 六、AI接口 `/ai`
 
-**路由**: `/import-export`
-**权限**: 所有端点都需要认证。
+| 方法 | 路径 | 权限 | 说明 |
+|------|------|------|------|
+| GET | `/ai/templates` | 🔒 需认证 | 获取提示词模板列表 |
+| GET | `/ai/models?provider=gemini` | 🔒 需认证 | 获取可用模型列表 |
+| POST | `/ai/generate` | 🔒 需认证 | AI生成测试用例 |
+| POST | `/ai/save` | 🔒 需认证 | 保存AI生成的测试用例 |
+| POST | `/ai/generate-modules` | 🔒 需认证 | AI生成模块结构 |
 
-### `GET /import-export/export`
-
-导出测试用例 (当前为模拟接口)。
-
-*   **响应 (200 OK)**:
-    ```json
-    {
-      "success": true,
-      "message": "导出成功",
-      "data": { "url": "/downloads/export_123456.xlsx" }
-    }
-    ```
-
-### `POST /import-export/import`
-
-导入测试用例 (当前为模拟接口)。
-
-*   **响应 (200 OK)**:
-    ```json
-    {
-      "success": true,
-      "message": "导入成功",
-      "data": { "imported": 10, "skipped": 2 }
-    }
-    ```
+**生成测试用例示例**:
+```json
+POST /ai/generate
+Body: {
+  "promptContent": "功能描述内容",
+  "moduleId": 1,
+  "settings": { "model": "gemini-pro", "temperature": 0.7 }
+}
+```
 
 ---
 
----
+## 七、统计接口 `/stats`
 
-## 8. 设置 (Settings)
-
-**路由**: `/settings`
-**权限**: Admin
-
-### `GET /settings`
-
-获取系统通用和AI设置 (当前为模拟接口)。
-
-*   **响应 (200 OK)**: 返回设置对象。
-
-### `PUT /settings`
-
-更新系统通用和AI设置 (当前为模拟接口)。
-
-*   **响应 (200 OK)**: 返回更新后的设置对象。
-
-### `GET /settings/environment`
-
-获取系统环境变量设置 (如禅道配置)。
-
-*   **响应 (200 OK)**:
-    ```json
-    {
-      "success": true,
-      "data": {
-        "ZENTAO_URL": "...",
-        "ZENTAO_COOKIE": "..."
-      }
-    }
-    ```
-
-### `PUT /settings/environment`
-
-更新系统环境变量设置。
-
-*   **请求体**:
-    ```json
-    {
-      "ZENTAO_URL": "http://zentao.example.com",
-      "ZENTAO_COOKIE": "zntaoid=..."
-    }
-    ```
-*   **响应 (200 OK)**:
-    ```json
-    {
-      "success": true,
-      "message": "环境变量已更新"
-    }
-    ```
+| 方法 | 路径 | 权限 | 说明 |
+|------|------|------|------|
+| GET | `/stats` | 🔒 需认证 | 获取系统统计数据（项目数、模块数、测试用例数等） |
 
 ---
 
-## 9. 禅道集成 (ZenTao)
+## 八、系统设置接口 `/settings`
 
-**路由**: `/zentao`
-**权限**: Public (目前)
-
-### `GET /zentao/modules`
-
-获取禅道模块列表。优先读取本地缓存 (`public/flat.json`)，失败则尝试远程获取。
-
-*   **响应 (200 OK)**: 返回禅道模块树或平铺列表。
-
-### `POST /zentao/modules/refresh`
-
-强制刷新禅道模块数据（从远程 API 获取）。
-
-*   **响应 (200 OK)**:
-    ```json
-    {
-      "success": true,
-      "count": 150
-    }
-    ```
+| 方法 | 路径 | 权限 | 说明 |
+|------|------|------|------|
+| GET | `/settings` | 🔒 需认证 | 获取系统设置（AI配置、通用配置） |
+| PUT | `/settings` | 👑 管理员 | 更新系统设置 |
+| GET | `/settings/environment` | 👑 管理员 | 获取环境变量配置 |
+| PUT | `/settings/environment` | 👑 管理员 | 更新环境变量配置（保存到数据库） |
 
 ---
 
-## 10. 统计 (Stats)
+## 九、禅道集成接口 `/zentao`
 
-**路由**: `/stats`
-**权限**: 需要认证。
+| 方法 | 路径 | 权限 | 说明 |
+|------|------|------|------|
+| GET | `/zentao/modules` | 🔓 公开 | 获取禅道模块列表（优先读取本地缓存） |
+| POST | `/zentao/modules/refresh` | 🔓 公开 | 从禅道重新抓取并刷新模块数据 |
 
-### `GET /stats`
+---
 
-获取仪表盘的统计数据和最近活动。
+## 十、导入导出接口 `/import-export`
 
-*   **响应 (200 OK)**:
-    ```json
-    {
-      "success": true,
-      "data": {
-        "stats": {
-          "projects": 5,
-          "modules": 20,
-          "testcases": 150
-        },
-        "recentActivities": [
-          { "date": "...", "type": "创建项目", "description": "..." }
-        ]
-      }
-    }
-    ``` 
+| 方法 | 路径 | 权限 | 说明 |
+|------|------|------|------|
+| GET | `/import-export/export` | 🔒 需认证 | 导出测试用例 |
+| POST | `/import-export/import` | 🔒 需认证 | 导入测试用例 |
+
+---
+
+## 十一、公开只读接口 `/public`（无需认证）
+
+> 专为第三方AI工具（如MCP）设计，无需登录即可直接访问数据。
+
+**Base URL**: `http://your-server:14110/api/v1/public`
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/public/projects` | 获取所有项目 |
+| GET | `/public/projects/:id` | 获取单个项目 |
+| GET | `/public/modules?projectId=1` | 获取所有模块 |
+| GET | `/public/modules/:id` | 获取单个模块 |
+| GET | `/public/testcases?moduleId=1&projectId=1` | 获取测试用例列表 |
+| GET | `/public/testcases/module/:moduleId` | 获取模块下的测试用例 |
+| GET | `/public/testcases/project/:projectId` | 获取项目下的测试用例 |
+| GET | `/public/testcases/:id` | 获取单个测试用例 |
+
+**示例**:
+```
+GET http://your-server:14110/api/v1/public/projects
+GET http://your-server:14110/api/v1/public/testcases/project/1
+```

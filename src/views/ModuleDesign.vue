@@ -529,7 +529,7 @@ const handleProjectChange = (projectId) => {
 watch(selectedProjectId, async (newProjectId) => {
   if (newProjectId) {
     try {
-      await Promise.all([fetchProjectInfo(), fetchModuleTree()])
+      await Promise.all([fetchProjectInfo(), fetchModuleTree(true)])
     } catch (error) {
       console.error('切换项目时更新数据失败:', error)
       ElMessage.error('切换项目时更新数据失败')
@@ -567,8 +567,9 @@ const fetchModuleTree = async (forceRefresh = false) => {
   try {
     // 使用API方法获取模块树，增加时间戳参数避免缓存
     const timestamp = forceRefresh ? Date.now() : undefined;
+    const currentProjectId = selectedProjectId.value || projectId.value;
     
-    const response = await api.module.getModuleTree(projectId.value, timestamp)
+    const response = await api.module.getModuleTree(currentProjectId, timestamp)
 
     if (response.success) {
       
